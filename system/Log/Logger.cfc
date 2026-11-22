@@ -429,15 +429,36 @@
 		<cfargument name="value" type="any" required="yes">
 		<cfset var file = "">
 		<cfset var line = "">
+		<cfset var exMessage = "">
+		<cfset var exContext = "">
+		<cfset var isException = false>
 
-		<!--- Verify that the 'exception' key is actually an exception --->
-		<cfif Compare(arguments.key, "exception") EQ 0 AND IsStruct(arguments.value) AND StructKeyExists(arguments.value, "tagContext") AND StructKeyExists(arguments.value, "message")>
-			<cfif ArrayLen(arguments.value.tagContext) GT 0>
-				<cfset file = clean_path(arguments.value.tagContext[1].template)>
-				<cfset line = arguments.value.tagContext[1].line>
+		<!---
+		 Verify that the 'exception' key is actually an exception.
+		 Difference: there is no Throwable. The caught error (cfcatch) is a
+		 Java object that fails IsStruct, with the message and the tagContext
+		 that Debug/Exceptions reads; the same is looked for in a struct. A
+		 value that has no message or no tagContext is not an exception.
+		--->
+		<cfif Compare(arguments.key, "exception") EQ 0 AND NOT IsSimpleValue(arguments.value) AND NOT IsArray(arguments.value)>
+			<cftry>
+				<cfset exMessage = arguments.value.message>
+				<cfset exContext = arguments.value.tagContext>
+				<cfset isException = IsSimpleValue(exMessage) AND IsArray(exContext)>
+
+				<cfcatch type="any">
+					<cfset isException = false>
+				</cfcatch>
+			</cftry>
+		</cfif>
+
+		<cfif isException>
+			<cfif ArrayLen(exContext) GT 0>
+				<cfset file = clean_path(exContext[1].template)>
+				<cfset line = exContext[1].line>
 			</cfif>
 
-			<cfreturn arguments.value.message & " " & file & ":" & line>
+			<cfreturn exMessage & " " & file & ":" & line>
 		</cfif>
 
 		<cfif IsSimpleValue(arguments.value)>
