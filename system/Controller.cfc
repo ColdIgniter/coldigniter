@@ -1,8 +1,7 @@
 <!---
  * Class Controller
  *
- * Not ported yet: forceHTTPS, cachePage, validate, validateData and
- * the helpers.
+ * Not ported yet: forceHTTPS, cachePage, validate and validateData.
 --->
 <cfcomponent output="no" hint="Class Controller">
 
@@ -49,7 +48,8 @@
 
 		<!--- Not ported yet: forceHTTPS --->
 
-		<!--- Not ported yet: Autoload helper files. --->
+		<!--- Autoload helper files. --->
+		<cfset helper(this.helpers)>
 	</cffunction>
 
 </cfcomponent>

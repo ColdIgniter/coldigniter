@@ -19,6 +19,7 @@
 <cfinclude template="is_array.cfm">
 <cfinclude template="is_file.cfm">
 <cfinclude template="is_null.cfm">
+<cfinclude template="ltrim_.cfm">
 <cfinclude template="method_exists.cfm">
 <cfinclude template="nl2br.cfm">
 <cfinclude template="new_.cfm">
@@ -26,6 +27,9 @@
 <cfinclude template="parse_url.cfm">
 <cfinclude template="realpath.cfm">
 <cfinclude template="require_once.cfm">
+<cfinclude template="rtrim_.cfm">
 <cfinclude template="static_.cfm">
+<cfinclude template="strip_tags.cfm">
 <cfinclude template="substr.cfm">
+<cfinclude template="trim_.cfm">
 <cfinclude template="version_compare.cfm">
