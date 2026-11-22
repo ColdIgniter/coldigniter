@@ -62,6 +62,68 @@
 </cffunction>
 
 <!---
+ * Returns the CSRF token name.
+ * Can be used in Views when building hidden inputs manually,
+ * or used in javascript vars when using APIs.
+--->
+<cffunction name="csrf_token" returntype="string" output="no" hint="Returns the CSRF token name">
+
+	<cfreturn service("security").getTokenName()>
+</cffunction>
+
+<!---
+ * Returns the CSRF header name.
+ * Can be used in Views by adding it to the meta tag
+ * or used in javascript to define a header name when using APIs.
+--->
+<cffunction name="csrf_header" returntype="string" output="no" hint="Returns the CSRF header name">
+
+	<cfreturn service("security").getHeaderName()>
+</cffunction>
+
+<!---
+ * Returns the current hash value for the CSRF protection.
+ * Can be used in Views when building hidden inputs manually,
+ * or used in javascript vars for API usage.
+--->
+<cffunction name="csrf_hash" returntype="string" output="no" hint="Returns the current hash value for the CSRF protection">
+
+	<cfreturn service("security").getHash()>
+</cffunction>
+
+<!---
+ * Generates a hidden input field for use within manually generated forms.
+ *
+ * @param id An empty string (null), or a non-empty string
+--->
+<cffunction name="csrf_field" returntype="string" output="no" hint="Generates a hidden input field for use within manually generated forms">
+	<cfargument name="id" type="string" required="no" default="">
+	<cfset var idAttribute = "">
+
+	<cfif NOT is_null(arguments.id)>
+		<cfset idAttribute = ' id="' & esc(arguments.id, "attr") & '"'>
+	</cfif>
+
+	<cfreturn '<input type="hidden"' & idAttribute & ' name="' & csrf_token() & '" value="' & csrf_hash() & '"' & _solidus() & '>'>
+</cffunction>
+
+<!---
+ * Generates a meta tag for use within javascript calls.
+ *
+ * @param id An empty string (null), or a non-empty string
+--->
+<cffunction name="csrf_meta" returntype="string" output="no" hint="Generates a meta tag for use within javascript calls">
+	<cfargument name="id" type="string" required="no" default="">
+	<cfset var idAttribute = "">
+
+	<cfif NOT is_null(arguments.id)>
+		<cfset idAttribute = ' id="' & esc(arguments.id, "attr") & '"'>
+	</cfif>
+
+	<cfreturn '<meta' & idAttribute & ' name="' & csrf_header() & '" content="' & csrf_hash() & '"' & _solidus() & '>'>
+</cffunction>
+
+<!---
  * Allows user to retrieve values from the environment
  * variables that have been set. Especially useful for
  * retrieving values set from the .env file for
@@ -432,6 +494,52 @@
 	</cfif>
 
 	<cfreturn response>
+</cffunction>
+
+<!---
+ * Generates the solidus character (`/`) depending on the HTML5 compatibility flag in `Config\DocTypes`
+ *
+ * Not ported yet: Config\DocTypes. Its html5 flag is true in the original
+ * by default, which is the answer here (an empty string).
+ *
+ * @internal
+--->
+<cffunction name="_solidus" returntype="string" output="no" hint="Generates the solidus character depending on the HTML5 compatibility flag">
+
+	<cfreturn "">
+</cffunction>
+
+<!---
+ * Remove Invisible Characters
+ *
+ * This prevents sandwiching null characters
+ * between ascii characters, like Java\0script.
+--->
+<cffunction name="remove_invisible_characters" returntype="string" output="no" hint="Remove Invisible Characters">
+	<cfargument name="str" type="string" required="yes">
+	<cfargument name="urlEncoded" type="boolean" required="no" default="true">
+	<cfset var nonDisplayables = ArrayNew(1)>
+	<cfset var previous = "">
+
+	<!--- every control character except newline (dec 10), carriage return (dec 13) and horizontal tab (dec 09) --->
+	<cfif arguments.urlEncoded>
+		<cfset ArrayAppend(nonDisplayables, "/%0[0-8bcef]/")> <!--- url encoded 00-08, 11, 12, 14, 15 --->
+		<cfset ArrayAppend(nonDisplayables, "/%1[0-9a-f]/")> <!--- url encoded 16-31 --->
+	</cfif>
+
+	<cfset ArrayAppend(nonDisplayables, "/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]+/S")> <!--- 00-08, 11, 12, 14-31, 127 --->
+
+	<!--- Difference: the loop ends when a pass changes nothing, where the original counts the replacements. --->
+	<cfloop condition="true">
+		<cfset previous = arguments.str>
+		<cfset arguments.str = preg_replace(nonDisplayables, "", arguments.str)>
+
+		<cfif Compare(previous, arguments.str) EQ 0>
+			<cfbreak>
+		</cfif>
+	</cfloop>
+
+	<cfreturn arguments.str>
 </cffunction>
 
 <!---
