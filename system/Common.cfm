@@ -7,6 +7,36 @@
 --->
 
 <!---
+ * A convenience method to clean paths for
+ * a nicer looking output. Useful for exception
+ * handling, error logging, etc.
+ *
+ * Not ported yet: VENDORPATH
+--->
+<cffunction name="clean_path" returntype="string" output="no" hint="A convenience method to clean paths for a nicer looking output">
+	<cfargument name="path" type="string" required="yes">
+	<cfset var resolved = "">
+
+	<!--- Resolve relative paths --->
+	<cfset resolved = realpath(arguments.path)>
+	<cfif resolved NEQ "">
+		<cfset arguments.path = resolved>
+	</cfif>
+
+	<cfif Compare(Left(arguments.path, Len(request.APPPATH)), request.APPPATH) EQ 0>
+		<cfreturn "APPPATH" & request.DIRECTORY_SEPARATOR & Mid(arguments.path, Len(request.APPPATH) + 1, Len(arguments.path))>
+	<cfelseif Compare(Left(arguments.path, Len(request.SYSTEMPATH)), request.SYSTEMPATH) EQ 0>
+		<cfreturn "SYSTEMPATH" & request.DIRECTORY_SEPARATOR & Mid(arguments.path, Len(request.SYSTEMPATH) + 1, Len(arguments.path))>
+	<cfelseif Compare(Left(arguments.path, Len(request.FCPATH)), request.FCPATH) EQ 0>
+		<cfreturn "FCPATH" & request.DIRECTORY_SEPARATOR & Mid(arguments.path, Len(request.FCPATH) + 1, Len(arguments.path))>
+	<cfelseif Compare(Left(arguments.path, Len(request.ROOTPATH)), request.ROOTPATH) EQ 0>
+		<cfreturn "ROOTPATH" & request.DIRECTORY_SEPARATOR & Mid(arguments.path, Len(request.ROOTPATH) + 1, Len(arguments.path))>
+	</cfif>
+
+	<cfreturn arguments.path>
+</cffunction>
+
+<!---
  * More simple way of getting config instances from Factories
  *
  * @param name     The config class name
@@ -29,6 +59,52 @@
 	<cfset ArrayAppend(arguments_, options)>
 
 	<cfreturn static_("ColdIgniter\Config\Factories").__callStatic("config", arguments_)>
+</cffunction>
+
+<!---
+ * Performs simple auto-escaping of data for security reasons.
+ * Might consider making this more complex at a later date.
+ *
+ * If data is a string, then it simply escapes and returns it.
+ *
+ * Not ported yet: arrays as data, the "js" and "css" contexts and the
+ * encoding (the Escaper library is not ported).
+ *
+ * @param data     The string
+ * @param context  'attr', 'html', 'raw' or 'url'
+--->
+<cffunction name="esc" returntype="any" output="no" hint="Performs simple auto-escaping of data for security reasons">
+	<cfargument name="data" type="any" required="yes">
+	<cfargument name="context" type="string" required="no" default="html">
+	<cfargument name="encoding" type="string" required="no" default="">
+
+	<cfset arguments.context = LCase(arguments.context)>
+
+	<!---
+	 Provide a way to NOT escape data since
+	 this could be called automatically by
+	 the View library.
+	--->
+	<cfif arguments.context EQ "raw">
+		<cfreturn arguments.data>
+	</cfif>
+
+	<cfif IsSimpleValue(arguments.data)>
+		<cfif NOT ListFind("html,attr,url", arguments.context)>
+			<cfthrow type="ColdIgniter.InvalidArgumentException" message="Invalid escape context provided.">
+		</cfif>
+
+		<cfif arguments.context EQ "url">
+			<cfreturn URLEncodedFormat(arguments.data)>
+		</cfif>
+
+		<cfset arguments.data = HTMLEditFormat(arguments.data)>
+		<cfif arguments.context EQ "attr">
+			<cfset arguments.data = Replace(arguments.data, "'", "&##39;", "all")>
+		</cfif>
+	</cfif>
+
+	<cfreturn arguments.data>
 </cffunction>
 
 <!---
