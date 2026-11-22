@@ -58,3 +58,4 @@
 <cfoutput>SYSTEMPATH #request.SYSTEMPATH##Chr(10)#</cfoutput>
 <cfoutput>WRITEPATH  #request.WRITEPATH##Chr(10)#</cfoutput>
 <cfoutput>TESTPATH   #request.TESTPATH##Chr(10)#</cfoutput>
+<cfoutput>ENVIRONMENT #request.ENVIRONMENT#, CI_DEBUG #request.CI_DEBUG#, APP_NAMESPACE #request.APP_NAMESPACE#, DAY #request.DAY#, EXIT__AUTO_MAX #request.EXIT__AUTO_MAX##Chr(10)#</cfoutput>
