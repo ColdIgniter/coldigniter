@@ -26,8 +26,9 @@ names; one PHP class becomes one `.cfc` with the same name, and other PHP files 
 4. Every component and every function gets `output="no"`.
 5. Every local variable gets a `<cfset var name = value>` line, and all of those lines come first in the
    function (after `cfargument`). A missing `var` writes into the shared instance.
-6. Constructors are `init()` methods that end with `<cfreturn this>`; create with
-   `CreateObject("component", "path").init(...)`.
+6. Constructors are `__construct()` methods that end with `<cfreturn this>`; create an object with
+   `new_("CodeIgniter\HTTP\URI", ...)` and reach a static class with `static_("Config\Services")`.
+   `CreateObject("component", ...)` is left to the `autoload.cfm` files and the few boot files.
 7. Calls through `super` take positional arguments only. Named arguments and `argumentCollection` fail there.
 8. `access="private"` means protected (children can call it). There are no interfaces, abstract or static
    members; the reference lists the stand-ins.
@@ -46,6 +47,16 @@ names; one PHP class becomes one `.cfc` with the same name, and other PHP files 
     a name that crosses into another folder tree in `extends`, `CreateObject` or `type`. Each tree
     (`system`, `app`, a vendor package) creates its own components, and folders are found by path.
     See "How components are located" in the reference.
+17. A function, also a component method, cannot have the name of a built-in function (`initialize`,
+    `setLocale`). Add a trailing underscore: `initialize_`. The same goes for a property that has the name
+    of a public method (`this.params_`) and for anything named like a scope (`this.request_`, argument
+    `request_`).
+18. Properties live in `this`, in upstream order. A parent in another folder tree is named with
+    `<cfcomponent parent="CodeIgniter\Controller">` and called as `parent.method()`.
+19. Nothing can be written from inside the framework: the response leaves its body in
+    `request.CodeIgniter.output` and `public/index.cfm` writes it.
+
+"How the port is written today" in the reference has the full list.
 
 ## Checking work
 
