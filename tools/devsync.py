@@ -33,6 +33,8 @@ Usage
     --src DIR          working tree to sync (default: the tree devsync is in)
     --remote-dir DIR   folder on the host, relative to the FTP login folder
     --exclude GLOB     extra paths to skip, may be repeated
+    --include GLOB     files to sync even though git ignores them (local
+                       settings the host needs), may be repeated
     push --full        send every folder and file again, whatever the state
                        file says
 
@@ -100,10 +102,14 @@ def list_folders(src, excludes):
     return folders
 
 
-def list_files(src, excludes):
+def list_files(src, excludes, includes=()):
     """Return {relative path: (size, mtime_ns)} for every file to sync."""
     files = {}
-    for path in git_list(src, "-co", "--exclude-standard"):
+    paths = git_list(src, "-co", "--exclude-standard")
+    if includes:                        # ignored files that were asked for by name
+        paths += [path for path in git_list(src, "-oi", "--exclude-standard")
+                  if any(fnmatch.fnmatch(path, glob) for glob in includes)]
+    for path in paths:
         if path.endswith("/"):          # a nested repository or worktree
             continue
         if any(part in BUILTIN_EXCLUDES for part in path.split("/")[:-1]):
@@ -133,9 +139,10 @@ def parents(path):
 class Tree:
     """The local tree, with a cache so unchanged files are not re-read."""
 
-    def __init__(self, src, excludes):
+    def __init__(self, src, excludes, includes=()):
         self.src = src
         self.excludes = excludes
+        self.includes = includes
         self.cache = {}                 # path -> (signature, hash)
 
     def read(self, path):
@@ -145,7 +152,7 @@ class Tree:
     def scan(self):
         """Return ({path: content hash}, {folders}) for the tree as it is now."""
         hashes = {}
-        files = list_files(self.src, self.excludes)
+        files = list_files(self.src, self.excludes, self.includes)
         for path, signature in files.items():
             cached = self.cache.get(path)
             if cached and cached[0] == signature:
@@ -453,6 +460,8 @@ def cmd_install(args):
                "--interval", str(args.interval)]
     for glob in args.exclude:
         command += ["--exclude", glob]
+    for glob in args.include:
+        command += ["--include", glob]
     unit = "\n".join([
         "[Unit]",
         f"Description=ColdIgniter dev sync: {src} to {args.host}",
@@ -505,7 +514,7 @@ def resolve_src(args):
 def setup(args):
     if not args.host:
         raise SystemExit("devsync: --host is required (or set DEVSYNC_HOST)")
-    tree = Tree(resolve_src(args), args.exclude)
+    tree = Tree(resolve_src(args), args.exclude, args.include)
     remote = Remote(args.host, args.port, args.remote_dir)
     return tree, remote, state_path(args.host, args.remote_dir)
 
@@ -525,6 +534,8 @@ def main(argv=None):
         cmd.add_argument("--port", type=int, default=21)
         cmd.add_argument("--remote-dir", default="/")
         cmd.add_argument("--exclude", action="append", default=[], metavar="GLOB")
+        cmd.add_argument("--include", action="append", default=[], metavar="GLOB",
+                         help="sync matching files even though git ignores them")
         cmd.add_argument("--interval", type=float, default=0.5,
                          help="seconds between checks in watch mode")
         if name == "push":
