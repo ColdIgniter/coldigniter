@@ -571,12 +571,37 @@
 	<cffunction name="readCookie" access="private" returntype="any" output="no">
 		<cfset var pairs = explode(";", CGI.HTTP_COOKIE)>
 		<cfset var query = "">
+		<cfset var seen = CreateObject("java", "java.util.HashMap").init()>
+		<cfset var name = "">
+		<cfset var position = 0>
+		<cfset var isElement = false>
 		<cfset var i = 0>
 
 		<cfloop from="1" to="#ArrayLen(pairs)#" index="i">
 			<cfif Trim(pairs[i]) NEQ "">
-				<!--- a cookie value is not form-encoded: keep a plus and an ampersand --->
-				<cfset query = query & "&" & Replace(Replace(Trim(pairs[i]), "+", "%2B", "all"), "&", "%26", "all")>
+				<!--- a name that repeats keeps its first value (an array element appends) --->
+				<cfset name = Trim(pairs[i])>
+				<cfset position = Find("=", name)>
+				<cfif position GT 0>
+					<cfset name = Left(name, position - 1)>
+				</cfif>
+
+				<!--- the name as parse_str() keys it: cut at a NUL, decoded, left-trimmed, dots and spaces replaced --->
+				<cfset position = FindNoCase("%00", name)>
+				<cfif position GT 0>
+					<cfset name = Left(name, position - 1)>
+				</cfif>
+				<cfset name = LTrim(parse_str_decode(name))>
+				<cfset position = Find("[", name)>
+				<cfset isElement = position GT 0 AND Find("]", name, position) GT 0>
+				<cfset name = parse_str_key(name)>
+
+				<cfif isElement OR NOT seen.containsKey(name)>
+					<cfset seen.put(name, "")>
+
+					<!--- a cookie value is not form-encoded: keep a plus and an ampersand --->
+					<cfset query = query & "&" & Replace(Replace(Trim(pairs[i]), "+", "%2B", "all"), "&", "%26", "all")>
+				</cfif>
 			</cfif>
 		</cfloop>
 
