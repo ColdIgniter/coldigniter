@@ -49,7 +49,7 @@
 			<cfset messageType = arguments.config["messageType"]>
 		</cfif>
 
-		<cfif NOT IsSimpleValue(messageType) OR NOT IsNumeric(messageType) OR (messageType NEQ this.TYPE_OS AND messageType NEQ this.TYPE_SAPI)>
+		<cfif NOT IsSimpleValue(messageType) OR NOT IsNumeric(messageType) OR (Compare(messageType, this.TYPE_OS) NEQ 0 AND Compare(messageType, this.TYPE_SAPI) NEQ 0)>
 			<cfset static_("ColdIgniter\Log\Exceptions\LogException").forInvalidMessageType(print_r(messageType))>
 		</cfif>
 
@@ -90,16 +90,16 @@
 		<cfset var severity = "information">
 		<cfset var written = true>
 
-		<cfif ListFindNoCase("emergency,alert,critical", arguments.level) GT 0>
+		<cfif ListFind("emergency,alert,critical", arguments.level) GT 0>
 			<cfset severity = "fatal">
 		<cfelseif Compare(arguments.level, "error") EQ 0>
 			<cfset severity = "error">
-		<cfelseif ListFindNoCase("warning,notice", arguments.level) GT 0>
+		<cfelseif ListFind("warning,notice", arguments.level) GT 0>
 			<cfset severity = "warning">
 		</cfif>
 
 		<cftry>
-			<cfif arguments.messageType EQ this.TYPE_SAPI>
+			<cfif Compare(arguments.messageType, this.TYPE_SAPI) EQ 0>
 				<cflog log="Application" type="#severity#" text="#arguments.message#">
 			<cfelse>
 				<cflog file="ColdIgniter" application="no" type="#severity#" text="#arguments.message#">

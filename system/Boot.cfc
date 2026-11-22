@@ -101,7 +101,9 @@
 
 	<!---
 	 * Difference: the order of the original is $_ENV, $_SERVER, getenv(),
-	 * here the values from the .env file, then the CGI variable of the server.
+	 * here only the values from the .env file are read. The CGI scope is not
+	 * a source: a request header is read by name through it (verified on
+	 * the server), so a client could set the environment with a header.
 	--->
 	<cffunction name="defineEnvironment" access="private" returntype="void" output="no">
 		<cfset var env = "">
@@ -110,10 +112,7 @@
 			<cfif StructKeyExists(request.ColdIgniter.env, "CI_ENVIRONMENT")>
 				<cfset env = request.ColdIgniter.env["CI_ENVIRONMENT"]>
 			</cfif>
-			<cfif env EQ "">
-				<cfset env = CGI.CI_ENVIRONMENT>
-			</cfif>
-			<cfif env EQ "">
+			<cfif Compare(env, "") EQ 0>
 				<cfset env = "production">
 			</cfif>
 

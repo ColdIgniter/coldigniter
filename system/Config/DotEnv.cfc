@@ -84,7 +84,7 @@
 			<cfset line = lines[i]>
 
 			<!--- Is it a comment? An empty line is skipped like one. --->
-			<cfif line NEQ "" AND Left(trim_(line), 1) NEQ "##">
+			<cfif Compare(line, "") NEQ 0 AND Compare(Left(trim_(line), 1), "##") NEQ 0>
 				<!--- If there is an equal sign, then we know we are assigning a variable. --->
 				<cfif Find("=", line) GT 0>
 					<cfset parts = normaliseVariable(line)>
@@ -109,7 +109,7 @@
 		<cfargument name="value" type="string" required="no" default="">
 
 		<!--- $_ENV and $_SERVER are one struct here --->
-		<cfif NOT StructKeyExists(request.ColdIgniter.env, arguments.name) OR request.ColdIgniter.env[arguments.name] EQ "" OR request.ColdIgniter.env[arguments.name] EQ "0">
+		<cfif NOT StructKeyExists(request.ColdIgniter.env, arguments.name) OR Compare(request.ColdIgniter.env[arguments.name], "") EQ 0 OR Compare(request.ColdIgniter.env[arguments.name], "0") EQ 0>
 			<cfset request.ColdIgniter.env[arguments.name] = arguments.value>
 		</cfif>
 	</cffunction>
@@ -163,7 +163,7 @@
 		<cfset var regexPattern = "">
 		<cfset var parts = ArrayNew(1)>
 
-		<cfif arguments.value EQ "">
+		<cfif Compare(arguments.value, "") EQ 0>
 			<cfreturn arguments.value>
 		</cfif>
 

@@ -73,6 +73,15 @@
  * null, so "null" gives an empty string, and so does a variable that is
  * not found and has no default. Not ported yet: getenv().
  *
+ * Difference: only a fixed list of server variables (see below) and the
+ * names that start with "HTTP_" are read from the CGI scope. On the server
+ * (verified) a request header is read by name through the CGI scope when
+ * the engine has no variable of that name, so any other name, such as
+ * "CI_ENVIRONMENT" or "app.baseURL", would let a client supply a value
+ * with a header. The original has the same split: $_SERVER holds the
+ * headers only as "HTTP_*". HTTPS is not in the list, a header named HTTPS
+ * replaces the real variable here.
+ *
  * @param key     The name
  * @param default The value when it is not found
  *
@@ -84,11 +93,12 @@
 	<cfargument name="default" type="any" required="no" default="">
 	<cfset var value = "">
 	<cfset var found = false>
+	<cfset var serverNames = "AUTH_TYPE,CONTENT_LENGTH,CONTENT_TYPE,GATEWAY_INTERFACE,LOCAL_ADDR,PATH_INFO,PATH_TRANSLATED,QUERY_STRING,REMOTE_ADDR,REMOTE_HOST,REQUEST_METHOD,SCRIPT_NAME,SERVER_NAME,SERVER_PORT,SERVER_PORT_SECURE,SERVER_PROTOCOL,SERVER_SOFTWARE">
 
 	<cfif StructKeyExists(request.ColdIgniter.env, arguments.key)>
 		<cfset value = request.ColdIgniter.env[arguments.key]>
 		<cfset found = true>
-	<cfelseif StructKeyExists(CGI, arguments.key) AND CGI[arguments.key] NEQ "">
+	<cfelseif (ListFindNoCase(serverNames, arguments.key) GT 0 OR REFindNoCase("^HTTP_[A-Z0-9_]+$", arguments.key) GT 0) AND CGI[arguments.key] NEQ "">
 		<cfset value = CGI[arguments.key]>
 		<cfset found = true>
 	</cfif>

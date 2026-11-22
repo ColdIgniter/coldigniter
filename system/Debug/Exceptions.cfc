@@ -107,9 +107,9 @@
 
 		<cfset this.request_ = service("request")>
 
-		<cfif this.config.log EQ true AND NOT in_array(statusCode, this.config.ignoreCodes)>
+		<cfif Compare(this.config.log, "true") EQ 0 AND NOT in_array(statusCode, this.config.ignoreCodes)>
 			<cfset uri = this.request_.getPath()>
-			<cfif uri EQ "">
+			<cfif Compare(uri, "") EQ 0>
 				<cfset uri = "/">
 			</cfif>
 			<cfset routeInfo = "[Method: " & this.request_.getMethod() & ", Route: " & uri & "]">

@@ -15,7 +15,8 @@
  *
  * Difference: the original makes an exception of the class it is called
  * on ("static"), so a LogException has the type of its class. Here the
- * type is always the one of this class.
+ * type is always the one of this class, and a class that needs its own
+ * type (LogException) writes the method out again.
 --->
 <cfcomponent output="no" hint="A collection of exceptions thrown by the framework">
 

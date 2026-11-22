@@ -37,7 +37,7 @@
 	 *
 	 * @var int|list<int>
 	--->
-	<cfif request.ENVIRONMENT EQ "production">
+	<cfif Compare(request.ENVIRONMENT, "production") EQ 0>
 		<cfset this.threshold = 4>
 	<cfelse>
 		<cfset this.threshold = 9>
@@ -102,9 +102,11 @@
 	 *
 	 * NOTE: Leaving it blank will default to 'log'.
 	 *
-	 * Difference: the original lets an extension of the scripting language
-	 * protect the log files with a header. A log file here is plain text, and
-	 * the writable folder is not under the web root.
+	 * Difference: the original puts a protecting header into a new log file
+	 * with the extension of its scripting language. Here "cfm" and "cfml"
+	 * get a first line with the cfabort tag, and "cfc" is refused (nothing
+	 * is written). The writable folder is not under the web root, so
+	 * keep a plain extension.
 	--->
 	<cfset this.handlers["ColdIgniter\Log\Handlers\FileHandler"]["fileExtension"] = "">
 

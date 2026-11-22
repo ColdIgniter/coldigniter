@@ -70,7 +70,7 @@ A class version of 48 means **any Java library must be compiled for Java 1.4 or 
 
 There is no null value [M Dev p.56]. A null from Java or a database becomes an undefined variable or an empty string. Test with `StructKeyExists(scope, "key")` (preferred) or `IsDefined("name")`; `IsDefined("a[3]")` is always false [M Dev p.78]. A port of PHP code that returns `null` needs an agreed stand-in per method: an empty string, a "found" flag in a struct, or a typed exception.
 
-Undefined CGI variables are a special case: **every CGI variable name tests as defined and returns an empty string** [S]. Test CGI values with `Len()`, never with `IsDefined`.
+Undefined CGI variables are a special case: **every CGI variable name tests as defined and returns an empty string** [S]. Test CGI values with `Len()`, never with `IsDefined`. **A request header is read by name through the CGI scope** when the engine has no variable of that name (`CGI.CI_ENVIRONMENT`, `CGI["app.baseURL"]` and `CGI["CI-ENVIRONMENT"]` read the headers of the same name), and a header named `HTTPS` replaces the real `HTTPS` variable [S]. Never take a setting, a name or a security decision from a CGI name that is not in a fixed list of server variables (see `env()` in `Common.cfm`).
 
 ### Scopes and `var`
 

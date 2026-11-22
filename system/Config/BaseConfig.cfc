@@ -54,7 +54,7 @@
 		<!--- Not ported yet: static::$moduleConfig and registerProperties() --->
 
 		<cfloop collection="#this#" item="property">
-			<cfif Left(property, 2) NEQ "__" AND NOT IsCustomFunction(this[property])>
+			<cfif Compare(Left(property, 2), "__") NEQ 0 AND NOT IsCustomFunction(this[property])>
 				<cfset ArrayAppend(properties, property)>
 			</cfif>
 		</cfloop>
@@ -78,7 +78,7 @@
 	 *
 	 * @return The property, with the value of the environment when there is one
 	--->
-	<cffunction name="initEnvValue" access="package" returntype="any" output="no">
+	<cffunction name="initEnvValue" access="private" returntype="any" output="no">
 		<cfargument name="property" type="any" required="yes">
 		<cfargument name="name" type="string" required="yes">
 		<cfargument name="prefix" type="string" required="yes">
@@ -87,14 +87,16 @@
 		<cfset var keys = ArrayNew(1)>
 		<cfset var found = "">
 		<cfset var value = "">
+		<cfset var list = ArrayNew(1)>
 		<cfset var i = 0>
 
 		<cfif IsArray(arguments.property)>
+			<!--- an array is not copied on the way in, so a new one is built --->
 			<cfloop from="1" to="#ArrayLen(arguments.property)#" index="i">
-				<cfset arguments.property[i] = initEnvValue(arguments.property[i], arguments.name & "." & (i - 1), arguments.prefix, arguments.shortPrefix)>
+				<cfset ArrayAppend(list, initEnvValue(arguments.property[i], arguments.name & "." & (i - 1), arguments.prefix, arguments.shortPrefix))>
 			</cfloop>
 
-			<cfreturn arguments.property>
+			<cfreturn list>
 		</cfif>
 
 		<cfif IsStruct(arguments.property)>
@@ -143,7 +145,7 @@
 	 *
 	 * @return A list with the value, or an empty list
 	--->
-	<cffunction name="getEnvValue" access="package" returntype="array" output="no">
+	<cffunction name="getEnvValue" access="private" returntype="array" output="no">
 		<cfargument name="property" type="string" required="yes">
 		<cfargument name="prefix" type="string" required="yes">
 		<cfargument name="shortPrefix" type="string" required="yes">
