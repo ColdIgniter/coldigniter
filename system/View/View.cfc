@@ -191,10 +191,19 @@
 
 		<!---
 		 Difference: the original compares with ===, so only the boolean true
-		 counts, not "true" or 1. The class of the value is checked for that.
+		 counts, not 1 or "yes". A literal true is the text "true" on this
+		 server, so that text counts as well as a Boolean object.
 		--->
 		<cfif NOT is_null(arguments.options) AND array_key_exists("debug", arguments.options)>
-			<cfset debugOption = IsSimpleValue(arguments.options["debug"]) AND Compare(arguments.options["debug"].getClass().getName(), "java.lang.Boolean") EQ 0 AND arguments.options["debug"]>
+			<cfif IsSimpleValue(arguments.options["debug"])>
+				<cfif Compare(arguments.options["debug"].getClass().getName(), "java.lang.Boolean") EQ 0>
+					<cfset debugOption = arguments.options["debug"]>
+				<cfelse>
+					<cfset debugOption = Compare(arguments.options["debug"], "true") EQ 0>
+				</cfif>
+			<cfelse>
+				<cfset debugOption = false>
+			</cfif>
 		</cfif>
 
 		<cfif this.debug AND debugBarEnabled AND debugOption>

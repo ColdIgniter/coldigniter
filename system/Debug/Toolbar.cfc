@@ -560,10 +560,6 @@
 			<cfreturn>
 		</cfif>
 
-		<cfif NOT hostMatches()>
-			<cfreturn>
-		</cfif>
-
 		<cfset stats = app.getPerformanceStats()>
 		<cfset data = run(stats["startTime"], stats["totalTime"], arguments.request_, arguments.response)>
 
@@ -652,8 +648,7 @@
 		 Otherwise, if it includes ?debugbar_time, then
 		 we should return the entire debugbar.
 		--->
-		<!--- as in the original, an empty value or "0" counts as absent --->
-		<cfif StructKeyExists(query, "debugbar_time") AND (NOT IsSimpleValue(query["debugbar_time"]) OR (Compare(query["debugbar_time"], "") NEQ 0 AND Compare(query["debugbar_time"], "0") NEQ 0))>
+		<cfif StructKeyExists(query, "debugbar_time")>
 			<cfset helper("security")>
 
 			<!--- Negotiate the content-type to format the output --->
@@ -851,22 +846,6 @@
 		</cfloop>
 
 		<cfreturn "html">
-	</cffunction>
-
-	<!---
-	 * Not in the original. Is the host of the request the one of the
-	 * baseURL? An empty baseURL matches everything.
-	--->
-	<cffunction name="hostMatches" access="private" returntype="boolean" output="no">
-		<cfset var baseURL = config("Config\App").baseURL>
-		<cfset var wanted = LCase(REReplace(baseURL, "^[A-Za-z]+://([^/:?##]*).*$", "\1"))>
-		<cfset var actual = LCase(REReplace(service("superglobals").server("HTTP_HOST"), ":[0-9]*$", ""))>
-
-		<cfif Compare(baseURL, "") EQ 0 OR REFind("^[A-Za-z]+://", baseURL) EQ 0>
-			<cfreturn true>
-		</cfif>
-
-		<cfreturn Compare(wanted, actual) EQ 0>
 	</cffunction>
 
 </cfcomponent>
