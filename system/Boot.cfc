@@ -1,10 +1,8 @@
 <!---
  * Bootstrap for the application.
  *
- * Port of CodeIgniter\Boot (system/Boot.php). Differences:
- * - PHP constants become values in the Request scope with the same names
- *   (request.APPPATH and so on).
- * - Where the original prints a message and exits, this throws "ci.boot";
+ * - The path values live in the Request scope (request.APPPATH and so on).
+ * - Where the boot has to stop with a message, this throws "ci.boot";
  *   Boot.cfm catches it and sends the 503 response.
  * - bootWeb() takes the folder of Paths.cfm as a second argument, because
  *   the values in that file are relative to it.

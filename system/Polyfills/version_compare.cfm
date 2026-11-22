@@ -1,11 +1,9 @@
 <!---
- * version_compare() as in PHP.
- *
  * Compares two version strings. Without an operator it returns -1, 0 or 1
  * (first is lower, equal, higher). With an operator (lt, le, gt, ge, eq, ne
  * or the matching symbols) it returns true or false.
  *
- * As in PHP, "-", "_" and "+" count as ".", a "." is put between digits and
+ * "-", "_" and "+" count as ".", a "." is put between digits and
  * letters ("1rc2" is "1.rc.2"), and words rank
  * anything else < dev < alpha, a < beta, b < RC, rc < a number < pl, p.
  * Any other character that is not a letter or digit also separates parts,
@@ -13,7 +11,7 @@
  *
  * Difference: empty parts ("1..2") are skipped.
 --->
-<cffunction name="version_compare" returntype="any" output="no" hint="Compares two version strings like PHP's version_compare()">
+<cffunction name="version_compare" returntype="any" output="no" hint="Compares two version strings">
 	<cfargument name="version1" type="string" required="yes">
 	<cfargument name="version2" type="string" required="yes">
 	<cfargument name="operator" type="string" required="no" default="">
