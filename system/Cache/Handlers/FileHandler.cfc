@@ -425,14 +425,14 @@
 		<cfset var i = 0>
 		<cfset var filename = "">
 		<cfset var entry = "">
-		<cfset var path = arguments.path>
+		<cfset var dirPath = arguments.path>
 
 		<!--- Trim the trailing slash --->
-		<cfloop condition="Len(path) GT 0 AND (Compare(Right(path, 1), '/') EQ 0 OR Compare(Right(path, 1), '\') EQ 0)">
-			<cfset path = Left(path, Len(path) - 1)>
+		<cfloop condition="Len(dirPath) GT 0 AND (Compare(Right(dirPath, 1), '/') EQ 0 OR Compare(Right(dirPath, 1), '\') EQ 0)">
+			<cfset dirPath = Left(dirPath, Len(dirPath) - 1)>
 		</cfloop>
 
-		<cfset directory = CreateObject("java", "java.io.File").init(path)>
+		<cfset directory = CreateObject("java", "java.io.File").init(dirPath)>
 
 		<cfif NOT directory.isDirectory()>
 			<cfreturn false>
@@ -446,12 +446,12 @@
 
 		<cfloop index="i" from="1" to="#ArrayLen(files)#">
 			<cfset filename = files[i]>
-			<cfset entry = CreateObject("java", "java.io.File").init(path & "/" & filename)>
+			<cfset entry = CreateObject("java", "java.io.File").init(dirPath & "/" & filename)>
 
 			<cfif entry.isDirectory() AND Compare(Left(filename, 1), ".") NEQ 0>
-				<cfset deleteFiles(path & "/" & filename, arguments.delDir, arguments.htdocs, arguments.level_ + 1)>
+				<cfset deleteFiles(dirPath & "/" & filename, arguments.delDir, arguments.htdocs, arguments.level_ + 1)>
 			<cfelseif NOT arguments.htdocs OR NOT CreateObject("java", "java.lang.String").init(LCase(filename)).matches("\.htaccess|index\.(html|htm)|web\.config")>
-				<cflock name="ColdIgniterCache#md5(path & '/' & filename)#" type="exclusive" timeout="10">
+				<cflock name="ColdIgniterCache#md5(dirPath & '/' & filename)#" type="exclusive" timeout="10">
 					<cfset entry.delete()>
 				</cflock>
 			</cfif>
@@ -487,20 +487,20 @@
 		<cfset var i = 0>
 		<cfset var file_ = "">
 		<cfset var info = "">
-		<cfset var sourceDir = arguments.sourceDir>
+		<cfset var dirPath = arguments.sourceDir>
 
 		<!--- reset the map and make sure sourceDir has a trailing slash on the initial call --->
 		<cfif NOT IsStruct(fileData)>
 			<cfset fileData = CreateObject("java", "java.util.LinkedHashMap").init()>
 
-			<cfloop condition="Len(sourceDir) GT 0 AND (Compare(Right(sourceDir, 1), '/') EQ 0 OR Compare(Right(sourceDir, 1), '\') EQ 0)">
-				<cfset sourceDir = Left(sourceDir, Len(sourceDir) - 1)>
+			<cfloop condition="Len(dirPath) GT 0 AND (Compare(Right(dirPath, 1), '/') EQ 0 OR Compare(Right(dirPath, 1), '\') EQ 0)">
+				<cfset dirPath = Left(dirPath, Len(dirPath) - 1)>
 			</cfloop>
 
-			<cfset sourceDir = sourceDir & "/">
+			<cfset dirPath = dirPath & "/">
 		</cfif>
 
-		<cfset directory = CreateObject("java", "java.io.File").init(sourceDir)>
+		<cfset directory = CreateObject("java", "java.io.File").init(dirPath)>
 
 		<cfif NOT directory.isDirectory()>
 			<cfreturn CreateObject("java", "java.util.LinkedHashMap").init()>
@@ -513,12 +513,12 @@
 		</cfif>
 
 		<cfloop index="i" from="1" to="#ArrayLen(files)#">
-			<cfset file_ = CreateObject("java", "java.io.File").init(sourceDir & files[i])>
+			<cfset file_ = CreateObject("java", "java.io.File").init(dirPath & files[i])>
 
 			<cfif file_.isDirectory() AND Compare(Left(files[i], 1), ".") NEQ 0 AND NOT arguments.topLevelOnly>
-				<cfset getDirFileInfo(sourceDir & files[i] & "/", arguments.topLevelOnly, fileData)>
+				<cfset getDirFileInfo(dirPath & files[i] & "/", arguments.topLevelOnly, fileData)>
 			<cfelseif Compare(Left(files[i], 1), ".") NEQ 0>
-				<cfset info = getFileInfo(sourceDir & files[i])>
+				<cfset info = getFileInfo(dirPath & files[i])>
 
 				<cfif IsStruct(info)>
 					<cfset info.put("relative_path", relativePath)>

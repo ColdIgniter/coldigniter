@@ -22,7 +22,7 @@
 		<cfargument name="config" type="any" required="no" default="">
 
 		<cfif is_null(arguments.config)>
-			<cfset arguments.config = config("Config\Cache")>
+			<cfset arguments.config = variables.config("Config\Cache")>
 		</cfif>
 
 		<cfset this.pageCache = service("responsecache")>
