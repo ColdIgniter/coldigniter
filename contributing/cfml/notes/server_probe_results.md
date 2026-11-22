@@ -422,3 +422,41 @@ Request values on this site (IIS 4 with the rewrite rules in `public/.htaccess`)
   A continuation line (` Remote-Addr: ...`) was not sent. After the fix (names compared with everything but letters and digits removed, both sides) the spellings with a dot or a doubled separator also blank their variable: `Remote.Addr` and `Remote-_Addr` give `getIPAddress()` `0.0.0.0`, every spelling leaves `isSecure()` false and the run with `ft=3` (ForceHTTPS) answered 307 for each. Normal headers (`User-Agent`, `Referer`, `Cookie`, `Authorization`, `Cache-Control`, `Pragma`, `Via`, `Accept*`, `X-Forwarded-For`, `X-Forwarded-Proto`) blank nothing (REMOTE_ADDR, HTTPS kept); no guarded name equals the stripped form of a common header, and `CONTENT_TYPE` and `CONTENT_LENGTH` are read directly as before (a POST with a body on `inp` still gives the post array).
 - `FileHandler` extension (accepted only when it matches `[A-Za-z0-9]+` as a whole, Java `matches`, so a newline cannot fool it; cfm, cfml, cfc, jsp, jws, asp, asa, cer, cdx, shtml, shtm, stm, idc, htr, htw, ida, idq, printer, exe, dll, bat, cmd, com and pl are refused in any case): `x.cfm`, `cfm.`, `cfm ` (trailing space), `CFM`, `jsp`, `a/b`, `..`, `a<LF>b`, `exe` returned false and wrote nothing; empty, `log` and `.log` wrote `log-<date>.log`, `txt` wrote `.txt`, `JSP2` wrote `.JSP2`.
 - `FileHandler` extension, later change: an extension longer than three characters whose first three are cfm, cfc, jsp, jws, asp, asa, cer, cdx, sht, stm, idc, htr, htw, ida, idq, pri, exe, dll, bat, cmd or com is refused too, because the file system gives a long name a second, short name that ends in those three characters (`LOG-20~1.CFM`). `cfmx`, `cfm1`, `aspx`, `CFCX`, `exe1`, `JSP2` and `printer` returned false and wrote nothing; `logs` and `text` wrote their files. Not tested: whether the server really runs a file asked for by its short name.
+
+## Cookies and the session library (verified on the server)
+
+Tested on the scratch site with curl and a cookie jar (a real server for every line; https could not be tested).
+
+- **Several `cfheader name="Set-Cookie"` calls in one response all arrive as separate headers**, in order, with the name as written. A plain `cfheader` adds; no servlet `addHeader` is needed. A request that goes through a framework run also carries the engine's own `Set-Cookie: JSESSIONID=...;path=/` (the J2EE session of the engine, outside the framework); "no session cookie" below means no `ci_session` cookie.
+- **Cookie lines as written by `Cookie.toHeaderString()`:** `name=value; Expires=...; Max-Age=...; Path=...; HttpOnly; SameSite=...`; a prefix is part of the name (`pre_gamma`); a delete is `name=deleted; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0`; a name is URL encoded (`wei%20rd%3Dna%3Bme`), as is a value (`one%20two%3Bx`); a delete for the id of an earlier set replaces it. A request cookie is read back decoded (`one two;x`).
+- **A secure cookie on a plain http request** ends in a 400 (`SecurityException.forInsecureCookie`); the headers of the cookies before it are already written, as in the original.
+- **CookieException** is thrown for a raw name `a=b`, `SameSite` `Bogus`, `SameSite` `None` without secure, a path with CR LF, a domain with `;`, `__Host-` with another path than `/`, `__Secure-` without secure, an empty name and a non numeric expires.
+- **The Java of the server is 1.4**: `java.util.regex.Pattern.quote()` does not exist ("The selected method quote was not found"), so a pattern is quoted by hand; `String.matches()` exists and is used for every check of the whole text. `JavaCast("long", n)` fails above the integer range ("Could not convert ... to an integer"); build a long with `java.lang.Long.parseLong(JavaCast("string", ...))`. A `java.io.File` gives `isFile`, `isDirectory`, `mkdirs`, `canWrite`, `delete`, `lastModified` and `setLastModified` with a millisecond time; `list()` gives an array that `ArrayLen()` and 1 based indexes read.
+- **`cfwddx` and a `java.util.LinkedHashMap`:** `cfml2wddx` writes it as `<struct type='java.util.LinkedHashMap'>` and `wddx2cfml` gives back a struct that `IsStruct()` accepts (`IsObject()` is false for it), whose methods (`containsKey`, `get`, `put`, `remove`, `isEmpty`) are the Java ones. A nested map comes back as a map and an empty list as a list. A number is written as `<number>1.795366042E9</number>` (scientific notation above a million), so values that must stay exact are stored as strings (`time() & ""`). **The key order is not kept, and keys that differ only in case collapse into one** (the last value under the case of the first): `Abc` and `abc` came back as `Abc=lower` and an empty `abc`.
+- **A `<cfset var x>` with the name of a `cfargument`** fails with "Cannot declare local variable name twice". An argument named `config` shadows the global `config()` in that method; call `variables.config(...)`. The result of a function call cannot be indexed on the spot (`f()["key"]` is "Invalid CFML construct"); assign it to a variable first.
+- **Session, file handler (`session/index.html` kept, files `ci_session` plus the id in `writable/session`):**
+
+| Case | Result |
+|---|---|
+| request 1 sets `user` and `n`, request 2 reads through the cookie jar | `user=alice n=5`; one `ci_session` cookie in request 1, none in request 2 |
+| no cookie | new id, cookie sent, empty data (twice: two different ids) |
+| a well formed id that was invented (`deadbeef...`) | not adopted: new id, no file with that name |
+| `../x`, `abc`, upper case hex, a valid id with `%0A`, `%00` or a trailing `x`, `..%2F..%2Fx` | all ignored: new id, no path reaches the file system |
+| flash data set in request 2 | readable in request 3 only, gone in request 4 |
+| temp data with 3 seconds | readable at once, gone after 4 seconds, key removed from the data |
+| `regenerate(true)` | new id, one `ci_session` cookie (the new one), old file gone, data kept |
+| `regenerate(false)` | new id, old file and new file both present, data kept |
+| `destroy()` | file gone, `ci_session=deleted; Expires=1970; Max-Age=0` sent, no write at the end of the request |
+| expiration 2 seconds, explicit cookie after 3.5 seconds | file deleted by `read()`, new id, empty data |
+| `ArrayHandler` | works; nothing is stored, no file |
+| `timeToUpdate` 1, second request after 2.2 seconds | new id, data kept |
+| `matchIP` on | the file name is the name, `md5` of the address, and the id; a session made without it is not found |
+| cookie config `samesite` Strict, path `/_ts` | `Path=/_ts; HttpOnly; SameSite=Strict` on the session cookie |
+| cookie config `secure` on http | 400, as for any secure cookie |
+| a save path under a file | `SessionException` "Configured save path ... is not a directory, does not exist or cannot be created." |
+| gc (`gc(0)`) | removes the files of the session name and the id format, keeps `index.html` and files with another shape |
+| 8 requests at once on one id | all 200; the file stays a whole WDDX packet; 5 of the 8 new keys survive (the last write wins: a lost update, not a damaged file) |
+| a request that never asks for the session | no `ci_session` cookie, no file (the count of files did not change) |
+
+- A session file name quoted for a regular expression with a backslash before every character that is not a letter, a digit or an underscore (`app.sess`, `a+b`, `x(y`) matches only that cookie name plus a 32 character hex id with `String.matches`: the garbage collector removed exactly one file per name, and the decoys `appXsess<id>`, `aab<id>` and `xxy<id>` stayed; no exception for `x(y`. A file written in the same second is newer than `(time() - 0) * 1000`, so the check needs files at least a second old.
+- A cookie built with `new_("ColdIgniter\Cookie\Cookie", name, "", options)` with the option `prefix` set to an empty string keeps the empty prefix (the default is not put back), and `.withExpired()` then `setCookie(cookie)` replaces the cookie of the same id in the store: with `Config\Cookie.prefix = "app_"` the response held one line, `ci_session=deleted; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`.

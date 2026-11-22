@@ -574,6 +574,33 @@
 </cffunction>
 
 <!---
+ * A convenience method for accessing the session instance,
+ * or an item that has been set in the session.
+ *
+ * Examples:
+ *    session_().set("foo", "bar");
+ *    foo = session_("bar");
+ *
+ * Difference: the name has a trailing underscore, because the name of a
+ * scope (session) is not known to be safe for a global function.
+ *
+ * @param val An empty string for the session, or the key of an item
+ *
+ * @return The Session when val is empty, else the item
+--->
+<cffunction name="session_" returntype="any" output="no" hint="A convenience method for accessing the session instance, or an item that has been set in the session">
+	<cfargument name="val" type="any" required="no" default="">
+	<cfset var sessionObj = service("session")>
+
+	<!--- Returning a single item? --->
+	<cfif NOT is_null(arguments.val)>
+		<cfreturn sessionObj.get(arguments.val)>
+	</cfif>
+
+	<cfreturn sessionObj>
+</cffunction>
+
+<!---
  * Stringify attributes for use in HTML tags.
  *
  * Helper function used to convert a string, array, or object

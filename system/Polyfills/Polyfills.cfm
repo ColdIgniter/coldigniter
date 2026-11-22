@@ -5,6 +5,7 @@
 --->
 <cfinclude template="array_.cfm">
 <cfinclude template="array_key_exists.cfm">
+<cfinclude template="array_keys.cfm">
 <cfinclude template="array_merge.cfm">
 <cfinclude template="array_replace_recursive.cfm">
 <cfinclude template="array_reverse.cfm">
@@ -14,6 +15,7 @@
 <cfinclude template="define.cfm">
 <cfinclude template="defined.cfm">
 <cfinclude template="explode.cfm">
+<cfinclude template="gmdate.cfm">
 <cfinclude template="implode.cfm">
 <cfinclude template="in_array.cfm">
 <cfinclude template="includePath.cfm">
@@ -25,17 +27,30 @@
 <cfinclude template="is_null.cfm">
 <cfinclude template="ltrim_.cfm">
 <cfinclude template="method_exists.cfm">
-<cfinclude template="nl2br.cfm">
 <cfinclude template="new_.cfm">
+<cfinclude template="nl2br.cfm">
 <cfinclude template="parse_str.cfm">
 <cfinclude template="parse_url.cfm">
 <cfinclude template="print_r.cfm">
+<cfinclude template="rawurlencode.cfm">
 <cfinclude template="realpath.cfm">
 <cfinclude template="require_once.cfm">
 <cfinclude template="rtrim_.cfm">
+<cfinclude template="session_create_id.cfm">
+<cfinclude template="session_destroy.cfm">
+<cfinclude template="session_id.cfm">
+<cfinclude template="session_regenerate_id.cfm">
+<cfinclude template="session_set_save_handler.cfm">
+<cfinclude template="session_start.cfm">
+<cfinclude template="session_state.cfm">
+<cfinclude template="session_status.cfm">
+<cfinclude template="session_write_close.cfm">
 <cfinclude template="static_.cfm">
 <cfinclude template="strip_tags.cfm">
+<cfinclude template="strpbrk.cfm">
 <cfinclude template="strtr.cfm">
 <cfinclude template="substr.cfm">
+<cfinclude template="time.cfm">
 <cfinclude template="trim_.cfm">
+<cfinclude template="ucfirst.cfm">
 <cfinclude template="version_compare.cfm">
