@@ -13,7 +13,7 @@
 	<!---
 	 * The current version of ColdIgniter Framework
 	--->
-	<cfset this.CI_VERSION = "4.0.0">
+	<cfset this.CI_VERSION = "4.0.0-dev">
 
 	<!---
 	 * App startup time.
