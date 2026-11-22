@@ -7,15 +7,20 @@
  * false, as the original does when fopen() fails.
  *
  * Difference: the original puts a line that stops the script at the top of
- * a new log file with the extension of its own scripting language. Here the extensions that the
- * server runs as templates (cfm and cfml, in any case) get a first line
- * with the cfabort tag, so a request for the file outputs nothing. The
- * extension cfc is refused: a request for a component file shows the
- * description of the component, which would show the log, and the tag
- * cannot protect it. handle() returns false for it and writes nothing.
- * A line of the log that is not valid in a template can still make the
- * server fail to compile the file and show the error, so these extensions
- * are only for a folder that is not served.
+ * a new log file with the extension of its own scripting language, which
+ * is enough there because the file is never compiled again as a whole
+ * once the line has run. That cannot be done here: the server compiles
+ * the whole template before it runs the first tag, so a later line of the
+ * log with tag-like text makes the file fail to compile, and the error
+ * page shows that line (verified on the server; a first line with the
+ * cfabort tag did not prevent it). A log file that the server would run
+ * (the extensions cfm, cfml and cfc, in any case) cannot be protected by
+ * a header, so handle() returns false for them and writes nothing.
+ *
+ * Difference: the extension is used as it is in the original. Here an
+ * extension that holds a slash, a backslash, a colon or two dots in a row
+ * is refused the same way (handle() returns false), so the file cannot be
+ * written outside of the log folder.
  *
  * Not ported yet: the file permissions (chmod) of a new file.
 --->
@@ -91,13 +96,14 @@
 		<cfset var written = true>
 		<cfset var extension = LCase(this.fileExtension)>
 
-		<cfif Compare(extension, "cfc") EQ 0>
+		<!--- Files that the server runs cannot be protected with a header (see above) --->
+		<cfif ListFindNoCase("cfm,cfml,cfc", extension) GT 0>
 			<cfreturn false>
 		</cfif>
 
-		<!--- Only add protection to template files --->
-		<cfif (Compare(extension, "cfm") EQ 0 OR Compare(extension, "cfml") EQ 0) AND NOT is_file(filepath)>
-			<cfset msg = msg & "<cfabort>" & Chr(10) & Chr(10)>
+		<!--- An extension must not leave the log folder --->
+		<cfif REFind("[/\\:]", extension) GT 0 OR Find("..", extension) GT 0>
+			<cfreturn false>
 		</cfif>
 
 		<cfset msg = msg & UCase(arguments.level) & " - " & date(this.dateFormat) & " --> " & arguments.message & Chr(10)>
