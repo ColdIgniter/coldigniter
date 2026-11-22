@@ -300,3 +300,10 @@ Request values on this site (IIS 4 with the rewrite rules in `public/.htaccess`)
 ### Cached metadata of a child component
 
 - `GetMetaData()` of a component keeps the metadata of its `extends` chain from the time the child was compiled. After the `parent` attribute of `app/Controllers/BaseController.cfc` was changed and uploaded, `Home.cfc` (which extends it and was not changed) still reported the old value, and the request failed with "Class not found" for the old name. Uploading `Home.cfc` again, unchanged, made the server compile it again and fixed it. So: when an attribute of a base component changes, upload its children again too.
+
+## Exception handler port (verified on the server)
+
+- An unscoped name `file` resolves to the FILE scope (a struct) before the variables scope. Use `variables.file`.
+- A `var` named like a function hides that function for the rest of the method (`var realpath` hid `realpath()`).
+- `cfcatch.tagContext` is an array of structs with `template` and `line`; `cfcatch.type` and `cfcatch.message` are usable as the exception.
+- Output written with `cfoutput` inside a `savecontent` view is lost when the view errors; debug with `cfthrow message=`.
