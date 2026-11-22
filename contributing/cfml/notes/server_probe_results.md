@@ -296,3 +296,7 @@ Request values on this site (IIS 4 with the rewrite rules in `public/.htaccess`)
 - `/index.cfm?/foo/bar`: `QUERY_STRING` is `/foo/bar`.
 - `SERVER_PROTOCOL` is `HTTP/1.1`, `HTTPS` is `off`, `SERVER_PORT` is `80`.
 - A `.htaccess` file in a subfolder is not used.
+
+### Cached metadata of a child component
+
+- `GetMetaData()` of a component keeps the metadata of its `extends` chain from the time the child was compiled. After the `parent` attribute of `app/Controllers/BaseController.cfc` was changed and uploaded, `Home.cfc` (which extends it and was not changed) still reported the old value, and the request failed with "Class not found" for the old name. Uploading `Home.cfc` again, unchanged, made the server compile it again and fixed it. So: when an attribute of a base component changes, upload its children again too.
