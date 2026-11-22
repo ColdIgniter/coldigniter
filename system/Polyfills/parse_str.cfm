@@ -19,12 +19,12 @@
 	<cfset buffer = CreateObject("java", "java.lang.StringBuffer").init()>
 
 	<cfloop condition="position GT 0">
-		<cfset buffer.append(Mid(text, start, position - start + 1))>
+		<cfset buffer.append(JavaCast("string", Mid(text, start, position - start + 1)))>
 		<cfset start = position + 1>
 
 		<!--- a percent sign that stands alone is written as %25 --->
 		<cfif start + 1 GT Len(text) OR REFind("^[0-9A-Fa-f][0-9A-Fa-f]$", Mid(text, start, 2)) EQ 0>
-			<cfset buffer.append("25")>
+			<cfset buffer.append(JavaCast("string", "25"))>
 		</cfif>
 
 		<cfset position = 0>
@@ -34,7 +34,7 @@
 	</cfloop>
 
 	<cfif start LTE Len(text)>
-		<cfset buffer.append(Mid(text, start, Len(text) - start + 1))>
+		<cfset buffer.append(JavaCast("string", Mid(text, start, Len(text) - start + 1)))>
 	</cfif>
 
 	<cfreturn URLDecode(buffer.toString())>
@@ -73,6 +73,8 @@
 	<cfset var list = "">
 	<cfset var key = "">
 	<cfset var nexts = CreateObject("java", "java.util.IdentityHashMap").init()>
+	<cfset var number = "">
+	<cfset var one = CreateObject("java", "java.math.BigInteger").valueOf(JavaCast("long", 1))>
 	<cfset var maxVars = 1000>
 	<cfset var maxNesting = 64>
 	<cfset var lead = "">
@@ -148,7 +150,8 @@
 				<cfset rest = substr(rest, position)>
 			</cfloop>
 
-			<!--- a name with more than max_input_nesting_level pairs of brackets is dropped --->
+			<!--- a name with more than max_input_nesting_level pairs of brackets is dropped
+			     (only the pair is dropped here; whether the original engine also removes an existing variable of that name is not known) --->
 			<cfif keys[1] NEQ "" AND ArrayLen(keys) - 1 LTE maxNesting>
 				<cfset container = result>
 
@@ -159,14 +162,15 @@
 					<cfif key EQ "" AND j GT 1>
 						<cfset key = "0">
 						<cfif nexts.containsKey(container)>
-							<cfset key = ToString(Int(nexts.get(container)))>
+							<cfset key = nexts.get(container).toString()>
 						</cfif>
 					</cfif>
 
-					<!--- keep the next free number of the map --->
-					<cfif REFind("^[0-9]+$", key) GT 0>
-						<cfif NOT nexts.containsKey(container) OR Val(key) GTE nexts.get(container)>
-							<cfset nexts.put(container, Val(key) + 1)>
+					<!--- keep the next free number of the map (only a canonical decimal integer is a number key) --->
+					<cfif REFind("^(0|[1-9][0-9]{0,17})$", key) GT 0>
+						<cfset number = CreateObject("java", "java.math.BigInteger").init(JavaCast("string", key))>
+						<cfif NOT nexts.containsKey(container) OR number.add(one).compareTo(nexts.get(container)) GT 0>
+							<cfset nexts.put(container, number.add(one))>
 						</cfif>
 					</cfif>
 

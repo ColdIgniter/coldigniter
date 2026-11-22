@@ -585,6 +585,16 @@
 					<cfset name = Left(name, position - 1)>
 				</cfif>
 
+				<!--- the name as parse_str() keys it: cut at a NUL, decoded, left-trimmed, dots and spaces replaced --->
+				<cfset position = FindNoCase("%00", name)>
+				<cfif position GT 0>
+					<cfset name = Left(name, position - 1)>
+				</cfif>
+				<cfset name = LTrim(parse_str_decode(name))>
+				<cfif Find("[", name) EQ 0>
+					<cfset name = Replace(Replace(name, ".", "_", "all"), " ", "_", "all")>
+				</cfif>
+
 				<cfif Find("[", name) GT 0 OR NOT seen.containsKey(name)>
 					<cfset seen.put(name, "")>
 
