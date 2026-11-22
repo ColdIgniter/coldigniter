@@ -1,15 +1,16 @@
 <!---
  * Security exceptions.
  *
- * Not ported yet: the methods of the original that are not listed below
- * (the CSRF ones and the others), and the messages come from the language
- * files in the original; they are written out here until the language
- * service is ported.
+ * forInvalidUTF8Chars and forInvalidControlChars write their English text
+ * out, as the original does. The status of forInsecureCookie and
+ * forInvalidSameSite is 400 here, where the original gives them none.
  *
  * An exception is not an object here. The methods throw the exception
  * themselves, with the type "ColdIgniter.Security.Exceptions.SecurityException":
  *
- *     <cfset static_("ColdIgniter\Security\Exceptions\SecurityException").forInvalidControlChars(source, string)>
+ *     <cfset static_("ColdIgniter\Security\Exceptions\SecurityException").forDisallowedAction()>
+ *
+ * The messages come from the language file Language/en/Security.cfm.
 --->
 <cfcomponent output="no" hint="Security exceptions">
 
@@ -17,6 +18,24 @@
 	 * HTTP status code
 	--->
 	<cfset this.code = 400>
+
+	<!---
+	 * Thrown when the CSRF token is missing or does not match. A 403, as
+	 * the original, which has it as the code of the exception.
+	--->
+	<cffunction name="forDisallowedAction" access="public" returntype="void" output="no">
+
+		<cfthrow type="ColdIgniter.Security.Exceptions.SecurityException" errorcode="403" message="#lang('Security.disallowedAction')#">
+	</cffunction>
+
+	<!---
+	 * Thrown when the SameSite value is not None, Lax, Strict or a blank string.
+	--->
+	<cffunction name="forInvalidSameSite" access="public" returntype="void" output="no">
+		<cfargument name="samesite" type="string" required="yes">
+
+		<cfthrow type="ColdIgniter.Security.Exceptions.SecurityException" errorcode="#this.code#" message="#lang('Security.invalidSameSite', array_(arguments.samesite))#">
+	</cffunction>
 
 	<!---
 	 * Thrown when the string is not valid UTF-8.
@@ -43,7 +62,8 @@
 	 * secure.
 	--->
 	<cffunction name="forInsecureCookie" access="public" returntype="void" output="no">
-		<cfthrow type="ColdIgniter.Security.Exceptions.SecurityException" errorcode="#this.code#" message="Attempted to send a secure cookie over a non-secure connection.">
+
+		<cfthrow type="ColdIgniter.Security.Exceptions.SecurityException" errorcode="#this.code#" message="#lang('Security.insecureCookie')#">
 	</cffunction>
 
 </cfcomponent>

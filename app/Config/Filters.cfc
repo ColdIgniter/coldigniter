@@ -14,12 +14,12 @@
 	 *
 	 * A map (see array_()) of strings, or of lists of strings.
 	 *
-	 * Not ported yet: csrf, toolbar, honeypot, pagecache and performance.
+	 * Not ported yet: toolbar, honeypot, pagecache and performance.
 	 * The performance metrics are done inline in ColdIgniter.cfc and
 	 * the others have no class yet. Cors is not ported yet either.
 	--->
 	<cfset this.aliases = CreateObject("java", "java.util.LinkedHashMap").init()>
-	<!--- Not ported yet: csrf --->
+	<cfset this.aliases["csrf"] = "ColdIgniter\Filters\CSRF">
 	<!--- Not ported yet: toolbar --->
 	<!--- Not ported yet: honeypot --->
 	<cfset this.aliases["invalidchars"] = "ColdIgniter\Filters\InvalidChars">
@@ -59,7 +59,7 @@
 	--->
 	<cfset this.globals = CreateObject("java", "java.util.LinkedHashMap").init()>
 	<cfset this.globals["before"] = ArrayNew(1)>
-	<!--- 'honeypot', 'csrf' (not ported yet), 'invalidchars' --->
+	<!--- 'honeypot' (not ported yet), 'csrf', 'invalidchars' --->
 	<cfset this.globals["after"] = ArrayNew(1)>
 	<!--- 'honeypot' (not ported yet), 'secureheaders' --->
 

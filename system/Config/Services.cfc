@@ -283,6 +283,26 @@
 	</cffunction>
 
 	<!---
+	 * The Security class provides methods for handling CSRF protection.
+	 *
+	 * @param config The Config\Security, or an empty string (null)
+	--->
+	<cffunction name="security" access="public" returntype="any" output="no">
+		<cfargument name="config" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("security", arguments.config)>
+		</cfif>
+
+		<cfif is_null(arguments.config)>
+			<cfset arguments.config = variables.config("Config\Security")>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\Security\Security", arguments.config)>
+	</cffunction>
+
+	<!---
 	 * Return the session manager.
 	 *
 	 * The session is started the first time it is asked for, so a request
