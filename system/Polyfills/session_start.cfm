@@ -15,7 +15,7 @@
 <cffunction name="session_start" returntype="boolean" output="no" hint="Starts a session">
 	<cfset var state = session_state()>
 	<cfset var name = ini_get("session.name")>
-	<cfset var cookie = service("superglobals").cookie(name)>
+	<cfset var cookie_ = service("superglobals").cookie(name)>
 	<cfset var id = "">
 	<cfset var raw = "">
 	<cfset var data = "">
@@ -40,8 +40,8 @@
 	<cfset state.handler.open(ini_get("session.save_path"), name)>
 
 	<!--- the whole text has to match, so it can never be a path --->
-	<cfif IsSimpleValue(cookie) AND CreateObject("java", "java.lang.String").init(cookie).matches("[0-9a-f]{32}")>
-		<cfset id = cookie>
+	<cfif IsSimpleValue(cookie_) AND CreateObject("java", "java.lang.String").init(cookie_).matches("[0-9a-f]{32}")>
+		<cfset id = cookie_>
 		<cfset raw = state.handler.read(id)>
 
 		<cfif NOT Len(raw)>

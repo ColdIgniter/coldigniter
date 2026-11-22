@@ -61,8 +61,10 @@
 	 * The session cookie instance.
 	 *
 	 * @var Cookie
+	 *
+	 * Named with an underscore, because cookie is also a scope.
 	--->
-	<cfset this.cookie = "">
+	<cfset this.cookie_ = "">
 
 	<!---
 	 * Session ID regex expression.
@@ -93,7 +95,7 @@
 		<cfset options = array_("expires", expires, "path", cookieConfig.path, "domain", cookieConfig.domain, "secure", cookieConfig.secure, "httponly", true, "samesite", cookieConfig.samesite, "raw", cookieConfig.raw)>
 
 		<!--- httponly is always true, for security --->
-		<cfset this.cookie = new_("ColdIgniter\Cookie\Cookie", arguments.config.cookieName, "", options).withPrefix("")> <!--- Cookie prefix should be ignored. --->
+		<cfset this.cookie_ = new_("ColdIgniter\Cookie\Cookie", arguments.config.cookieName, "", options).withPrefix("")> <!--- Cookie prefix should be ignored. --->
 
 		<!--- Not ported yet: helper('array') --->
 
@@ -115,7 +117,7 @@
 	 * Returns this, or an empty string (null).
 	--->
 	<cffunction name="start" access="public" returntype="any" output="no">
-		<cfset var cookie = "">
+		<cfset var cookie_ = "">
 		<cfset var requestedWith = "">
 		<cfset var regenerateTime = this.config.timeToUpdate>
 		<cfset var data = session_state().data>
@@ -139,17 +141,17 @@
 		<cfset setSaveHandler()>
 
 		<!--- Sanitize the cookie, because the engine does not do that for userspace handlers --->
-		<cfset cookie = service("superglobals").cookie(this.config.cookieName)>
+		<cfset cookie_ = service("superglobals").cookie(this.config.cookieName)>
 
-		<cfif NOT is_null(cookie) AND NOT (IsSimpleValue(cookie) AND CreateObject("java", "java.lang.String").init(cookie).matches(this.sidRegexp))>
+		<cfif NOT is_null(cookie_) AND NOT (IsSimpleValue(cookie_) AND CreateObject("java", "java.lang.String").init(cookie_).matches(this.sidRegexp))>
 			<cfset service("superglobals").unsetCookie(this.config.cookieName)>
-			<cfset cookie = "">
+			<cfset cookie_ = "">
 		</cfif>
 
 		<cfset startSession()>
 
 		<!--- Difference: the engine of the original sends the cookie of a new ID; here it is done below --->
-		<cfif Compare(cookie, session_id()) NEQ 0>
+		<cfif Compare(cookie_, session_id()) NEQ 0>
 			<cfset setCookie()>
 		</cfif>
 
@@ -166,7 +168,7 @@
 			</cfif>
 
 		<!--- Another work-around ... the engine does not seem to send the session cookie unless it is being currently created or regenerated --->
-		<cfelseif NOT is_null(cookie) AND Compare(cookie, session_id()) EQ 0>
+		<cfelseif NOT is_null(cookie_) AND Compare(cookie_, session_id()) EQ 0>
 			<cfset setCookie()>
 		</cfif>
 
@@ -183,12 +185,12 @@
 	 * Handle input binds and configuration defaults.
 	--->
 	<cffunction name="configure" access="private" returntype="void" output="no">
-		<cfset var sameSite = this.cookie.getSameSite()>
+		<cfset var sameSite = this.cookie_.getSameSite()>
 
 		<cfset ini_set("session.name", this.config.cookieName)>
 
 		<cfif Compare(sameSite, "") EQ 0>
-			<cfset sameSite = ucfirst(this.cookie.SAMESITE_LAX)>
+			<cfset sameSite = ucfirst(this.cookie_.SAMESITE_LAX)>
 		</cfif>
 
 		<!--- HTTP only; Yes, this is intentional and not configurable for security reasons. --->
@@ -556,7 +558,7 @@
 	<cffunction name="getFlashdata" access="public" returntype="any" output="no">
 		<cfargument name="key" type="any" required="no" default="">
 		<cfset var sessionData = session_state().data>
-		<cfset var vars = ciVars()>
+		<cfset var vars = ciVarsRead()>
 		<cfset var flashdata = array_()>
 		<cfset var keys = "">
 		<cfset var k = "">
@@ -722,7 +724,7 @@
 	<cffunction name="getTempdata" access="public" returntype="any" output="no">
 		<cfargument name="key" type="any" required="no" default="">
 		<cfset var sessionData = session_state().data>
-		<cfset var vars = ciVars()>
+		<cfset var vars = ciVarsRead()>
 		<cfset var tempdata = array_()>
 		<cfset var keys = "">
 		<cfset var k = "">
@@ -932,9 +934,9 @@
 			<cfset expiration = time() + this.config.expiration>
 		</cfif>
 
-		<cfset this.cookie = this.cookie.withValue(session_id()).withExpires(expiration)>
+		<cfset this.cookie_ = this.cookie_.withValue(session_id()).withExpires(expiration)>
 
-		<cfset response.setCookie(this.cookie)>
+		<cfset response.setCookie(this.cookie_)>
 	</cffunction>
 
 	<!---
@@ -950,6 +952,21 @@
 		</cfif>
 
 		<cfreturn NOT is_null(arguments.map.get(JavaCast("string", arguments.key)))>
+	</cffunction>
+
+	<!---
+	 * Difference: the readers do not create $_SESSION['__ci_vars'] (that would
+	 * change the data and rewrite the file); an empty map is returned when it
+	 * is missing.
+	--->
+	<cffunction name="ciVarsRead" access="private" returntype="any" output="no">
+		<cfset var data = session_state().data>
+
+		<cfif NOT data.containsKey("__ci_vars")>
+			<cfreturn array_()>
+		</cfif>
+
+		<cfreturn data.get("__ci_vars")>
 	</cffunction>
 
 	<!---

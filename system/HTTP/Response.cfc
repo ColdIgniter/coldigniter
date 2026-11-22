@@ -381,7 +381,7 @@
 		<cfset var cookieConfig = "">
 		<cfset var items = "samesite,value,expire,domain,path,prefix,secure,httponly,name">
 		<cfset var item = "">
-		<cfset var cookie = "">
+		<cfset var cookie_ = "">
 
 		<cfif instanceof_(name_, "ColdIgniter\Cookie\Cookie")>
 			<cfset this.cookieStore = this.cookieStore.put(name_)>
@@ -440,9 +440,9 @@
 			<cfset expire_ = 0>
 		</cfif>
 
-		<cfset cookie = new_("ColdIgniter\Cookie\Cookie", name_, value_, array_("expires", expire_, "domain", domain_, "path", path_, "prefix", prefix_, "secure", secure_, "httponly", httponly_, "samesite", samesite_))>
+		<cfset cookie_ = new_("ColdIgniter\Cookie\Cookie", name_, value_, array_("expires", expire_, "domain", domain_, "path", path_, "prefix", prefix_, "secure", secure_, "httponly", httponly_, "samesite", samesite_))>
 
-		<cfset this.cookieStore = this.cookieStore.put(cookie)>
+		<cfset this.cookieStore = this.cookieStore.put(cookie_)>
 
 		<cfreturn this>
 	</cffunction>
@@ -526,7 +526,7 @@
 		<cfset var prefixed = "">
 		<cfset var store = this.cookieStore>
 		<cfset var found = false>
-		<cfset var cookie = "">
+		<cfset var cookie_ = "">
 		<cfset var list = "">
 		<cfset var i = 0>
 
@@ -545,9 +545,9 @@
 		<cfloop from="1" to="#ArrayLen(list)#" index="i">
 			<cfif NOT found AND Compare(list[i].getPrefixedName(), prefixed) EQ 0>
 				<cfif Compare(arguments.domain, list[i].getDomain()) EQ 0 AND Compare(arguments.path, list[i].getPath()) EQ 0>
-					<cfset cookie = list[i].withValue("").withExpired()>
+					<cfset cookie_ = list[i].withValue("").withExpired()>
 					<cfset found = true>
-					<cfset this.cookieStore = store.put(cookie)>
+					<cfset this.cookieStore = store.put(cookie_)>
 				</cfif>
 			</cfif>
 		</cfloop>
