@@ -1,0 +1,16 @@
+{
+  "cfml.engine.name": "coldfusion",
+  "cfml.engine.version": "6.1.0",
+  "cfml.cfDocs.source": "extension",
+  "cfml.webroot": "public",
+  "cfml.autoCloseTags.enable": true,
+  "cfml.suggest.globalTags.attributes.quoteType": "double",
+  "cfml.suggest.globalTags.includeAttributes.setType": "required",
+  "cfml.suggest.globalFunctions.firstLetterCase": "unchanged",
+  "cfml.format.enabled": false,
+  "cfml.lsp.enabled": false,
+  "emmet.includeLanguages": { "cfml": "html" },
+  "files.associations": { "*.cfm": "cfml", "*.cfml": "cfml", "*.cfc": "cfml" },
+  "files.encoding": "utf8",
+  "[cfml]": { "editor.formatOnSave": false, "editor.insertSpaces": false }
+}

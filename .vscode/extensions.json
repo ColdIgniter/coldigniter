@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "CFMLEditor.cfmleditor"
+  ],
+  "unwantedRecommendations": [
+    "KamasamaK.vscode-cfml",
+    "ilich8086.ColdFusion",
+    "com-adobe-coldfusion.adobe-cfml-lsp"
+  ]
+}
