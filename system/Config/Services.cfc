@@ -24,6 +24,25 @@
 <cfcomponent output="no" extends="BaseService" hint="Services Configuration file">
 
 	<!---
+	 * The cache class provides a simple way to store and retrieve
+	 * complex data for later.
+	--->
+	<cffunction name="cache" access="public" returntype="any" output="no">
+		<cfargument name="config" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("cache", arguments.config)>
+		</cfif>
+
+		<cfif is_null(arguments.config)>
+			<cfset arguments.config = variables.config("Config\Cache")>
+		</cfif>
+
+		<cfreturn static_("ColdIgniter\Cache\CacheFactory").getHandler(arguments.config)>
+	</cffunction>
+
+	<!---
 	 * ColdIgniter, the core of the framework.
 	--->
 	<cffunction name="coldigniter" access="public" returntype="any" output="no">
@@ -123,6 +142,31 @@
 		</cfif>
 
 		<cfreturn new_("ColdIgniter\Log\Logger", variables.config("Config\Logger"))>
+	</cffunction>
+
+	<!---
+	 * The response cache stores whole responses, for the PageCache filter.
+	 *
+	 * Not ported yet: the content negotiator, which comes before this service
+	 * in the original.
+	--->
+	<cffunction name="responsecache" access="public" returntype="any" output="no">
+		<cfargument name="config" type="any" required="no" default="">
+		<cfargument name="cache" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("responsecache", arguments.config, arguments.cache)>
+		</cfif>
+
+		<cfif is_null(arguments.config)>
+			<cfset arguments.config = variables.config("Config\Cache")>
+		</cfif>
+		<cfif is_null(arguments.cache)>
+			<cfset arguments.cache = static_("Config\Services").get("cache")>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\Cache\ResponseCache", arguments.config, arguments.cache)>
 	</cffunction>
 
 	<!---
