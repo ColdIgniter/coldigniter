@@ -156,15 +156,19 @@
 			<cfset extra = parse_str(dsn["query"])>
 			<cfset keys = array_keys(extra)>
 
-			<cfloop list="#keys#" index="key">
+			<cfloop from="1" to="#ArrayLen(keys)#" index="i">
+				<cfset key = keys[i]>
 				<cfset val = extra[key]>
 
 				<!--- Difference: a boolean is the text "true" or "false", and a null is an empty string --->
 				<cfif IsSimpleValue(val) AND ListFindNoCase("true,false,null", val) GT 0>
-					<cfif Compare(LCase(val), "null") EQ 0>
+					<cfif Compare(val, "null") EQ 0>
 						<cfset val = "">
+					<cfelseif Compare(LCase(val), "true") EQ 0>
+						<cfset val = "true">
 					<cfelse>
-						<cfset val = LCase(val)>
+						<!--- also "NULL" and "Null", as in the original --->
+						<cfset val = "false">
 					</cfif>
 				</cfif>
 

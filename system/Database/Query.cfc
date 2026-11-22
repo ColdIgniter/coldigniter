@@ -120,7 +120,8 @@
 		<cfset this.swappedQueryString = "">
 
 		<cfif NOT is_null(binds_)>
-			<cfif NOT is_array(binds_)>
+			<!--- an object (a RawSql) is one bind; IsStruct() is true for a component --->
+			<cfif NOT is_array(binds_) OR IsObject(binds_)>
 				<cfset binds_ = ArrayNew(1)>
 				<cfset ArrayAppend(binds_, arguments.binds)>
 			</cfif>
@@ -479,7 +480,7 @@
 				<cfset isEscapeString = false>
 
 				<cfif isPostgre AND position GT 0 AND (Compare(charAt(arguments.sql, position - 1), "E") EQ 0 OR Compare(charAt(arguments.sql, position - 1), "e") EQ 0)>
-					<cfset isEscapeString = position EQ 1 OR preg_match("/[\w$\x{80}-\x{10FFFF}]/", charAt(arguments.sql, position - 2), true) NEQ 1>
+					<cfset isEscapeString = position EQ 1 OR preg_match("/[\w$\u0080-\uFFFF]/", charAt(arguments.sql, position - 2), true) NEQ 1>
 				</cfif>
 
 				<cfset end = findQuotedEnd(arguments.sql, position, "'", backslashEscapes OR isEscapeString)>
@@ -491,7 +492,7 @@
 				<cfset end = findQuotedEnd(arguments.sql, position, "`", false)>
 			<cfelseif Compare(char, "[") EQ 0 AND (isSQLSRV OR isSQLite)>
 				<cfset end = findQuotedEnd(arguments.sql, position, "]", false)>
-			<cfelseif Compare(char, "$") EQ 0 AND isPostgre AND (position EQ 0 OR preg_match("/[\w$\x{80}-\x{10FFFF}]/", charAt(arguments.sql, position - 1), true) NEQ 1)>
+			<cfelseif Compare(char, "$") EQ 0 AND isPostgre AND (position EQ 0 OR preg_match("/[\w$\u0080-\uFFFF]/", charAt(arguments.sql, position - 1), true) NEQ 1)>
 				<!--- PostgreSQL dollar-quoted strings: $$...$$ or $tag$...$tag$
 				      The tag is read with a loop, [A-Za-z_] and then word characters, up to a $. --->
 				<cfset tag = "">
@@ -784,7 +785,13 @@
 	 * Difference: the original finds the key words with a pattern that has a
 	 * quantifier inside a quantifier. Here the key words are found with one
 	 * pattern with no quantifier, and a key word is bolded when the number
-	 * of &#039; after it is even, which is what the original pattern tests.
+	 * of &#039; after it is even, which is what the original pattern is
+	 * meant to test.
+	 *
+	 * Difference: [^(&#039;)] of the original is a character class (any
+	 * character but ( & # 0 3 9 ; )), so the original also bolds some key
+	 * words inside a quoted string, as the AND of SELECT 'AND' FROM t0.
+	 * Here a key word inside a quoted string is never bolded.
 	--->
 	<cffunction name="debugToolbarDisplay" access="public" returntype="string" output="no">
 		<!--- Key words we want bolded --->

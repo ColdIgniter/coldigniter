@@ -401,7 +401,7 @@
 		<cfloop from="1" to="#ArrayLen(keys)#" index="i">
 			<cfset key = keys[i]>
 
-			<cfif StructKeyExists(this, key & "_")>
+			<cfif StructKeyExists(this, key & "_") AND NOT IsCustomFunction(this[key & "_"])>
 				<cfset this[key & "_"] = arguments.params[key]>
 			<cfelseif StructKeyExists(this, key)>
 				<cfif NOT IsCustomFunction(this[key])>
@@ -475,7 +475,7 @@
 						<cfset this.connID = this.connect(this.pConnect)>
 
 						<cfcatch type="any">
-							<cfset ArrayAppend(connectionErrors, "Failover " & i & " [" & this.DBDriver & "]: " & cfcatch.message)>
+							<cfset ArrayAppend(connectionErrors, "Failover ##" & i & " [" & this.DBDriver & "]: " & cfcatch.message)>
 							<cfset log_message("error", "Error connecting to the database: " & cfcatch.message)>
 						</cfcatch>
 					</cftry>

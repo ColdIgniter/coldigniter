@@ -154,8 +154,10 @@
 	<cffunction name="reconnectForWorkerMode" access="public" returntype="void" output="no">
 		<cfset var groups = array_keys(this.instances)>
 		<cfset var group = "">
+		<cfset var i = 0>
 
-		<cfloop list="#groups#" index="group">
+		<cfloop from="1" to="#ArrayLen(groups)#" index="i">
+			<cfset group = groups[i]>
 			<cfset this.instances[group].reconnect()>
 		</cfloop>
 	</cffunction>
@@ -174,9 +176,11 @@
 	<cffunction name="cleanupForWorkerMode" access="public" returntype="void" output="no">
 		<cfset var groups = array_keys(this.instances)>
 		<cfset var group = "">
+		<cfset var i = 0>
 		<cfset var connection = "">
 
-		<cfloop list="#groups#" index="group">
+		<cfloop from="1" to="#ArrayLen(groups)#" index="i">
+			<cfset group = groups[i]>
 			<cfset connection = this.instances[group]>
 
 			<cfif connection.transDepth GT 0>
