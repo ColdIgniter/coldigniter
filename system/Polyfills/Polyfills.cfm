@@ -23,6 +23,7 @@
 <cfinclude template="file_get_contents.cfm">
 <cfinclude template="filter_var.cfm">
 <cfinclude template="floatval.cfm">
+<cfinclude template="fnmatch.cfm">
 <cfinclude template="gmdate.cfm">
 <cfinclude template="hash_equals.cfm">
 <cfinclude template="hex2bin.cfm">
