@@ -208,7 +208,11 @@
 
 		<cfset value = Int(Val(value) + arguments.offset)>
 
-		<cfreturn save(arguments.key, value, ttl)>
+		<cfif save(arguments.key, value, Val(ttl))>
+			<cfreturn value>
+		</cfif>
+
+		<cfreturn false>
 	</cffunction>
 
 	<cffunction name="decrement" access="public" returntype="any" output="no">
