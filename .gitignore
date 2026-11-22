@@ -1,0 +1,3 @@
+# Local rewrite rules; copy public/httpd.htaccess.sample to make them
+/public/httpd.htaccess
+/public/.htaccess
