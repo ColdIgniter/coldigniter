@@ -15,10 +15,13 @@
  *
  * Difference: a null is an empty string and a boolean is the text "true" or
  * "false", so an argument that is "?bool $escape = null" is an empty string
- * for null. A value that is omitted or an empty string is the null of where(),
- * orWhere(), having() and orHaving(): where("name") is "name IS NULL". A limit and an offset have to be numbers
- * (they are written as numbers, never quoted), and QBLimit and QBOffset are
- * the text "false" when they are not set.
+ * for null. A value that is omitted is the null of where(), orWhere(), having()
+ * and orHaving(): where("name") is "name IS NULL". An empty string is a string.
+ * A null that is a value (in a map of where() or having(), in set() and in
+ * the data of an insert) is new_("ColdIgniter\Database\NullValue").
+ * A limit and an offset have to be numbers (they are written as numbers,
+ * never quoted), and QBLimit and QBOffset are the text "false" when they
+ * are not set.
  *
  * Difference: a number that has to be bound as a number is a number (use
  * JavaCast), as every literal of CFML is text, and text is quoted.
@@ -896,8 +899,8 @@
 			<cfset k = keys[i]>
 			<cfset v = keyValue[k]>
 
-			<!--- an empty string is the null, as well as an omitted value --->
-			<cfset isNullEntry = isNullValue OR isNullArg_(v)>
+			<!--- a NullValue is the null, as well as an omitted value --->
+			<cfset isNullEntry = isNullValue OR isNullMarker_(v)>
 
 			<cfif rawSqlOnly>
 				<cfset k = "">
@@ -4431,6 +4434,13 @@
 		<cfargument name="value" type="any" required="yes">
 
 		<cfreturn IsSimpleValue(arguments.value) AND Len(arguments.value) EQ 0>
+	</cffunction>
+
+	<!--- true when the value is the NullValue that stands in for null --->
+	<cffunction name="isNullMarker_" access="private" returntype="boolean" output="no">
+		<cfargument name="value" type="any" required="yes">
+
+		<cfreturn instanceof_(arguments.value, "NullValue")>
 	</cffunction>
 
 	<!--- the boolean of an argument that is a ?bool: an empty string is the setting of the connection --->

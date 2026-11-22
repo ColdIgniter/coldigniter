@@ -1636,8 +1636,8 @@
 	 * a real boolean (a comparison, or JavaCast) gives 0 or 1, and a real
 	 * number (from a calculation or JavaCast) is returned as it is. A
 	 * string is quoted, also the literal true, false and a literal number,
-	 * which are text, and so is a null (an empty string), where the
-	 * original gives NULL. A list gives a new list, and a map a new map.
+	 * which are text, and so is an empty string. A null is a NullValue,
+	 * which gives NULL. A list gives a new list, and a map a new map.
 	--->
 	<cffunction name="escape" access="public" returntype="any" output="no">
 		<cfargument name="str" type="any" required="yes">
@@ -1648,6 +1648,10 @@
 		<cfset var typeName = "">
 
 		<cfif IsObject(value)>
+			<cfif Compare(value.__class, "ColdIgniter\Database\NullValue") EQ 0>
+				<cfreturn "NULL">
+			</cfif>
+
 			<cfif Compare(value.__class, "ColdIgniter\Database\RawSql") EQ 0>
 				<cfreturn value.__toString()>
 			</cfif>
