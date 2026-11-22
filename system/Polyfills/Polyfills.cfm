@@ -10,6 +10,7 @@
 <cfinclude template="array_reverse.cfm">
 <cfinclude template="array_unique.cfm">
 <cfinclude template="class_exists.cfm">
+<cfinclude template="date.cfm">
 <cfinclude template="define.cfm">
 <cfinclude template="defined.cfm">
 <cfinclude template="explode.cfm">
@@ -28,11 +29,13 @@
 <cfinclude template="new_.cfm">
 <cfinclude template="parse_str.cfm">
 <cfinclude template="parse_url.cfm">
+<cfinclude template="print_r.cfm">
 <cfinclude template="realpath.cfm">
 <cfinclude template="require_once.cfm">
 <cfinclude template="rtrim_.cfm">
 <cfinclude template="static_.cfm">
 <cfinclude template="strip_tags.cfm">
+<cfinclude template="strtr.cfm">
 <cfinclude template="substr.cfm">
 <cfinclude template="trim_.cfm">
 <cfinclude template="version_compare.cfm">

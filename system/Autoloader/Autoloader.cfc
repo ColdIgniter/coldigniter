@@ -283,6 +283,8 @@
 
 		<cfset object = createComponent(filePath)>
 		<cfset object.__variables = request.ColdIgniter.functions.__variables>
+		<!--- Difference: the class name cannot be read from the component metadata, which only has the name relative to the nearest autoload.cfm --->
+		<cfset object.__class = name>
 
 		<!--- A class in another folder tree cannot be named in "extends", so it is named in "parent". --->
 		<cfset meta = GetMetaData(object)>
