@@ -4,6 +4,9 @@
  * Without a list of characters, whitespace is stripped. The characters
  * are a plain list (no ranges). Named with an underscore, because a
  * CFML function has the name of the original.
+ *
+ * Not ported yet: the NUL character in the default list of characters,
+ * because Chr(0) is an empty string on the server.
 --->
 <cffunction name="rtrim_" returntype="string" output="no" hint="Strips characters from the end of a string">
 	<cfargument name="string" type="string" required="yes">

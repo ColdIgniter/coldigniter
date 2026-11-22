@@ -350,11 +350,11 @@
 		<!--- IIS environment likely? Use 'refresh' for better compatibility --->
 		<cfset superglobals = service("superglobals")>
 		<cfset serverSoftware = superglobals.server("SERVER_SOFTWARE")>
-		<cfif arguments.method EQ "auto"
+		<cfif Compare(arguments.method, "auto") EQ 0
 			AND NOT is_null(serverSoftware)
 			AND Find("Microsoft-IIS", serverSoftware) GT 0>
 			<cfset arguments.method = "refresh">
-		<cfelseif arguments.method NEQ "refresh" AND is_null(arguments.code)>
+		<cfelseif Compare(arguments.method, "refresh") NEQ 0 AND is_null(arguments.code)>
 			<!--- override status code for HTTP/1.1 & higher --->
 			<cfset serverProtocol = superglobals.server("SERVER_PROTOCOL")>
 			<cfset requestMethod = superglobals.server("REQUEST_METHOD")>
@@ -378,7 +378,7 @@
 			<cfset arguments.code = 302>
 		</cfif>
 
-		<cfif arguments.method EQ "refresh">
+		<cfif Compare(arguments.method, "refresh") EQ 0>
 			<cfset setHeader("Refresh", "0;url=" & arguments.uri)>
 		<cfelse>
 			<cfset setHeader("Location", arguments.uri)>

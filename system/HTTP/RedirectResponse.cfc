@@ -24,7 +24,7 @@
 		 If it appears to be a relative URL, then convert to full URL
 		 for better security.
 		--->
-		<cfif Left(arguments.uri, 4) NEQ "http">
+		<cfif Compare(Left(arguments.uri, 4), "http") NEQ 0>
 			<cfset arguments.uri = site_url(arguments.uri)>
 		</cfif>
 

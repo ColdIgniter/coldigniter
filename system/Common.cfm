@@ -141,7 +141,7 @@
  *   3. system/Helpers
  *
  * Not ported yet: the file locator, so only app/Helpers and
- * system/Helpers are searched and a namespaced name loads nothing.
+ * system/Helpers are searched and a namespaced name is never found.
  *
  * The functions of a helper file become global (see require_once) and
  * the first definition of a name wins, which is how an app helper
@@ -166,7 +166,9 @@
 	<!--- Not ported yet: loader = service("locator") --->
 
 	<cfif NOT IsArray(arguments.filenames)>
-		<cfset arguments.filenames = ListToArray(arguments.filenames)>
+		<cfset filename = arguments.filenames>
+		<cfset arguments.filenames = ArrayNew(1)>
+		<cfset ArrayAppend(arguments.filenames, filename)>
 	</cfif>
 
 	<cfloop from="1" to="#ArrayLen(arguments.filenames)#" index="i">
@@ -190,7 +192,8 @@
 			 file and not search for any others
 			--->
 			<cfif Find("\", filename) GT 0>
-				<!--- Not ported yet: loader.locateFile(filename, "Helpers") --->
+				<!--- Not ported yet: loader.locateFile(filename, "Helpers"), so the file is never found --->
+				<cfthrow type="ColdIgniter.Files.Exceptions.FileNotFoundException" message="File not found: ""#filename#""">
 			<cfelse>
 				<!--- No namespaces, so search in all available locations --->
 				<!--- Not ported yet: loader.search("Helpers/" & filename), and the namespace locations --->
