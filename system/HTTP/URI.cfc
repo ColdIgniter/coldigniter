@@ -140,7 +140,7 @@
 		</cfloop>
 
 		<cfset result = implode("/", output)>
-		<cfset result = REReplace(result, "^[/ ]+|[/ ]+$", "", "all")>
+		<cfset result = trim_(result, "/ ")>
 
 		<!--- Add leading slash if necessary --->
 		<cfif Left(arguments.path, 1) EQ "/">
@@ -400,7 +400,7 @@
 
 		<cfset this.path = filterPath(arguments.path)>
 
-		<cfset tempPath = REReplace(this.path, "^/+|/+$", "", "all")>
+		<cfset tempPath = trim_(this.path, "/")>
 
 		<cfif tempPath EQ "">
 			<cfset this.segments = ArrayNew(1)>
@@ -440,7 +440,7 @@
 	<cffunction name="setFragment" access="public" returntype="any" output="no">
 		<cfargument name="string" type="string" required="yes">
 
-		<cfset this.fragment = REReplace(Trim(arguments.string), "^[## ]+|[## ]+$", "", "all")>
+		<cfset this.fragment = trim_(Trim(arguments.string), "## ")>
 
 		<cfreturn this>
 	</cffunction>
@@ -513,7 +513,7 @@
 
 		<!--- Populate our segments array --->
 		<cfif StructKeyExists(arguments.parts, "path") AND arguments.parts["path"] NEQ "">
-			<cfset this.segments = explode("/", REReplace(arguments.parts["path"], "^/+|/+$", "", "all"))>
+			<cfset this.segments = explode("/", trim_(arguments.parts["path"], "/"))>
 			<cfif ArrayLen(this.segments) EQ 1 AND this.segments[1] EQ "">
 				<cfset this.segments = ArrayNew(1)>
 			</cfif>

@@ -472,6 +472,14 @@
  *
  * The patterns are Java regular expressions.
  *
+ * Difference: a match of the scheme or of the local part of an email is
+ * only tried at the left edge of a run of its characters (a look-behind),
+ * because a try from every position of a long run is quadratic. A scheme
+ * glued to a digit, a plus, a hyphen or a dot ("1http://x.example") is
+ * no longer linked (a "www." after it still is), nor an email glued to
+ * such a run, nor an email that starts right where the one before it
+ * ended ("x@a.bc_y@e.fg": only the first is linked).
+ *
  * Not ported yet: FILTER_VALIDATE_EMAIL, so every match of the email
  * pattern is linked.
  *
@@ -495,7 +503,7 @@
 
 	<!--- Find and replace any URLs. --->
 	<cfif Compare(arguments.type, "email") NEQ 0>
-		<cfset matcher = Pattern.compile("([a-z][a-z0-9+\-.]*://|www\.)[a-z0-9]+(-+[a-z0-9]+)*(\.[a-z0-9]+(-+[a-z0-9]+)*)+(/([^\s()<>;]+\w)?/?)?", JavaCast("int", 2)).matcher(arguments.str)>
+		<cfset matcher = Pattern.compile("((?<![a-z0-9+\-.])[a-z][a-z0-9+\-.]*://|www\.)[a-z0-9]+(-+[a-z0-9]+)*(\.[a-z0-9]+(-+[a-z0-9]+)*)+(/([^\s()<>;]+\w)?/?)?", JavaCast("int", 2)).matcher(arguments.str)>
 
 		<cfloop condition="matcher.find()">
 			<cfset ArrayAppend(starts, matcher.start())>
@@ -529,7 +537,7 @@
 	<cfif Compare(arguments.type, "url") NEQ 0>
 		<cfset starts = ArrayNew(1)>
 		<cfset ends = ArrayNew(1)>
-		<cfset matcher = Pattern.compile("([\w\.\-\+]+@[a-z0-9\-]+\.[a-z0-9\-\.]+[^\p{Punct}\s])", JavaCast("int", 2)).matcher(arguments.str)>
+		<cfset matcher = Pattern.compile("((?<![\w.\-+])[\w\.\-\+]+@[a-z0-9\-]+\.[a-z0-9\-\.]+[^\p{Punct}\s])", JavaCast("int", 2)).matcher(arguments.str)>
 
 		<cfloop condition="matcher.find()">
 			<cfset ArrayAppend(starts, matcher.start())>
@@ -583,6 +591,70 @@
 </cffunction>
 
 <!---
+ * Removes every "&" up to the next ";" (an entity such as &amp;), as
+ * the pattern &.+?; does: at least one character in between, none of
+ * them a line terminator.
+ *
+ * Difference: not in the original. The helper stands in for the pattern
+ * in url_title(), which is quadratic on a long run of "&", and scans the
+ * string once. The line terminators are those that "." does not match.
+ *
+ * @param str the string
+--->
+<cffunction name="strip_entities_" returntype="string" output="no" hint="Removes every ampersand up to the next semicolon">
+	<cfargument name="str" type="string" required="yes">
+	<cfset var terminators = CreateObject("java", "java.util.regex.Pattern").compile("[\n\r\u0085\u2028\u2029]")>
+	<cfset var matcher = terminators.matcher(JavaCast("string", arguments.str))>
+	<cfset var buffer = CreateObject("java", "java.lang.StringBuffer").init()>
+	<cfset var length = Len(arguments.str)>
+	<cfset var position = 1>
+	<cfset var amp = 0>
+	<cfset var semi = -1>
+	<cfset var term = -1>
+
+	<cfloop condition="position LTE length">
+		<cfset amp = Find("&", arguments.str, position)>
+		<cfif amp EQ 0>
+			<cfbreak>
+		</cfif>
+
+		<!--- the first ";" from two characters on; kept while it still lies ahead --->
+		<cfif semi NEQ 0 AND semi LT amp + 2>
+			<cfif amp + 2 GT length>
+				<cfset semi = 0>
+			<cfelse>
+				<cfset semi = Find(";", arguments.str, amp + 2)>
+			</cfif>
+		</cfif>
+		<cfif semi EQ 0>
+			<cfbreak>
+		</cfif>
+
+		<!--- the first line terminator after the "&", kept while it still lies ahead --->
+		<cfif term NEQ 0 AND term LT amp + 1>
+			<cfif matcher.find(JavaCast("int", amp))>
+				<cfset term = matcher.start() + 1>
+			<cfelse>
+				<cfset term = 0>
+			</cfif>
+		</cfif>
+
+		<cfif term EQ 0 OR semi LT term>
+			<cfset buffer.append(JavaCast("string", Mid(arguments.str, position, amp - position)))>
+			<cfset position = semi + 1>
+		<cfelse>
+			<!--- no "&" before the terminator can match: go on from it --->
+			<cfset buffer.append(JavaCast("string", Mid(arguments.str, position, term - position)))>
+			<cfset position = term>
+		</cfif>
+	</cfloop>
+
+	<cfset buffer.append(JavaCast("string", Mid(arguments.str, position, length - position + 1)))>
+
+	<cfreturn buffer.toString()>
+</cffunction>
+
+<!---
  * Create URL Title
  *
  * Takes a "title" string as input and creates a
@@ -601,10 +673,11 @@
 	<cfargument name="lowercase" type="boolean" required="no" default="false">
 	<cfset var qSeparator = JavaCast("string", arguments.separator).replaceAll("([^A-Za-z0-9])", "\\$1")>
 	<cfset var replacement = Replace(Replace(arguments.separator, "\", "\\", "all"), "$", "\$", "all")>
-	<cfset var trans = array_("&.+?;", "", "[^\w\d\pL\pM _-]", "", "\s+", replacement, "(" & qSeparator & ")+", replacement)>
+	<cfset var trans = array_("[^\w\d\pL\pM _-]", "", "\s+", replacement, "(" & qSeparator & ")+", replacement)>
 	<cfset var key = "">
 
 	<cfset arguments.str = strip_tags(arguments.str)>
+	<cfset arguments.str = strip_entities_(arguments.str)>
 
 	<cfloop collection="#trans#" item="key">
 		<cfset arguments.str = JavaCast("string", arguments.str).replaceAll("(?iu)" & key, trans[key])>
@@ -690,14 +763,20 @@
  *
  * Example:
  *   if (url_is('admin*')) ...
+ *
+ * Difference: a * becomes \S* where the original writes (\S)*, the same
+ * match without a repeated group. A path longer than the limit of
+ * regex_guard_() is refused.
 --->
 <cffunction name="url_is" returntype="boolean" output="no" hint="Determines if current url path contains the given path">
 	<cfargument name="path" type="string" required="yes">
 	<cfset var currentPath = "">
 
 	<!--- Setup our regex to allow wildcards --->
-	<cfset arguments.path = "/" & trim_(Replace(arguments.path, "*", "(\S)*", "all"), "/ ")>
+	<cfset arguments.path = "/" & trim_(Replace(arguments.path, "*", "\S*", "all"), "/ ")>
 	<cfset currentPath = "/" & trim_(uri_string(), "/ ")>
+
+	<cfset regex_guard_(currentPath)>
 
 	<cfreturn REFind("^" & arguments.path & "$", currentPath) GT 0>
 </cffunction>

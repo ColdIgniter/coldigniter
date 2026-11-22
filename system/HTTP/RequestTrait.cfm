@@ -234,6 +234,9 @@
 	<cfset var matches = "">
 	<cfset var key = "">
 	<cfset var i = 0>
+	<cfset var first = 0>
+	<cfset var last = 0>
+	<cfset var limit = 0>
 
 	<cfif NOT StructKeyExists(this.globals, arguments.name)>
 		<cfset populateGlobals(arguments.name)>
@@ -272,7 +275,22 @@
 	</cfif>
 
 	<!--- Does the index contain array notation? --->
-	<cfset matcher = CreateObject("java", "java.util.regex.Pattern").compile("(?:^[^\[]+)|\[[^\]]*\]").matcher(arguments.index)>
+	<!---
+	 Difference: the pattern only sees the text up to the last "]" (or up to
+	 the first "[" when that comes later), because a "[" after the last "]"
+	 can never match and every one of them would scan to the end (quadratic).
+	 The matches are the same.
+	--->
+	<cfset first = Find("[", arguments.index)>
+	<cfset last = Find("]", Reverse(arguments.index))>
+	<cfif last GT 0>
+		<cfset last = Len(arguments.index) - last + 1>
+	</cfif>
+	<cfset limit = Len(arguments.index)>
+	<cfif first GT 0>
+		<cfset limit = Max(last, first - 1)>
+	</cfif>
+	<cfset matcher = CreateObject("java", "java.util.regex.Pattern").compile("(?:^[^\[]+)|\[[^\]]*\]").matcher(JavaCast("string", arguments.index).substring(JavaCast("int", 0), JavaCast("int", limit)))>
 	<cfset matches = ArrayNew(1)>
 
 	<cfloop condition="matcher.find()">

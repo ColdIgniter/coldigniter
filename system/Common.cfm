@@ -520,6 +520,10 @@
 	<cfargument name="urlEncoded" type="boolean" required="no" default="true">
 	<cfset var nonDisplayables = ArrayNew(1)>
 	<cfset var previous = "">
+	<cfset var passes = 0>
+	<cfset var buffer = "">
+	<cfset var character = "">
+	<cfset var i = 0>
 
 	<!--- every control character except newline (dec 10), carriage return (dec 13) and horizontal tab (dec 09) --->
 	<cfif arguments.urlEncoded>
@@ -532,9 +536,36 @@
 	<!--- Difference: the loop ends when a pass changes nothing, where the original counts the replacements. --->
 	<cfloop condition="true">
 		<cfset previous = arguments.str>
-		<cfset arguments.str = preg_replace(nonDisplayables, "", arguments.str)>
+		<cfset arguments.str = preg_replace(nonDisplayables, "", arguments.str, true)>
 
 		<cfif Compare(previous, arguments.str) EQ 0>
+			<cfbreak>
+		</cfif>
+
+		<!---
+		 Difference: nested codes ("%0%000") peel one level per pass, so a long
+		 nest is quadratic. After a few passes the rest is done in one walk:
+		 the control characters go first (removing a code never makes one),
+		 then each code is dropped as soon as its last character is read.
+		 The result is the same.
+		--->
+		<cfset passes = passes + 1>
+		<cfif passes GTE 4 AND arguments.urlEncoded>
+			<cfset arguments.str = preg_replace(nonDisplayables[ArrayLen(nonDisplayables)], "", arguments.str, true)>
+			<cfset buffer = CreateObject("java", "java.lang.StringBuffer").init()>
+
+			<cfloop from="1" to="#Len(arguments.str)#" index="i">
+				<cfset character = Mid(arguments.str, i, 1)>
+				<cfset buffer.append(JavaCast("string", character))>
+
+				<cfif Compare(character, "%") NEQ 0 AND buffer.length() GTE 3>
+					<cfif buffer.substring(JavaCast("int", buffer.length() - 3)).matches("%(?:0[0-8bcef]|1[0-9a-f])")>
+						<cfset buffer.setLength(JavaCast("int", buffer.length() - 3))>
+					</cfif>
+				</cfif>
+			</cfloop>
+
+			<cfset arguments.str = buffer.toString()>
 			<cfbreak>
 		</cfif>
 	</cfloop>

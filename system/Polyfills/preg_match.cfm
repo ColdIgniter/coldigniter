@@ -54,10 +54,19 @@
  * subject, else 0. See preg_pattern() for the form of the pattern.
  *
  * Difference: the matches are not returned.
+ *
+ * Difference: a subject longer than the limit is refused (see
+ * regex_guard_()), unless unguarded is true. Only the framework passes
+ * unguarded, for a pattern of its own that cannot backtrack.
 --->
 <cffunction name="preg_match" returntype="numeric" output="no" hint="Performs a regular expression match">
 	<cfargument name="pattern" type="string" required="yes">
 	<cfargument name="subject" type="string" required="yes">
+	<cfargument name="unguarded" type="boolean" required="no" default="false">
+
+	<cfif NOT arguments.unguarded>
+		<cfset regex_guard_(arguments.subject)>
+	</cfif>
 
 	<cfif preg_pattern(arguments.pattern).matcher(JavaCast("string", arguments.subject)).find()>
 		<cfreturn 1>

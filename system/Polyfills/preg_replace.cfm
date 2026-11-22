@@ -5,11 +5,16 @@
  * \1, $1 or ${1}. See preg_pattern() for the form of a pattern.
  *
  * Difference: the number of replacements is not returned.
+ *
+ * Difference: a subject longer than the limit is refused (see
+ * regex_guard_()), unless unguarded is true. Only the framework passes
+ * unguarded, for a pattern of its own that cannot backtrack.
 --->
 <cffunction name="preg_replace" returntype="string" output="no" hint="Performs a regular expression search and replace">
 	<cfargument name="pattern" type="any" required="yes">
 	<cfargument name="replacement" type="any" required="yes">
 	<cfargument name="subject" type="string" required="yes">
+	<cfargument name="unguarded" type="boolean" required="no" default="false">
 	<cfset var result = arguments.subject>
 	<cfset var patterns = ArrayNew(1)>
 	<cfset var template = "">
@@ -37,6 +42,10 @@
 			</cfif>
 		<cfelse>
 			<cfset template = arguments.replacement>
+		</cfif>
+
+		<cfif NOT arguments.unguarded>
+			<cfset regex_guard_(result)>
 		</cfif>
 
 		<cfset matcher = preg_pattern(patterns[i]).matcher(JavaCast("string", result))>

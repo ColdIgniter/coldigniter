@@ -186,4 +186,20 @@
 	--->
 	<cfset this.CSPEnabled = false>
 
+	<!---
+	 * --------------------------------------------------------------------------
+	 * Regular Expression Subject Limit
+	 * --------------------------------------------------------------------------
+	 *
+	 * The longest text, in characters, that a regular expression written by the
+	 * developer (a route, a filter pattern, the regex_match rule, url_is(),
+	 * preg_match() and preg_replace()) is run on. A longer text is refused with
+	 * an exception, because the regular expressions of Java have no time limit
+	 * and a pattern that backtracks can hold the processor until the server is
+	 * restarted.
+	 *
+	 * Difference: not in the original, which has no such setting.
+	--->
+	<cfset this.regexSubjectLimit = 8192>
+
 </cfcomponent>

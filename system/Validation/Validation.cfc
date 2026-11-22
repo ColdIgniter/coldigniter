@@ -380,7 +380,8 @@
 			<cfset param = "">
 			<cfset hasParam = false>
 
-			<cfset matcher = CreateObject("java", "java.util.regex.Pattern").compile(JavaCast("string", "(?d)(.*?)\[(.*)\]")).matcher(JavaCast("string", rule))>
+			<!--- Difference: anchored at a line start, because the unanchored (.*?)\[(.*)\] is cubic on a long run of "[". The match is the same. --->
+			<cfset matcher = CreateObject("java", "java.util.regex.Pattern").compile(JavaCast("string", "(?dm)^([^\[\n]*)\[(.*)\]")).matcher(JavaCast("string", rule))>
 
 			<cfif matcher.find()>
 				<cfset rule = matcher.group(JavaCast("int", 1))>
@@ -548,7 +549,8 @@
 						<cfthrow type="ColdIgniter.Exceptions.LogicException" message="Not ported yet: a rule that is not a string.">
 					</cfif>
 
-					<cfset matcher = CreateObject("java", "java.util.regex.Pattern").compile(JavaCast("string", "(?d)(.*?)\[(.*)\]")).matcher(JavaCast("string", rule))>
+					<!--- Difference: anchored at a line start, because the unanchored (.*?)\[(.*)\] is cubic on a long run of "[". The match is the same. --->
+					<cfset matcher = CreateObject("java", "java.util.regex.Pattern").compile(JavaCast("string", "(?dm)^([^\[\n]*)\[(.*)\]")).matcher(JavaCast("string", rule))>
 
 					<cfif matcher.find()>
 						<cfset rule = matcher.group(JavaCast("int", 1))>

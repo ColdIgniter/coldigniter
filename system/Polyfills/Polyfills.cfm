@@ -55,6 +55,7 @@
 <cfinclude template="random_bytes.cfm">
 <cfinclude template="rawurlencode.cfm">
 <cfinclude template="realpath.cfm">
+<cfinclude template="regex_guard_.cfm">
 <cfinclude template="require_once.cfm">
 <cfinclude template="rtrim_.cfm">
 <cfinclude template="session_create_id.cfm">

@@ -137,7 +137,7 @@
 		 contain the query string (Nginx) a correct URI is found, and also
 		 fixes the QUERY_STRING Server var and GET array.
 		--->
-		<cfif REReplace(path, "^/+|/+$", "", "all") EQ "" AND Left(query, 1) EQ "/">
+		<cfif trim_(path, "/") EQ "" AND Left(query, 1) EQ "/">
 			<cfset parts = explode("?", query, 2)>
 			<cfset path = parts[1]>
 			<cfif ArrayLen(parts) GT 1>
@@ -172,7 +172,7 @@
 		<cfset var previousRequestData = "">
 		<cfset var get = "">
 
-		<cfif REReplace(query, "^/+|/+$", "", "all") EQ "">
+		<cfif trim_(query, "/") EQ "">
 			<cfreturn "/">
 		</cfif>
 

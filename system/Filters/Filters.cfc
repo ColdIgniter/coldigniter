@@ -920,6 +920,7 @@
 			<cfset path = LCase(Replace(path, "*", ".*", "all"))>
 
 			<!--- Does this rule apply here? --->
+			<cfset regex_guard_(arguments.uri)>
 			<cfif pattern.compile("\A" & path & "\z").matcher(JavaCast("string", arguments.uri)).find()>
 				<cfreturn true>
 			</cfif>
