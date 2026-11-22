@@ -1,0 +1,122 @@
+== main probe, HTTP 200
+server: ColdFusion Server 6,1,0,63958 Standard | Windows NT 4.0
+java: 1.4.2 | Sun Microsystems Inc. | Windows NT | file.encoding=Cp1252 | class.version=48.0
+cgi: script_name=/_t/index.cfm path_info=/_t/index.cfm path_translated=D:\Inetpub\vhosts\coldigniter.lan\public\_t\index.cfm server_software=Microsoft-IIS/4.0 protocol=HTTP/1.1
+paths: current=D:\Inetpub\vhosts\coldigniter.lan\public\_t\t004.cfm base=D:\Inetpub\vhosts\coldigniter.lan\public\_t\index.cfm expand(/)=C:\CFusionMX\wwwroot\ temp=C:\CFusionMX\runtime\servers\default\SERVER-INF\temp\wwwroot-tmp\
+multi-cfreturn: one,other
+void-returntype: ran
+inherit-init-this: this keys=CALLSECRET,CHILD,GETNAME,HASVAR,INIT,LEAK,MID,PUB,RENDER,THISKEYS,VARKEYS,WHO | getName=zed | IsObject=YES
+super-multi-level: child>mid>base
+private-from-child: base-secret
+private-from-outside: ERROR [Application] The method 'secret' could not be found in component D:\Inetpub\vhosts\coldigniter.lan\public\_t\Child.cfc. | Check to ensure that the method is defined, and that it is spelled correctly.
+variables-keys: CALLSECRET,GETNAME,HASVAR,INIT,LEAK,NAME,PSEUDO,RENDER,SECRET,THIS,THISKEYS,VARKEYS,WHO
+no-init-child: inherited meta=_t.ChildNoInit extends=_t.Base
+pseudo-constructor: hasVar(pseudo)=YES
+super-named-args: ERROR [Expression] Cannot invoke method init on an object of type coldfusion.runtime.Struct with named arguments. | Use ordered arguments instead.
+super-argumentcollection: ERROR [Expression] Cannot invoke method init on an object of type coldfusion.runtime.Struct with named arguments. | Use ordered arguments instead.
+include-mixin: mixed-ok pseudo=base-pseudo
+inject-function: one
+inject-function-sees-variables: b
+detached-method: ERROR [Expression] Element NAME is undefined in VARIABLES. | 
+unscoped-leaks-to-variables: YES
+view-include-in-method: local1=var-local;argfile=yes;name=zed;this=set-in-base | viewset leaked to variables=YES | local1 leaked=YES
+duplicate-cfc: ERROR [Expression] Element NAME is undefined in VARIABLES. | 
+metadata: name=_t.Child keys=PATH,TYPE,NAME,OUTPUT,EXTENDS,FUNCTIONS path=D:\Inetpub\vhosts\coldigniter.lan\public\_t\Child.cfc
+cfinvoke-dynamic: zed
+cfinvoke-argcollection: viaAC
+chain-createobject-init: chain
+udf-argumentcollection: a=x,b=y,count=2
+udf-argcollection-numeric-keys: a=da,b=db,count=4
+udf-named-args: a=da,b=nb,count=2
+udf-extra-positional: n=3 first=q
+function-as-value: other | IsCustomFunction=YES
+function-arg-direct-call: one
+array-by-value: inside=2 outside=2
+struct-by-reference: YES
+java-on-cf-types: string=java.lang.String len=5 | array=coldfusion.runtime.Array size=1 | struct=coldfusion.runtime.Struct | sum=java.lang.Double | date=coldfusion.runtime.OleDateTime
+java-on-bool-and-paren: bool=java.lang.Boolean literal-number=java.lang.Integer
+method-on-paren-expr: ERROR [Template] Invalid CFML construct found on line 1 at column 44. | ColdFusion was looking at the following text:<p>.</p><p>The CFML compiler was processing:<ul><li>an expression beginning with "out", on line 1, column 8.This message is usually caused by a problem in the expressions structure.<li>a cfset tag beginning on line 1, column 2.</ul>
+method-on-function-result: coldfusion.runtime.OleDateTime / Ab
+array-element-method: viaAC
+struct-member-chain: viaAC / viaAC
+nested-struct-autocreate: A>B
+cfparam-and-default-struct: dflt
+cfquery-qoq-dynamic-param: rows=2 names=n1,n3 cfquery.executiontime defined=YES
+cfquery-sql-in-variable: rows=1 columnlist=ID
+wddx: len=116 roundtrip=1
+xml: children=2 xpath=1
+savecontent-nested: /
+cffile-relative-and-charset: line1 exists-after=NO
+cfdirectory: columns=ATTRIBUTES,DATELASTMODIFIED,MODE,NAME,SIZE,TYPE rows=7
+cflock-named: locked
+application-scope-without-cfapplication: ERROR [Expression] The requested scope application has not been enabled. | Before application variables can be used, the application state management system must be enabled using the CFAPPLICATION tag.
+cfapplication-late: name=ci_probe_app keys=applicationname,x
+getpagecontext-headers: set (see response headers)
+evaluate-dynamic-call: one / variables-lookup=YES
+string-escapes: pound=# dq=" sq=' htmledit=&lt;a href=&quot;x&quot;&gt;&amp;' js=a\'b\"c url=a%20b%2Fc%3Fd%3De%26f xml=&lt;&amp;&apos;&quot;&gt;
+date-types: now={ts '2026-11-22 01:33:59'} http=Sun, 22 Nov 2026 07:33:59 GMT tick=1795332839671 tz=21600 iso=2026-11-22T01:33:59
+int-format: 3*2=6 10/4=2.5 Int(7.9)=7 1000000*1000000=1E+012 ArrayLen+1=1 val=12 incr=2
+cfcatch-keys: caught by parent type ci.http; type=ci.http.notfound keys=code,Detail,ErrorCode,extended_info,ExtendedInfo,Message,StackTrace,TagContext,Type tagcontext=3
+cfcatch-top-type: caught by ci
+cfcatch-custom-catches-all-cfthrow: NOT caught by application, caught by any
+rethrow: rethrown inner
+java-exception: caught by java class name; type=java.lang.NumberFormatException
+script-catch: type=Expression message=Variable UNDEFINED_VAR_ZZ is undefined.
+struct-key-case: bazQux,FOOBAR
+struct-key-order: zeta,k2,alpha,k1,yankee,charlie,mike,k10,bravo
+linkedhashmap: keySet=[zeta, alpha, mike, bravo, viaBracket] IsStruct=YES StructKeyList=zeta,alpha,mike,bravo,viaBracket StructKeyExists(alpha)=YES StructKeyExists(ALPHA)=NO count=5
+short-circuit: sideeffect calls=0 (0 means short-circuit)
+javacast: bool:bool fails boolean:ok
+digest-MD5: 900150983cd24fb0d6963f7d28e17f72
+digest-SHA: a9993e364706816aba3e25717850c26c9cd0d89d
+digest-SHA-1: a9993e364706816aba3e25717850c26c9cd0d89d
+digest-SHA-256: ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+digest-SHA-384: cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7
+digest-SHA-512: ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f
+hash-builtin: 900150983CD24FB0D6963F7D28E17F72
+mac-HmacMD5: 18e3548c59ad40dd03907b7aeee71d67
+mac-HmacSHA1: 102900b72b7bf1031eec76b4804b66052376896b
+mac-HmacSHA256: ERROR [java.security.NoSuchAlgorithmException] Algorithm HmacSHA256 not available | 
+securerandom: nextInt ok: YES
+cipher-aes: available: AES/CBC/PKCS5Padding
+java-regex: java.util.regex lookbehind find=YES
+cf-regex-lookahead: lookahead=1 nongreedy=X<b> posix-class=3
+cf-regex-lookbehind: ERROR [Expression] Malformed regular expression "(?<=a)b". | Reason: Sequence (?<...) not recognized.
+numbers: 1+1=2 10/2=5 7/2=3.5 7\2=3 7 MOD 2=1 0.1+0.2=0.3 maxint+1=2147483648 big*=123456789000 2^40=1.09951162778E+012
+compare: 1 EQ 1.0:YES 1e3 EQ 1000:YES a EQ A:YES yes EQ true:YES 01 EQ 1:YES Compare(a,A):1 IsDate(1,2):YES IsNumeric(1e3):YES IsBoolean(2):YES
+lists: ListLen(a,,b)=2 ArrayLen(ListToArray(a,,b))=2 ListGetAt(a,,b,2)=b
+isdefined-bracket: dot=YES StructKeyExists=YES
+scopes-are-structs: variables=YES request=YES form=YES url=YES cgi=YES cookie=YES server=YES | unknown cgi var defined=YES value=[]
+variables-bracket: dyn-ok / dyn-ok
+uuid: 022D1BD6-BC24-11E7-42AE1E49994C32A5
+pagecontext: request method=GET out=coldfusion.runtime.NeoJspWriter servletpath=/_t/index.cfm servlet api=2.3 server=JRun 4
+httprequestdata: keys=protocol,content,method,headers headers=CONNECTION,HOST,USER-AGENT,ACCEPT-ENCODING
+relative-include: yes from D:\Inetpub\vhosts\coldigniter.lan\_tsys\boot.cfm
+cfc-beside-included-file: foo-hello name=Foo
+cfc-creating-subpackage: bar-hello name=Bar sibling=baz
+subpackage-from-included-file: bar-hello name=Bar sibling=baz
+cfc-relative-from-page: webroot-path
+functionlist: count=262 IsValid=NO SerializeJSON=NO IsInstanceOf=NO Sleep=NO GetContextRoot=NO CharsetEncode=NO GetHttpTimeString=YES REMatch=NO ArrayContains=NO FileRead=NO
+functionlist-all: Abs,ACos,ArrayAppend,ArrayAvg,ArrayClear,ArrayDeleteAt,ArrayInsertAt,ArrayIsEmpty,ArrayLen,ArrayMax,ArrayMin,ArrayNew,ArrayPrepend,ArrayResize,ArraySet,ArraySort,ArraySum,ArraySwap,ArrayToList,Asc,ASin,Atn,BitAnd,BitMaskClear,BitMaskRead,BitMaskSet,BitNot,BitOr,BitSHLN,BitSHRN,BitXor,Ceiling,Chr,CJustify,Compare,CompareNoCase,Cos,CreateDate,CreateDateTime,CreateObject,CreateODBCDate,CreateODBCDateTime,CreateODBCTime,CreateTime,CreateTimeSpan,CreateUUID,DateAdd,DateCompare,DateConvert,DateDiff,DateFormat,DatePart,Day,DayOfWeek,DayOfWeekAsString,DayOfYear,DaysInMonth,DaysInYear,DE,DecimalFormat,DecrementValue,Decrypt,DeleteClientVariable,DirectoryExists,DollarFormat,Duplicate,Encrypt,Evaluate,Exp,ExpandPath,FileExists,Find,FindNoCase,FindOneOf,FirstDayOfMonth,Fix,FormatBaseN,GetAuthUser,GetBaseTagData,GetBaseTagList,GetBaseTemplatePath,GetClientVariablesList,GetCurrentTemplatePath,GetDirectoryFromPath,GetException,GetFileFromPath,GetFunctionList,GetHTTPRequestData,GetHttpTimeString,GetK2ServerDocCount,GetK2ServerDocCountLimit,GetLocale,GetMetaData,GetMetricData,GetPageContext,GetProfileSections,GetProfileString,GetTempDirectory,GetTempFile,GetTemplatePath,GetTickCount,GetTimeZoneInfo,GetToken,Hash,Hour,HTMLCodeFormat,HTMLEditFormat,IIf,IncrementValue,InputBaseN,Insert,Int,IsArray,IsBinary,IsBoolean,IsCustomFunction,IsDate,IsDebugMode,IsDefined,IsK2ServerABroker,IsK2ServerDocCountExceeded,IsK2ServerOnline,IsLeapYear,IsNumeric,IsNumericDate,IsObject,IsQuery,IsSimpleValue,IsStruct,IsUserInRole,IsWddx,IsXmlDoc,IsXmlElem,IsXmlRoot,JavaCast,JSStringFormat,LCase,Left,Len,ListAppend,ListChangeDelims,ListContains,ListContainsNoCase,ListDeleteAt,ListFind,ListFindNoCase,ListFirst,ListGetAt,ListInsertAt,ListLast,ListLen,ListPrepend,ListQualify,ListRest,ListSetAt,ListSort,ListToArray,ListValueCount,ListValueCountNoCase,LJustify,Log,Log10,LSCurrencyFormat,LSDateFormat,LSEuroCurrencyFormat,LSIsCurrency,LSIsDate,LSIsNumeric,LSNumberFormat,LSParseCurrency,LSParseDateTime,LSParseEuroCurrency,LSParseNumber,LSTimeFormat,LTrim,Max,Mid,Min,Minute,Month,MonthAsString,Now,NumberFormat,ParagraphFormat,ParameterExists,ParseDateTime,Pi,PreserveSingleQuotes,Quarter,QueryAddColumn,QueryAddRow,QueryNew,QuerySetCell,QuotedValueList,Rand,Randomize,RandRange,REFind,REFindNoCase,ReleaseComObject,RemoveChars,RepeatString,Replace,ReplaceList,ReplaceNoCase,REReplace,REReplaceNoCase,Reverse,Right,RJustify,Round,RTrim,Second,SetLocale,SetProfileString,SetVariable,Sgn,Sin,SpanExcluding,SpanIncluding,Sqr,StripCr,StructAppend,StructClear,StructCopy,StructCount,StructDelete,StructFind,StructFindKey,StructFindValue,StructGet,StructInsert,StructIsEmpty,StructKeyArray,StructKeyExists,StructKeyList,StructNew,StructSort,StructUpdate,Tan,TimeFormat,ToBase64,ToBinary,ToString,Trim,UCase,URLDecode,URLEncodedFormat,Val,ValueList,Week,Wrap,WriteOutput,XmlChildPos,XmlElemNew,XMLFormat,XmlNew,XmlParse,XmlSearch,XmlTransform,Year,YesNoFormat
+thread-sleep: slept ms=125
+datasources: factory=
+mappings: /CFIDE
+trusted-cache: ERROR [Object] The selected method isSaveClassFiles was not found. | Either there are no methods with the specified method name and argument types, or the method isSaveClassFiles is overloaded with arguments types that ColdFusion can't decipher reliably. If this is a Java object and you verified that the method exists, you may need to use the javacast function to reduce ambiguity.
+
+== separate pages (a parse error here means the syntax is not supported)
+call.cfm: HTTP 500: Error Occurred While Processing Request Error Occurred While Processing Request Invalid CFML construct found on line 3 at column 30. ColdFusion was looking at the following text: ( The CFML compiler was processing: An expression that began on line 3, column 25. Your expression might be missing an ending "#" (it might look like #expr ). The body of a cfoutput tag beginning on line 3, column 2. &nbs
+ops.cfm: HTTP 500: Error Occurred While Processing Request Error Occurred While Processing Request Invalid CFML construct found on line 1 at column 54. ColdFusion was looking at the following text: = The CFML compiler was processing: a cfif tag beginning on line 1, column 47. &nbsp; Please try the following: Enable Robust Exception Information to provide greater detail about the source of errors. In the Administrato
+lit.cfm: HTTP 500: Error Occurred While Processing Request Error Occurred While Processing Request Invalid CFML construct found on line 1 at column 44. ColdFusion was looking at the following text: [ The CFML compiler was processing: a cfset tag beginning on line 1, column 34. &nbsp; Please try the following: Enable Robust Exception Information to provide greater detail about the source of errors. In the Administrat
+scriptthrow.cfm: HTTP 200: script throw works
+latevar.cfm: HTTP 500: Error Occurred While Processing Request Error Occurred While Processing Request Local variable y on line 1 must be grouped at the top of the function body. &nbsp; Please try the following: Enable Robust Exception Information to provide greater detail about the source of errors. In the Administrator, click Debugging & Logging > Debugging Settings, and select the Robust Exception Information option.
+appcfc/index.cfm: HTTP 200: Application.cfc onRequestStart: NOT run
+== http methods
+GET: HTTP/1.1 200 OK | cgi=GET data=GET len=0 ctype= q=z=1
+POST: HTTP/1.1 100 Continue | cgi=POST data=POST len=7 ctype=application/x-www-form-urlencoded q=z=1
+PUT: HTTP/1.1 100 Continue | cgi=PUT data=PUT len=7 ctype=application/x-www-form-urlencoded q=z=1
+DELETE: HTTP/1.1 200 OK | cgi=DELETE data=DELETE len=7 ctype=application/x-www-form-urlencoded q=z=1
+PATCH: HTTP/1.1 200 OK | cgi=PATCH data=PATCH len=7 ctype=application/x-www-form-urlencoded q=z=1
+OPTIONS: HTTP/1.1 200 OK | cgi=OPTIONS data=OPTIONS len=0 ctype= q=z=1
+HEAD: HTTP/1.1 200 OK | 
+== json body and status
+cgi=POST data=POST len=7 ctype=application/json q=
