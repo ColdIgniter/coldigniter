@@ -58,7 +58,7 @@
 
 	<!---
 	 * Stores information about the events for display in the debug toolbar.
-	 * A list of maps with start, end and event. The times are in milliseconds.
+	 * A list of maps with start, end and event. The times are in seconds (see microtime()).
 	--->
 	<cfset this.performanceLog = ArrayNew(1)>
 
@@ -160,7 +160,7 @@
 		<cfset listeners = this.listeners(arguments.eventName)>
 
 		<cfloop from="1" to="#ArrayLen(listeners)#" index="i">
-			<cfset start = GetTickCount()>
+			<cfset start = microtime(true)>
 			<cfset result = true>
 
 			<cfif NOT this.simulate_>
@@ -168,7 +168,7 @@
 			</cfif>
 
 			<cfif request.CI_DEBUG>
-				<cfset entry = array_("start", start, "end", GetTickCount(), "event", arguments.eventName)>
+				<cfset entry = array_("start", start, "end", microtime(true),"event", arguments.eventName)>
 				<cfset ArrayAppend(this.performanceLog, entry)>
 			</cfif>
 

@@ -63,6 +63,14 @@
 			<cfset app = initializeColdIgniter()>
 			<cfset runColdIgniter(app)>
 
+			<!---
+			 Difference: there is no exit, so exit_() throws ColdIgniter.Exit
+			 and the request ends here, with the output that was set so far.
+			--->
+			<cfcatch type="ColdIgniter.Exit">
+				<cfset request.ColdIgniter.exited = true>
+			</cfcatch>
+
 			<cfcatch type="any">
 				<cftry>
 					<cfset static_("Config\Services").exceptions().exceptionHandler(cfcatch)>

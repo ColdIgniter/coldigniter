@@ -281,6 +281,13 @@
 			<cfthrow type="ColdIgniter.Autoloader.ClassNotFoundException" message="Class ""#name#"" not found">
 		</cfif>
 
+		<!---
+		 * Difference: there is no get_included_files(), so the file of each class
+		 * that is created is noted with the helper files that require_once()
+		 * notes. The Files collector of the debug toolbar reads them.
+		--->
+		<cfset request.ColdIgniter.included[filePath] = true>
+
 		<cfset object = createComponent(filePath)>
 		<cfset object.__variables = request.ColdIgniter.functions.__variables>
 		<!--- Difference: the class name cannot be read from the component metadata, which only has the name relative to the nearest autoload.cfm --->
