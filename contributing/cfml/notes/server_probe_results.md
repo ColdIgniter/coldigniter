@@ -230,3 +230,17 @@ Layout used: site home `...\public`, test tree `...\_tsys` beside it (outside th
   because no mapping exists yet). Only `/CFIDE` is mapped today. The owner can add mappings. Until a mapping
   exists and is verified, treat "mappings resolve CFC names for CreateObject, extends and type checks" as the
   first thing to test.
+
+## A layout with no mapping: verified behaviour (second session, 2026-11-22)
+
+Scratch layout on the server: the page in `public\_t\`, an app tree in `_tapp\deep\er\app\` or `_tb\app\`, a framework tree in `_tsys2\system\` or `_tb\system\`. No mapping other than `/CFIDE` existed.
+
+- `cfinclude` with the path in a variable reaches a file outside the web root, and the included file can create a component that sits beside it.
+- `cfinclude template="../../_tb/app/Config/../../system/Boot.cfm"` works: `..` in the middle of the path is resolved.
+- `GetCurrentTemplatePath()` inside an included file gives that file's path; inside a component method it gives the `.cfc` path; `GetBaseTemplatePath()` gives the requested page.
+- `CreateObject("java", "java.io.File").init(path).getCanonicalPath()` resolves `..` and mixed slashes, with no trailing separator.
+- From a method of `_tb\system\Boot.cfc`, `cfinclude template="../../../../../Inetpub/vhosts/coldigniter.lan/_tb/app/Namespace.cfm"` works (one `../` per folder level up to the drive root, then down). The component created by that file then created `Controllers.Home` from its own tree.
+- Method copying: a framework loader created `Controllers.Home` (which `extends="BaseController"`, a sibling) through the app's factory, then copied every function of the framework's `Controller.cfc` into it unless the app component already had that name. Copying was done by injecting two helper functions that return and set the Variables scope of each object. Result: the app method called the framework's public method, which called a framework private method and read instance data; the app's own override won; `Controllers.Admin.Users`, in a subfolder and with no `extends`, worked the same; two instances kept separate data.
+- Timing on this box: 200 creations with copying took 187 ms, 200 plain creations 141 ms.
+- The real bootstrap files (`public/index.cfm`, `app/Config/Paths.cfm`, `system/Boot.cfm`, `system/Boot.cfc`), run from the scratch layout with only the `appDirectory` line changed: 503 with "The WRITEPATH is not set correctly." when the writable folder was missing, and 200 with all six path values once it existed.
+

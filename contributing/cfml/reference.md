@@ -1,6 +1,6 @@
 # Write ColdFusion MX 6.1 CFML that compiles first time
 
-ColdFusion MX 6.1 is a tag-based language with word operators, no null, no literals, no interfaces and only `Application.cfm`, so correct code for it is closer to 2003 habits than to anything a modern CFML tool suggests. A CodeIgniter 4 port is workable on it: components, inheritance with multi-level `super`, typed exception hierarchies, first-class functions, `cfsavecontent`, full HTTP method and status control through IIS 4, and the Java 1.4.2 class library all work on the target server. The three facts that shape the design most were all found by testing the real server and contradict or go beyond the manuals: **components cannot be found "up or across" folders without a ColdFusion mapping**, **`super` accepts positional arguments only**, and **a `cfinclude` inside a method copies that method's `var` locals into the component instance**, so views must be rendered by a throwaway object. Start with one mapping test, then build CodeIgniter's own boot order one small slice at a time, keeping everything in the Request scope.
+ColdFusion MX 6.1 is a tag-based language with word operators, no null, no literals, no interfaces and only `Application.cfm`, so correct code for it is closer to 2003 habits than to anything a modern CFML tool suggests. A CodeIgniter 4 port is workable on it: components, inheritance with multi-level `super`, typed exception hierarchies, first-class functions, `cfsavecontent`, full HTTP method and status control through IIS 4, and the Java 1.4.2 class library all work on the target server. The three facts that shape the design most were all found by testing the real server and contradict or go beyond the manuals: **components cannot be found "up or across" folders by name, so each folder tree creates its own components and no ColdFusion mapping is used**, **`super` accepts positional arguments only**, and **a `cfinclude` inside a method copies that method's `var` locals into the component instance**, so views must be rendered by a throwaway object. Build CodeIgniter's own boot order one small slice at a time, keeping everything in the Request scope.
 
 ## How to read the evidence marks
 
@@ -158,7 +158,7 @@ ColdFusion runs the nearest `Application.cfm` found by walking up from the reque
 <cfif NOT StructKeyExists(application, "ciReady")>
 	<cflock name="ci_boot_#application.applicationname#" type="exclusive" timeout="30">
 		<cfif NOT StructKeyExists(application, "ciReady")>
-			<cfset application.routes = CreateObject("component", "coldigniter.system.Router.RouteCollection").init()>
+			<cfset application.routes = loadRoutes()>
 			<cfset application.ciReady = true>
 		</cfif>
 	</cflock>
@@ -262,12 +262,12 @@ Named `cflock` works [S]. The manual still asks for locks around writes to Sessi
 | `clone` | A hand-written `clone()` | `Duplicate` broken [S] |
 | Variadic arguments | Read `arguments[n]` up to `ArrayLen(arguments)` | extras readable [S] |
 
-Because the metadata `NAME` changes with how the component was found [S], an `isA()` helper should compare the metadata `PATH` (the physical file) or always create components by full mapped name.
+Because the metadata `NAME` changes with how the component was found [S], an `isA()` helper should compare the metadata `PATH` (the physical file).
 
 ```cfm
-<!--- mixin: system/Traits/ResponseTrait.cfm holds plain cffunction tags --->
-<cfcomponent extends="coldigniter.system.Controller" output="no">
-	<cfinclude template="../../system/Traits/ResponseTrait.cfm">
+<!--- mixin: Traits/ResponseTrait.cfm holds plain cffunction tags --->
+<cfcomponent output="no">
+	<cfinclude template="Traits/ResponseTrait.cfm">
 </cfcomponent>
 ```
 
@@ -377,8 +377,8 @@ Keep CodeIgniter's tree unchanged: `app/`, `public/`, `system/`, `tests/`, `writ
 |---|---|---|
 | `public/index.php` | `public/index.cfm` | Front controller page |
 | (none) | `public/Application.cfm` | `cfapplication` and last-resort `cferror` only |
-| `app/Config/Paths.php` | `app/Config/Paths.cfc` | Config component |
-| `system/Boot.php` | `system/Boot.cfc` | Component |
+| `app/Config/Paths.php` | `app/Config/Paths.cfm` | Plain settings file (the one class that is not a component, because it is read before anything can be created) |
+| `system/Boot.php` | `system/Boot.cfc`, plus `system/Boot.cfm` | Component, and the small include that creates it |
 | `app/Config/Constants.php`, `system/Common.php`, `app/Common.php` | same names, `.cfm` | Included files |
 | `app/Config/Routes.php` | `app/Config/Routes.cfm` | Included file that calls `routes.get(...)` |
 | `app/Config/App.php`, `Autoload.php`, `Services.php`, `Filters.php` | same names, `.cfc` | Config components |
@@ -390,30 +390,30 @@ Keep CodeIgniter's tree unchanged: `app/`, `public/`, `system/`, `tests/`, `writ
 
 **Rule for every ported class:** open the PHP file, keep the public method names and argument order, leave unported methods as stubs that throw `ci.notimplemented`, and note each deliberate difference (no closures, no null, ordered arrays in place of maps) in a comment at the top of the CFC. That keeps the port comparable against future CodeIgniter releases.
 
-### How components are located: one mapping is unavoidable
+### How components are located: no mapping, each folder tree creates its own
+
+**Decision (owner, 2026-11-22): the framework uses no ColdFusion mapping.** A site must work by copying folders, several apps must be able to share one `system` folder, and nothing may need the Administrator.
 
 Tests on the server [S]:
 
 - `CreateObject("component", name)` resolves **relative to the folder of the file that contains the call**, including for a file that was reached by `cfinclude` from elsewhere.
 - From a page in the web root, dotted names resolve against the IIS site home (`public/`).
 - `extends="Base"` for a sibling file works. Downward names (`sub.Bar`) work.
-- **Anything upward or across fails without a mapping**: `extends="sys.Base"`, `CreateObject("component", "sys.Base")` and `cfargument type="sys.Base"` all ended in "Could not find the ColdFusion Component sys.Base" when `sys` was a folder outside the caller's own tree.
-- A relative `cfinclude` can leave the web root with `../`. `CreateObject` cannot, because component names are dotted only.
+- **Anything upward or across fails**: `extends="sys.Base"`, `CreateObject("component", "sys.Base")` and `cfargument type="sys.Base"` all ended in "Could not find the ColdFusion Component sys.Base" when `sys` was a folder outside the caller's own tree.
+- A relative `cfinclude` can leave the web root with `../`, the path may be held in a variable, and `..` may appear in the middle of it (`../app/Config/../../system/Boot.cfm`).
+- `GetCurrentTemplatePath()` returns the included file's own path inside an included file, and the component's own path inside a component method.
+- A component method can include a file anywhere on the same drive: climb to the drive root with one `../` per folder level, then descend. From `...\_tb\system\` the path `../../../../../Inetpub/vhosts/coldigniter.lan/_tb/app/Namespace.cfm` was included, and the component that file created could then create `Controllers.Home` in its own tree.
 
-The manual's search order is: the calling page's folder, then mappings, then the web root, then custom tag paths [M Dev p.224]; mappings are created on an Administrator page [M Adm p.22]. Since `app/` and `system/` sit beside `public/` and must refer to each other, **the port needs one ColdFusion mapping that points at the repository root**, for example `/coldigniter` to `D:\Inetpub\vhosts\coldigniter.lan`. Then:
+The rules that follow from this:
 
-- Components: `coldigniter.system.Router.Router`, `coldigniter.app.Controllers.Home`, `coldigniter.vendor.acme.widgets.Widget`.
-- Includes: `/coldigniter/app/Views/welcome_message.cfm`.
+1. **A component is created by a file in its own folder tree.** `system/Boot.cfm` creates `Boot.cfc`; each namespace root (`system`, `app`, later each `vendor` package and module) holds a small factory component with a `create(name)` method, reached once through a one-line `.cfm` beside it. The framework keeps the factory objects and asks the right one for `Controllers.Home`, `Config.App` and so on. This is the stand-in for PSR-4 autoloading (CI:system/Autoloader/Autoloader.php).
+2. **Folders are found by path, never by name.** The front controller holds one relative path to the app folder; `app/Config/Paths.cfm` holds the others, relative to itself. `Boot` turns them into full paths, and the framework reaches any other folder by converting a full path into a relative include path as tested above. A folder on another drive cannot be reached this way [U]; that case is not supported.
+3. **Never write a folder-crossing name in `extends`, `CreateObject` or `type`.** `extends` may name a sibling or a component below. Use `type="any"` for arguments that take a component from another tree.
+4. **App classes get framework behaviour by composition at creation time, not by `extends`.** Tested [S]: the framework created `app/Controllers/Home.cfc` (which extends its sibling `BaseController.cfc`) and copied the methods of `system/Controller.cfc` into it, skipping any name the app component already had. The app controller then called framework methods, including one marked private, its own override won, a controller in a subfolder worked the same way, and two instances kept separate data. Cost on the NT 4 box: about 0.2 ms extra per object (200 creations took 187 ms against 141 ms). Not tested yet [U]: calling the framework's version of a method from an app override (the `super` case), and whether `GetMetaData` shows the copied methods.
 
-Three cautions:
+**Physical paths** (for `cffile`, `cfdirectory`, `FileExists`, `writable/`) must not come from `ExpandPath("/")`, which returns `C:\CFusionMX\wwwroot\` [S]. `GetDirectoryFromPath(GetCurrentTemplatePath())` in `public/index.cfm` is `FCPATH`; `Boot.definePathConstants()` then sets `APPPATH`, `ROOTPATH`, `SYSTEMPATH`, `WRITEPATH` and `TESTPATH` in the Request scope under CodeIgniter's own constant names (CI:system/Boot.php lines 245-280), using `java.io.File.getCanonicalPath()` to resolve `..` [S]. Each value ends in the directory separator.
 
-1. **Mappings resolving component names for `CreateObject`, `extends` and `type` has not been tested on this server** [U]. It is documented, and it is the first thing to test.
-2. `extends` and `type` attributes are fixed text, so the mapping name ends up written in most component files. Choose it once and treat it as permanent [U].
-3. The calling folder is searched first, so do not create a folder with the mapping's name anywhere in the tree [U], based on [M Dev p.224].
-
-**Physical paths** (for `cffile`, `cfdirectory`, `FileExists`, `writable/`) must not come from `ExpandPath("/")`, which returns `C:\CFusionMX\wwwroot\` [S]. Derive them from the front controller: `GetDirectoryFromPath(GetCurrentTemplatePath())` in `public/index.cfm` is `FCPATH`; `Paths.cfc` then gives `SYSTEMPATH`, `APPPATH`, `WRITEPATH`, `ROOTPATH`, `TESTPATH`, stored in the Request scope under CodeIgniter's own constant names (CI:system/Boot.php lines 245-280).
-
-**The class resolver** stands in for PSR-4 autoloading (CI:system/Autoloader/Autoloader.php). `app/Config/Autoload.cfc` holds a prefix map (`App` to `coldigniter.app`, `CodeIgniter` to `coldigniter.system`, `Config` to `coldigniter.app.Config`) and a classmap; a `resolveClass()` function swaps the longest matching prefix, and a factory function creates the component. `class_exists` becomes: translate the component path to a file under `ROOTPATH` and call `FileExists`, which gives clean 404s for unknown controllers [U] design.
+`class_exists` becomes: translate the name to a file under the namespace root's full path and call `FileExists`, which gives clean 404s for unknown controllers [U] design.
 
 ### Request lifecycle, step by step
 
@@ -421,13 +421,13 @@ Three cautions:
 |---|---|
 | Web server sends every request to `public/index.php` | `public/index.cfm/segments` works, with `CGI.PATH_INFO` = `/index.cfm/about/team` [S]. With no extra path, `PATH_INFO` equals `SCRIPT_NAME` [S]. Strip `SCRIPT_NAME` from the front of `PATH_INFO` to get the route. Set `uriProtocol` to `PATH_INFO` and `indexPage` to `index.cfm`. On this site a request for a missing `.cfm` file is answered by `index.cfm` [S]. |
 | (PHP has no equivalent) | `public/Application.cfm`: `cfapplication` and `cferror` only |
-| `index.php` defines `FCPATH`, loads `Paths` | `index.cfm` computes `FCPATH`, creates `Paths.cfc` |
-| `Boot::bootWeb($paths)` | `Boot.cfc` method `bootWeb(paths)` |
+| `index.php` defines `FCPATH`, loads `Paths` | `index.cfm` sets `request.FCPATH` and includes `app/Config/Paths.cfm`, then includes `system/Boot.cfm` [S] |
+| `Boot::bootWeb($paths)` | `Boot.cfm` creates `Boot.cfc` and calls `bootWeb(paths, configDirectory)` [S] |
 | Path constants, `Constants.php` | Values in the Request scope; `Constants.cfm` included |
 | `.env` loading | `DotEnv.cfc` reads the file with `cffile` and fills a Request struct |
 | Environment boot file | `cfinclude` of `app/Config/Boot/<environment>.cfm` |
 | `Common.php` functions | `cfinclude` of `system/Common.cfm` and `app/Common.cfm`: `service()`, `config()`, `view()`, `esc()`, `helper()`, `throw()` |
-| Autoloader | The prefix-map resolver |
+| Autoloader | The namespace-root factories |
 | Services | `Services.cfc` extends `BaseService.cfc`; shared instances kept in a Request struct |
 | `CodeIgniter::run()`: events, before filters, router, controller, after filters | Same method names. The controller is called with `cfinvoke` inside `cfsavecontent` so that both returned strings and written output are gathered (`gatherOutput`) |
 | `Response::send()` | `cfheader` for status and headers, `cfcookie` or `cfheader Set-Cookie`, `cfcontent` for the type, then the body in `cfoutput` |
@@ -442,8 +442,9 @@ Three cautions:
 <!--- public/index.cfm --->
 <cfsetting enablecfoutputonly="yes">
 <cfset request.FCPATH = GetDirectoryFromPath(GetCurrentTemplatePath())>
-<cfset paths = CreateObject("component", "coldigniter.app.Config.Paths").init()>
-<cfset CreateObject("component", "coldigniter.system.Boot").init().bootWeb(paths)>
+<cfset appDirectory = "../app">
+<cfinclude template="#appDirectory#/Config/Paths.cfm">
+<cfinclude template="#appDirectory#/Config/#paths.systemDirectory#/Boot.cfm">
 ```
 
 `cferror` templates are restricted in what CFML they may run depending on type [M Ref p.102]; keep the last-resort page plain.
@@ -456,9 +457,9 @@ Three cautions:
 
 **Routing.** Routes are **an array of structs**, because order matters and struct order is not kept [S]. `routes.get("users/(:num)", "Users::show/$1")` keeps CodeIgniter's string form. There are no route closures; `group()` takes a prefix and is closed with `endGroup()`, or takes the name of a routes file to include [U] design. Match with `REFind`, or `java.util.regex` when a pattern needs more [S]. Compare the HTTP method from `CGI.REQUEST_METHOD`; all of GET, POST, PUT, DELETE, PATCH, OPTIONS and HEAD reach CFML through IIS 4 with the body readable [S].
 
-**Controllers.** `app/Controllers/Home.cfc` extends `BaseController.cfc`, which extends `coldigniter.system.Controller`. Reject method names that start with `_`, as CodeIgniter does, and validate the method name against a strict pattern before dispatch. Route parameters are positional, and numeric-key `argumentCollection` does not fill positions [S], so dispatch by building a name-keyed struct from the method's parameter names in `GetMetaData`, falling back to a generated `Evaluate` call string [U].
+**Controllers.** `app/Controllers/Home.cfc` extends `BaseController.cfc`, and receives the methods of `system/Controller.cfc` when the framework creates it (see "How components are located"). Reject method names that start with `_`, as CodeIgniter does, and validate the method name against a strict pattern before dispatch. Route parameters are positional, and numeric-key `argumentCollection` does not fill positions [S], so dispatch by building a name-keyed struct from the method's parameter names in `GetMetaData`, falling back to a generated `Evaluate` call string [U].
 
-**Views.** `view("welcome_message", data)` asks the View service to render `/coldigniter/app/Views/welcome_message.cfm`. Because an include inside a method leaks the method's locals and the view's own variables into the instance [S], the renderer creates one small context object per render and lets it be discarded:
+**Views.** `view("welcome_message", data)` asks the View service to render `app/Views/welcome_message.cfm`, found by its full path and included through a computed relative path. Because an include inside a method leaks the method's locals and the view's own variables into the instance [S], the renderer creates one small context object per render and lets it be discarded:
 
 ```cfm
 <!--- system/View/ViewContext.cfc: one instance per render, never shared --->
@@ -477,7 +478,7 @@ Three cautions:
 </cfcomponent>
 ```
 
-Dynamic `variables[key]` assignment and the include seeing instance Variables are both verified on pages and in methods [S]; a dynamic mapped `template` value still needs its own test [U]. Do not let view data keys collide with method names.
+Dynamic `variables[key]` assignment and the include seeing instance Variables are both verified on pages and in methods [S]; a `template` value computed from a full path, inside `cfsavecontent`, still needs its own test [U]. Do not let view data keys collide with method names.
 
 **Escaping.** `esc(value, "html")` maps to `HTMLEditFormat`, `"js"` to `JSStringFormat`, `"url"` to `URLEncodedFormat`. **`HTMLEditFormat` does not escape the single quote** [S]; `XMLFormat` does (`&apos;`) [S]. For HTML attributes, always use double quotes around the attribute, or add a `Replace(..., "'", "&##39;", "all")` step in `esc()`.
 
@@ -504,11 +505,11 @@ Dynamic `variables[key]` assignment and the include seeing instance Variables ar
 
 ### The vendor question: a checked-in `vendor/` resolved by the prefix map
 
-6.1 has no package manager, no per-application mappings and no autoloader. CodeIgniter itself shows the model: it bundles its only two runtime dependencies (Laminas Escaper, PSR Log) and Kint in `system/ThirdParty` with a classmap, so it runs without Composer (CI:system/Config/AutoloadConfig.php lines 95-124).
+6.1 has no package manager and no autoloader, and this port uses no mappings. CodeIgniter itself shows the model: it bundles its only two runtime dependencies (Laminas Escaper, PSR Log) and Kint in `system/ThirdParty` with a classmap, so it runs without Composer (CI:system/Config/AutoloadConfig.php lines 95-124).
 
 **Recommended approach, in three layers:**
 
-1. **`vendor/<vendor>/<package>/` checked into the repository**, the same shape Composer produces. With the single root mapping, any vendor component is `coldigniter.vendor.<vendor>.<package>.<Class>` with no extra Administrator work. Each package registers a short prefix in the `psr4` map of `app/Config/Autoload.cfc`, as CodeIgniter registers namespaces. **Folder names become part of dotted component names, so they must not contain hyphens or dots.**
+1. **`vendor/<vendor>/<package>/` checked into the repository**, the same shape Composer produces. Each package is a namespace root: it carries the same small factory component as `app` and `system`, and registers a short prefix and its folder in the `psr4` map of `app/Config/Autoload.cfc`, as CodeIgniter registers namespaces. No Administrator work is needed. **Folder names inside a package become part of dotted component names, so they must not contain hyphens or dots.**
 2. **`vendor/autoload.cfm`**, included by `Boot` when present, mirroring `COMPOSER_PATH` and `loadComposerAutoloader` (CI:app/Config/Constants.php). It adds the prefix and classmap entries for installed packages.
 3. **A manifest and a fetch script that run on the development machine, never on the server.** A `vendor.json` lists name, version, source URL and install path; the script downloads and unpacks into `vendor/`, and the result is committed and synced to NT 4. The shape can borrow from CommandBox's `box.json` ([CommandBox docs](https://commandbox.ortusbooks.com/package-management/box-json.md)) [W].
 
@@ -525,12 +526,13 @@ Realistic supply is thin. CFML written after about 2007 tends to rely on `Applic
 
 ### A recommended order of small first steps
 
-The original slice 0 (server probes) is largely done; what remains of it is step 1 here. Each step ends at something visible in a browser.
+The original slice 0 (server probes) is done. Each step ends at something visible in a browser.
 
-1. **Mapping proof.** The owner adds the mapping. Three tiny files confirm that `CreateObject`, `extends` and `cfargument type` resolve through it, that `ExpandPath("/coldigniter/")` returns the repository root, and that a dynamic `cfinclude` through the mapping works.
-2. **Skeleton and front controller.** The folder tree, `public/Application.cfm`, `public/index.cfm`, `app/Config/Paths.cfc`; print the resolved paths.
-3. **Boot and constants.** `system/Boot.cfc` with `bootWeb()`, path values in the Request scope, `Constants.cfm`, a hard-coded `ENVIRONMENT`.
-4. **Common functions and the class resolver.** `system/Common.cfm` with `throw()`, `service()`, `config()`, the prefix map and the factory.
+1. **Front controller and paths.** Done [S]: `public/index.cfm`, `app/Config/Paths.cfm`, `system/Boot.cfm`, and `system/Boot.cfc` with `bootWeb()` and `definePathConstants()`. The page prints the resolved paths until `run()` exists.
+2. **Constants and environment.** `app/Config/Constants.cfm`, a hard-coded `ENVIRONMENT`, `app/Config/Boot/<environment>.cfm`, and `public/Application.cfm`.
+3. **Namespace roots.** The factory component in `system` and `app`, and the Autoloader that keeps them.
+
+4. **Common functions.** `system/Common.cfm` with `throw()`, `service()`, `config()`.
 5. **Services.** `BaseService.cfc`, `system/Config/Services.cfc`, `app/Config/Services.cfc`; `service("codeigniter").run()` prints one line.
 6. **Request, URI and Response.** Path from `PATH_INFO`, method, headers; `Response.send()` through `cfheader`.
 7. **Routes and Router.** `RouteCollection.cfc` with `get`, `post`, `add` and placeholders; one home route; a typed 404.
@@ -644,9 +646,6 @@ On VS Code forks that use Open VSX, only `cfmleditor` 0.7.0 is published there (
   "cfml.engine.version": "6.1.0",
   "cfml.cfDocs.source": "extension",
   "cfml.webroot": "public",
-  "cfml.mappings": [
-    { "logicalPath": "/coldigniter", "directoryPath": ".", "isPhysicalDirectoryPath": false }
-  ],
   "cfml.autoCloseTags.enable": true,
   "cfml.suggest.globalTags.attributes.quoteType": "double",
   "cfml.suggest.globalTags.includeAttributes.setType": "required",
@@ -667,7 +666,7 @@ On VS Code forks that use Open VSX, only `cfmleditor` 0.7.0 is published there (
 }
 ```
 
-Adjust three things. Replace `/coldigniter` with the real mapping name; if a relative `"."` does not resolve, use the absolute repository path with `"isPhysicalDirectoryPath": true` [U]. Remove the four `cflint.*` lines if the lint extension is not installed. `files.eol` set to CRLF is a cautious choice for a Windows server; whether LF-only source causes any trouble on 6.1 is untested [U]. `cfml.format.enabled` and `cfml.lsp.enabled` stay false because both are new features whose parser targets current CFML. `cflint.quickfix.local` stays false because that fix inserts a `local.` prefix, which needs the ColdFusion 9 local scope.
+Adjust two things. Remove the four `cflint.*` lines if the lint extension is not installed. `files.eol` set to CRLF is a cautious choice for a Windows server; whether LF-only source causes any trouble on 6.1 is untested [U]. `cfml.format.enabled` and `cfml.lsp.enabled` stay false because both are new features whose parser targets current CFML. `cflint.quickfix.local` stays false because that fix inserts a `local.` prefix, which needs the ColdFusion 9 local scope.
 
 `.vscode/extensions.json`:
 
@@ -701,14 +700,16 @@ Adjust three things. Replace `/coldigniter` with the real mapping name; if a rel
 | Numeric keys in `argumentCollection` fill positional arguments (assumed in the mapping notes) | They do not |
 | HmacSHA256 expected in JCE | Not available on this JVM |
 | A view can be included from a long-lived renderer component | The include leaks method locals into the instance |
+| Components outside the caller's folder need a mapping [M Dev p.224] | A file in the target folder can create them, and that file can be included from anywhere on the same drive |
 
 ## What still needs a test
 
 Ordered by how much design rests on each.
 
-1. A ColdFusion mapping resolves component names for `CreateObject`, `extends` and `cfargument type`. **Test first.**
-2. `ExpandPath("/<mapping>/...")` returns the mapped physical path.
-3. `cfinclude` with a dynamic `template` value through the mapping, inside a method inside `cfsavecontent`.
+1. Calling the framework's version of a method from an app component that overrides it, when the methods were copied in at creation time (the `super` case).
+2. Whether `GetMetaData` shows methods that were copied into a component.
+3. `cfinclude` with a dynamic `template` value built from a full path, inside a method inside `cfsavecontent` (the view renderer).
+
 4. Dynamic controller dispatch with positional route parameters: name-keyed struct from `GetMetaData(...).functions[n].parameters`, and the `Evaluate("obj.method(args)")` fallback.
 5. Shape of `GetMetaData(obj).extends` below the top level (keys and `PATH`), for the `isA()` helper.
 6. Including the same UDF file twice in one request (expected to throw), and defining a UDF named like a built-in.
@@ -726,10 +727,10 @@ Ordered by how much design rests on each.
 18. Whether two `cfquery` tags in one `cftransaction` share a connection (for insert ids), once a database is chosen; which database and driver to use.
 19. Where `WEB-INF/lib` is for this install, and which Java 1.4 builds of wanted libraries exist.
 20. Whether MXUnit or another period test framework runs on 6.1.
-21. Editor: whether CFDocs data filters per attribute, whether `cfml.mappings` accepts a relative root path, and the extension ID case on Open VSX.
+21. Editor: whether CFDocs data filters per attribute, and the extension ID case on Open VSX.
 
 ## Conclusion
 
 The practical picture is better than the manuals suggest. Multi-level `super`, base-class `init()` returning the child, several returns per function, hierarchical exception types and first-class functions give enough object machinery to keep CodeIgniter's class shapes almost one to one, and IIS 4 turned out to pass every HTTP method and status code a modern framework needs. The price is discipline in four places: `var` everything, pass `super` arguments by position, never rely on struct order or key case, and render views through a throwaway object.
 
-Two decisions are owed before code starts: the name of the single mapping, which will be written into most component files, and the source-encoding rule. After the mapping proof, the stock welcome page rendered through index, Boot, Services, Router, Controller and View is the right first milestone, because it is the same milestone a fresh CodeIgniter install reaches and it exercises every mechanism this report describes.
+One decision is still owed: the source-encoding rule. The framework uses no ColdFusion mapping. The stock welcome page rendered through index, Boot, Services, Router, Controller and View is the right first milestone, because it is the same milestone a fresh CodeIgniter install reaches and it exercises every mechanism this report describes.

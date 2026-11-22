@@ -42,6 +42,10 @@ names; one PHP class becomes one `.cfc` with the same name, and other PHP files 
     method's locals into the instance. Use one throwaway object per render.
 14. Paths come from `GetCurrentTemplatePath()`, never from `ExpandPath("/")`.
 15. Keep source files ASCII-only until the encoding rule is decided.
+16. No ColdFusion mapping, ever. A component name can only reach its own folder and below, so never write
+    a name that crosses into another folder tree in `extends`, `CreateObject` or `type`. Each tree
+    (`system`, `app`, a vendor package) creates its own components, and folders are found by path.
+    See "How components are located" in the reference.
 
 ## Checking work
 
