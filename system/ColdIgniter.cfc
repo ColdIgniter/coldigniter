@@ -4,7 +4,7 @@
  * Of course, there are variations to that flow, but this is the
  * objective.
  *
- * Not ported yet: the benchmark, the page cache,
+ * Not ported yet: the page cache,
  * Kint, forceSecureAccess, method spoofing, the previous URL, the
  * controller attributes, closures as controllers and _remap.
 --->
@@ -89,7 +89,7 @@
 	<cffunction name="__construct" access="public" returntype="any" output="no">
 		<cfargument name="config" type="any" required="yes">
 
-		<cfset this.startTime = GetTickCount()>
+		<cfset this.startTime = microtime(true)>
 		<cfset this.config = arguments.config>
 		<!--- Not ported yet: the response cache --->
 
@@ -130,18 +130,24 @@
 			<cfthrow type="ColdIgniter.Exceptions.LogicException" message="Context must be set before run() is called.">
 		</cfif>
 
-		<!--- Not ported yet: the page cache, the output buffer level, startBenchmark --->
+		<!--- Not ported yet: the page cache, the output buffer level --->
+
+		<cfset startBenchmark()>
 
 		<cfset getRequestObject()>
 		<cfset getResponseObject()>
 
 		<cfset static_("ColdIgniter\Events\Events").trigger("pre_system")>
 
+		<cfset this.benchmark.stop("bootstrap")>
+
+		<cfset this.benchmark.start("required_before_filters")>
 		<!--- Start up the filters --->
 		<cfset filters = static_("Config\Services").filters()>
 
 		<!--- Run required before filters --->
 		<cfset possibleResponse = runRequiredBeforeFilters(filters)>
+		<cfset this.benchmark.stop("required_before_filters")>
 
 		<!--- If a ResponseInterface instance is returned then send it back to the client and stop --->
 		<cfif instanceof_(possibleResponse, "ColdIgniter\HTTP\ResponseInterface")>
@@ -168,7 +174,7 @@
 		 The filter is not ported (there is no benchmark service), so its
 		 work is done here.
 		--->
-		<cfset this.totalTime = (GetTickCount() - this.startTime) / 1000>
+		<cfset this.totalTime = this.benchmark.getElapsedTime("total_execution")>
 		<cfif IsSimpleValue(this.response.getBody())>
 			<cfset this.response.setBody(displayPerformanceMetrics(this.response.getBody()))>
 		</cfif>
@@ -190,6 +196,18 @@
 		<cfset sendResponse()>
 
 		<cfreturn "">
+	</cffunction>
+
+	<!---
+	 * Returns an array with our basic performance stats collected.
+	 *
+	 * @return A map with the keys startTime and totalTime
+	--->
+	<cffunction name="getPerformanceStats" access="public" returntype="any" output="no">
+		<!--- After filter debug toolbar requires 'total_execution'. --->
+		<cfset this.totalTime = this.benchmark.getElapsedTime("total_execution")>
+
+		<cfreturn array_("startTime", this.startTime, "totalTime", this.totalTime)>
 	</cffunction>
 
 	<!---
@@ -234,7 +252,9 @@
 		<cfset arguments.filters.setResponse(this.response)>
 
 		<!--- Run required after filters --->
+		<cfset this.benchmark.start("required_after_filters")>
 		<cfset response = arguments.filters.runRequired("after")>
+		<cfset this.benchmark.stop("required_after_filters")>
 
 		<cfif instanceof_(response, "ColdIgniter\HTTP\ResponseInterface")>
 			<cfset this.response = response>
@@ -296,7 +316,9 @@
 			</cfif>
 
 			<!--- Run "before" filters --->
+			<cfset this.benchmark.start("before_filters")>
 			<cfset possibleResponse = filters.run(uri, "before")>
+			<cfset this.benchmark.stop("before_filters")>
 
 			<!--- If a ResponseInterface instance is returned then send it back to the client and stop --->
 			<cfif instanceof_(possibleResponse, "ColdIgniter\HTTP\ResponseInterface")>
@@ -334,7 +356,9 @@
 			<cfset filters.setResponse(this.response)>
 
 			<!--- Run "after" filters --->
+			<cfset this.benchmark.start("after_filters")>
 			<cfset response = filters.run(uri, "after")>
+			<cfset this.benchmark.stop("after_filters")>
 
 			<cfif instanceof_(response, "ColdIgniter\HTTP\ResponseInterface")>
 				<cfset this.response = response>
@@ -391,6 +415,8 @@
 		<cfargument name="routes" type="any" required="no" default="">
 		<cfset var uri = "">
 
+		<cfset this.benchmark.start("routing")>
+
 		<cfif NOT IsObject(arguments.routes)>
 			<cfset arguments.routes = service("routes").loadRoutes()>
 		</cfif>
@@ -412,6 +438,8 @@
 			<cfset this.request_.setLocale_(this.router.getLocale_())>
 		</cfif>
 
+		<cfset this.benchmark.stop("routing")>
+
 		<cfreturn this.router.getFilters()>
 	</cffunction>
 
@@ -421,6 +449,9 @@
 	 * show the appropriate Page Not Found error.
 	--->
 	<cffunction name="startController" access="private" returntype="any" output="no">
+		<cfset this.benchmark.start("controller")>
+		<cfset this.benchmark.start("controller_constructor")>
+
 		<!--- Not ported yet: Is it routed to a Closure? --->
 
 		<!--- No controller specified - we don't know what to do now. --->
@@ -447,6 +478,8 @@
 
 		<cfset class.initController(this.request_, this.response, service("logger"))>
 
+		<cfset this.benchmark.stop("controller_constructor")>
+
 		<cfreturn class>
 	</cffunction>
 
@@ -472,6 +505,8 @@
 		</cfloop>
 
 		<cfset output = Evaluate("arguments.class.#this.method#(#list#)")>
+
+		<cfset this.benchmark.stop("controller")>
 
 		<!--- A method that returns nothing leaves the variable undefined. --->
 		<cfif NOT IsDefined("output")>
@@ -510,10 +545,14 @@
 				<cfset this.controller = override[1]>
 				<cfset this.method = override[2]>
 
+				<cfset this.benchmark.start("controller")>
+				<cfset this.benchmark.start("controller_constructor")>
+
 				<cfset controller = createController()>
 
 				<cfset message = arguments.e.message>
 				<cfset returned = Evaluate("controller.#this.method#(message)")>
+				<cfset this.benchmark.stop("controller")>
 				<cfif NOT IsDefined("returned")>
 					<cfset returned = "">
 				</cfif>
@@ -574,6 +613,22 @@
 	--->
 	<cffunction name="sendResponse" access="private" returntype="void" output="no">
 		<cfset this.response.send()>
+	</cffunction>
+
+	<!---
+	 * Start the Benchmark
+	 *
+	 * The timer is used to display total script execution both in the
+	 * debug toolbar, and potentially on the displayed page.
+	--->
+	<cffunction name="startBenchmark" access="private" returntype="void" output="no">
+		<cfif is_null(this.startTime)>
+			<cfset this.startTime = microtime(true)>
+		</cfif>
+
+		<cfset this.benchmark = static_("Config\Services").timer()>
+		<cfset this.benchmark.start("total_execution", this.startTime)>
+		<cfset this.benchmark.start("bootstrap")>
 	</cffunction>
 
 	<!---
