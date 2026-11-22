@@ -404,3 +404,20 @@ Request values on this site (IIS 4 with the rewrite rules in `public/.htaccess`)
   The "no" cells of the underscore column come from the first probe set, where the real value was kept for `REMOTE_ADDR`, `REQUEST_METHOD`, `SERVER_NAME`, `SERVER_PORT` and the like when the header had underscores; the dash form is what forges them.
 - `FileHandler` with the extensions `cfm`, `cfml` and `cfc` in any case (also `.cfc`) writes nothing and returns false; an extension with a slash, a backslash, a colon or two dots (`x/y`, `x\y`, `x:y`, `a..b`, `../zz`) also writes nothing and returns false, and the log folder held only the file of the extension `txt`. The `cfabort` first line was removed (a later line with tag-like text broke the compile, see above).
 - A caught error passed as `exception` (`cfcatch`, a Java object that fails `IsStruct`) gives `message file:line` (`caught with context APPPATH\Controllers\Sec.cfc:34`), read through `cfcatch.message` and `cfcatch.tagContext` inside a `cftry`.
+- **Header spellings (raw requests over a socket, scratch site, before the stripped comparison).** The engine gives a header name in upper case and turns an underscore into a dash; dots stay, and a dot-less doubled separator stays doubled. `GetHttpRequestData().headers` keys seen, and what the app said:
+
+| Header sent | Key in `headers` | CGI value | `isSecure()` / `getIPAddress()` |
+|---|---|---|---|
+| `Remote-Addr : 192.0.2.9` (space before colon) | none: IIS answered 500 before the engine | - | framework not reached |
+| `Https<TAB>: on` | none: IIS answered 500 | - | framework not reached |
+| `Remote.Addr: 192.0.2.9` | `REMOTE.ADDR` | `REMOTE_ADDR` unchanged | false / real address |
+| `Remote-_Addr: 192.0.2.9` | `REMOTE--ADDR` | unchanged | false / real address |
+| `Remote__Addr: 192.0.2.9` | `REMOTE--ADDR` | unchanged | false / real address |
+| `remote-addr`, `REMOTE-ADDR` | `REMOTE-ADDR` | forged `192.0.2.9` | false / `0.0.0.0` (forged value blanked) |
+| `Server.Port.Secure: 1` | `SERVER.PORT.SECURE` | `SERVER_PORT_SECURE` 0 | false / real address |
+| `Https.: on` | `HTTPS.` | `HTTPS` off | false / real address |
+| `Https: on` | `HTTPS` | `HTTPS` forged `on` | false / real address |
+| `Server-Port-Secure: 1` | `SERVER-PORT-SECURE` | forged `1` | false / real address |
+
+  A continuation line (` Remote-Addr: ...`) was not sent. After the fix (names compared with everything but letters and digits removed, both sides) the spellings with a dot or a doubled separator also blank their variable: `Remote.Addr` and `Remote-_Addr` give `getIPAddress()` `0.0.0.0`, every spelling leaves `isSecure()` false and the run with `ft=3` (ForceHTTPS) answered 307 for each. Normal headers (`User-Agent`, `Referer`, `Cookie`, `Authorization`, `Cache-Control`, `Pragma`, `Via`, `Accept*`, `X-Forwarded-For`, `X-Forwarded-Proto`) blank nothing (REMOTE_ADDR, HTTPS kept); no guarded name equals the stripped form of a common header, and `CONTENT_TYPE` and `CONTENT_LENGTH` are read directly as before (a POST with a body on `inp` still gives the post array).
+- `FileHandler` extension (accepted only when it matches `[A-Za-z0-9]+` as a whole, Java `matches`, so a newline cannot fool it; cfm, cfml, cfc, jsp, jws, asp, asa, cer, cdx, shtml, shtm, stm, idc, htr, htw, ida, idq, printer, exe, dll, bat, cmd, com and pl are refused in any case): `x.cfm`, `cfm.`, `cfm ` (trailing space), `CFM`, `jsp`, `a/b`, `..`, `a<LF>b`, `exe` returned false and wrote nothing; empty, `log` and `.log` wrote `log-<date>.log`, `txt` wrote `.txt`, `JSP2` wrote `.JSP2`.
