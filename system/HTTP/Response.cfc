@@ -13,7 +13,7 @@
  * method, so send() leaves the body in request.ColdIgniter.output and
  * the front controller writes it.
  *
- * Not ported yet: the Content Security Policy, cookies,
+ * Not ported yet: the Content Security Policy,
  * download, setJSON, setXML, setDate, setLastModified and setCache.
 --->
 <cfcomponent output="no" extends="Message" hint="Representation of an outgoing, server-side response">
@@ -115,12 +115,19 @@
 	<cfset this.pretend_ = false>
 
 	<!---
+	 * Our cookie store (a CookieStore). It is made in the constructor.
+	--->
+	<cfset this.cookieStore = "">
+
+	<!---
 	 * Constructor
 	 *
 	 * @param config
 	--->
 	<cffunction name="__construct" access="public" returntype="any" output="no">
 		<cfargument name="config" type="any" required="no" default="">
+		<cfset var cookieConfig = variables.config("Config\Cookie")>
+		<cfset var cookieStatic = static_("ColdIgniter\Cookie\Cookie")>
 
 		<!---
 		 Default to a non-caching page.
@@ -128,7 +135,11 @@
 		--->
 		<cfset noCache()>
 
-		<!--- Not ported yet: the CSP object and the cookie store --->
+		<!--- Not ported yet: the CSP object --->
+
+		<cfset this.cookieStore = new_("ColdIgniter\Cookie\CookieStore", ArrayNew(1))>
+
+		<cfset cookieStatic.setDefaults(cookieConfig)>
 
 		<!--- Default to an HTML Content-Type. Devs can override if needed. --->
 		<cfset setContentType("text/html")>
@@ -272,7 +283,7 @@
 	--->
 	<cffunction name="send" access="public" returntype="any" output="no">
 		<!---
-		 Not ported yet: the Content Security Policy and the cookies.
+		 Not ported yet: the Content Security Policy.
 		 The policy is the one that takes the nonce tags out of the body
 		 when it is turned off, so that part is done here.
 		--->
@@ -282,6 +293,7 @@
 		</cfif>
 
 		<cfset sendHeaders()>
+		<cfset sendCookies()>
 		<cfset sendBody()>
 
 		<cfreturn this>
@@ -324,6 +336,273 @@
 		<cfset request.ColdIgniter.output = request.ColdIgniter.output & this.body>
 
 		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Set a cookie
+	 *
+	 * Accepts an arbitrary number of binds (up to 7) or a map in the first
+	 * parameter containing all the values.
+	 *
+	 * @param name     Cookie name / map containing binds / Cookie object
+	 * @param value    Cookie value
+	 * @param expire   Cookie expiration time in seconds
+	 * @param domain   Cookie domain (e.g.: '.yourdomain.com')
+	 * @param path     Cookie path (default: '/')
+	 * @param prefix   Cookie name prefix ('': the default prefix)
+	 * @param secure   Whether to only transfer cookies via SSL; an empty string takes the config
+	 * @param httponly Whether only make the cookie accessible via HTTP (no javascript); an empty string takes the config
+	 * @param samesite An empty string takes the config
+	 *
+	 * @return $this
+	 *
+	 * Difference: a null is an empty string. A false for secure or httponly is
+	 * kept as false.
+	--->
+	<cffunction name="setCookie" access="public" returntype="any" output="no">
+		<cfargument name="name" type="any" required="yes">
+		<cfargument name="value" type="string" required="no" default="">
+		<cfargument name="expire" type="any" required="no" default="0">
+		<cfargument name="domain" type="string" required="no" default="">
+		<cfargument name="path" type="string" required="no" default="/">
+		<cfargument name="prefix" type="string" required="no" default="">
+		<cfargument name="secure" type="any" required="no" default="">
+		<cfargument name="httponly" type="any" required="no" default="">
+		<cfargument name="samesite" type="any" required="no" default="">
+		<cfset var name_ = arguments.name>
+		<cfset var value_ = arguments.value>
+		<cfset var expire_ = arguments.expire>
+		<cfset var domain_ = arguments.domain>
+		<cfset var path_ = arguments.path>
+		<cfset var prefix_ = arguments.prefix>
+		<cfset var secure_ = arguments.secure>
+		<cfset var httponly_ = arguments.httponly>
+		<cfset var samesite_ = arguments.samesite>
+		<cfset var cookieConfig = "">
+		<cfset var items = "samesite,value,expire,domain,path,prefix,secure,httponly,name">
+		<cfset var item = "">
+		<cfset var cookie = "">
+
+		<cfif instanceof_(name_, "ColdIgniter\Cookie\Cookie")>
+			<cfset this.cookieStore = this.cookieStore.put(name_)>
+
+			<cfreturn this>
+		</cfif>
+
+		<cfset cookieConfig = config("Config\Cookie")>
+
+		<cfif is_null(secure_)>
+			<cfset secure_ = cookieConfig.secure>
+		</cfif>
+
+		<cfif is_null(httponly_)>
+			<cfset httponly_ = cookieConfig.httponly>
+		</cfif>
+
+		<cfif is_null(samesite_)>
+			<cfset samesite_ = cookieConfig.samesite>
+		</cfif>
+
+		<cfif IsStruct(name_)>
+			<!--- always leave 'name' in last place, as the original does --->
+			<cfloop list="#items#" index="item">
+				<cfif StructKeyExists(arguments.name, item) AND NOT is_null(arguments.name[item])>
+					<cfif Compare(item, "samesite") EQ 0>
+						<cfset samesite_ = arguments.name[item]>
+					<cfelseif Compare(item, "value") EQ 0>
+						<cfset value_ = arguments.name[item]>
+					<cfelseif Compare(item, "expire") EQ 0>
+						<cfset expire_ = arguments.name[item]>
+					<cfelseif Compare(item, "domain") EQ 0>
+						<cfset domain_ = arguments.name[item]>
+					<cfelseif Compare(item, "path") EQ 0>
+						<cfset path_ = arguments.name[item]>
+					<cfelseif Compare(item, "prefix") EQ 0>
+						<cfset prefix_ = arguments.name[item]>
+					<cfelseif Compare(item, "secure") EQ 0>
+						<cfset secure_ = arguments.name[item]>
+					<cfelseif Compare(item, "httponly") EQ 0>
+						<cfset httponly_ = arguments.name[item]>
+					<cfelse>
+						<cfset name_ = arguments.name[item]>
+					</cfif>
+				</cfif>
+			</cfloop>
+		</cfif>
+
+		<cfif IsNumeric(expire_)>
+			<cfif expire_ GT 0>
+				<cfset expire_ = time() + expire_>
+			<cfelse>
+				<cfset expire_ = 0>
+			</cfif>
+		<cfelse>
+			<cfset expire_ = 0>
+		</cfif>
+
+		<cfset cookie = new_("ColdIgniter\Cookie\Cookie", name_, value_, array_("expires", expire_, "domain", domain_, "path", path_, "prefix", prefix_, "secure", secure_, "httponly", httponly_, "samesite", samesite_))>
+
+		<cfset this.cookieStore = this.cookieStore.put(cookie)>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Returns the `CookieStore` instance.
+	 *
+	 * @return CookieStore
+	--->
+	<cffunction name="getCookieStore" access="public" returntype="any" output="no">
+		<cfreturn this.cookieStore>
+	</cffunction>
+
+	<!---
+	 * Checks to see if the Response has a specified cookie or not.
+	 *
+	 * @param value An empty string stands for null: any value
+	--->
+	<cffunction name="hasCookie" access="public" returntype="boolean" output="no">
+		<cfargument name="name" type="string" required="yes">
+		<cfargument name="value" type="any" required="no" default="">
+		<cfargument name="prefix" type="string" required="no" default="">
+		<cfset var prefix_ = arguments.prefix>
+		<cfset var defaults = "">
+
+		<cfif prefix_ EQ "">
+			<cfset defaults = static_("ColdIgniter\Cookie\Cookie").setDefaults()>
+			<cfset prefix_ = defaults["prefix"]><!--- to retain BC --->
+		</cfif>
+
+		<cfreturn this.cookieStore.has(arguments.name, prefix_, arguments.value)>
+	</cffunction>
+
+	<!---
+	 * Returns the cookie
+	 *
+	 * @param prefix Cookie prefix. '': the default prefix
+	 *
+	 * @return A map of Cookie, a Cookie, or an empty string (null)
+	--->
+	<cffunction name="getCookie" access="public" returntype="any" output="no">
+		<cfargument name="name" type="string" required="no" default="">
+		<cfargument name="prefix" type="string" required="no" default="">
+		<cfset var prefix_ = arguments.prefix>
+		<cfset var defaults = "">
+		<cfset var result = "">
+
+		<cfif arguments.name EQ "">
+			<cfreturn this.cookieStore.display()>
+		</cfif>
+
+		<cftry>
+			<cfif prefix_ EQ "">
+				<cfset defaults = static_("ColdIgniter\Cookie\Cookie").setDefaults()>
+			<cfset prefix_ = defaults["prefix"]><!--- to retain BC --->
+			</cfif>
+
+			<cfset result = this.cookieStore.get(arguments.name, prefix_)>
+
+			<cfcatch type="ColdIgniter.Cookie.Exceptions.CookieException">
+				<cfset log_message("error", cfcatch.type & ": " & cfcatch.message)>
+				<cfset result = "">
+			</cfcatch>
+		</cftry>
+
+		<cfreturn result>
+	</cffunction>
+
+	<!---
+	 * Sets a cookie to be deleted when the response is sent.
+	 *
+	 * @return $this
+	--->
+	<cffunction name="deleteCookie" access="public" returntype="any" output="no">
+		<cfargument name="name" type="string" required="no" default="">
+		<cfargument name="domain" type="string" required="no" default="">
+		<cfargument name="path" type="string" required="no" default="/">
+		<cfargument name="prefix" type="string" required="no" default="">
+		<cfset var prefix_ = arguments.prefix>
+		<cfset var defaults = "">
+		<cfset var prefixed = "">
+		<cfset var store = this.cookieStore>
+		<cfset var found = false>
+		<cfset var cookie = "">
+		<cfset var list = "">
+		<cfset var i = 0>
+
+		<cfif arguments.name EQ "">
+			<cfreturn this>
+		</cfif>
+
+		<cfif prefix_ EQ "">
+			<cfset defaults = static_("ColdIgniter\Cookie\Cookie").setDefaults()>
+			<cfset prefix_ = defaults["prefix"]><!--- to retain BC --->
+		</cfif>
+
+		<cfset prefixed = prefix_ & arguments.name>
+		<cfset list = store.getIterator()>
+
+		<cfloop from="1" to="#ArrayLen(list)#" index="i">
+			<cfif NOT found AND Compare(list[i].getPrefixedName(), prefixed) EQ 0>
+				<cfif Compare(arguments.domain, list[i].getDomain()) EQ 0 AND Compare(arguments.path, list[i].getPath()) EQ 0>
+					<cfset cookie = list[i].withValue("").withExpired()>
+					<cfset found = true>
+					<cfset this.cookieStore = store.put(cookie)>
+				</cfif>
+			</cfif>
+		</cfloop>
+
+		<cfif NOT found>
+			<cfset setCookie(arguments.name, "", 0, arguments.domain, arguments.path, prefix_)>
+		</cfif>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Returns all cookies currently set.
+	 *
+	 * @return A map of Cookie, by id
+	--->
+	<cffunction name="getCookies" access="public" returntype="any" output="no">
+		<cfreturn this.cookieStore.display()>
+	</cffunction>
+
+	<!---
+	 * Actually sets the cookies.
+	--->
+	<cffunction name="sendCookies" access="private" returntype="void" output="no">
+		<cfif this.pretend_>
+			<cfreturn>
+		</cfif>
+
+		<cfset dispatchCookies()>
+	</cffunction>
+
+	<!---
+	 * Sends each cookie as a Set-Cookie header and empties the store.
+	 *
+	 * Difference: the original hands each cookie to the engine's cookie
+	 * function. Here the header is written by hand, one cfheader for each
+	 * cookie (the built in cfcookie upper-cases the name and has no
+	 * HttpOnly). The name, the value, the path, the domain, the prefix and
+	 * the SameSite are checked by Cookie, so the header text cannot carry a
+	 * line break.
+	--->
+	<cffunction name="dispatchCookies" access="private" returntype="void" output="no">
+		<cfset var request_ = service("request")>
+		<cfset var list = this.cookieStore.getIterator()>
+		<cfset var i = 0>
+
+		<cfloop from="1" to="#ArrayLen(list)#" index="i">
+			<cfif list[i].isSecure() AND NOT request_.isSecure()>
+				<cfset static_("ColdIgniter\Security\Exceptions\SecurityException").forInsecureCookie()>
+			</cfif>
+
+			<cfheader name="Set-Cookie" value="#list[i].toHeaderString()#">
+		</cfloop>
+
+		<cfset this.cookieStore.clear()>
 	</cffunction>
 
 	<!---

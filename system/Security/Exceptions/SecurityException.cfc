@@ -38,4 +38,12 @@
 		<cfthrow type="ColdIgniter.Security.Exceptions.SecurityException" errorcode="#this.code#" message="Invalid Control characters in #arguments.source#: #arguments.string#">
 	</cffunction>
 
+	<!---
+	 * Throws if a secure cookie is dispatched when the current connection is not
+	 * secure.
+	--->
+	<cffunction name="forInsecureCookie" access="public" returntype="void" output="no">
+		<cfthrow type="ColdIgniter.Security.Exceptions.SecurityException" errorcode="#this.code#" message="Attempted to send a secure cookie over a non-secure connection.">
+	</cffunction>
+
 </cfcomponent>
