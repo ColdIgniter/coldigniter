@@ -457,3 +457,17 @@ Tested on the scratch site with curl and a cookie jar (a real server for every l
 | gc (`gc(0)`) | removes the files of the session name and the id format, keeps `index.html` and files with another shape |
 | 8 requests at once on one id | all 200; the file stays a whole WDDX packet; 5 of the 8 new keys survive (the last write wins: a lost update, not a damaged file) |
 | a request that never asks for the session | no `ci_session` cookie, no file (the count of files did not change) |
+
+## Language and validation (2026-11-22)
+
+- **A method named like a method of `java.lang.Object`** (`equals`) fails with "The names of user defined functions cannot be the same as built-in ColdFusion functions", like `Val` (a method `val` fails too). Use a trailing underscore.
+- **A big component fails to load** with "unexpected constant #115 -1" (the class constant pool overflows). Split generated code over small components and build long literals with `RepeatString()`.
+- **Every scalar literal is a `java.lang.String` at run time** (`123`, `true`, `1.5`, `"123"`); a map value put in as `false` reads back as the text "false". An empty struct and an empty `LinkedHashMap` are the same thing.
+- **Assigning an array copies it**; a `LinkedHashMap` is shared. A list that was changed in a variable must be written back into its map.
+- **`f()[1]` is "Invalid CFML construct"**; assign the result to a variable first.
+- **`Evaluate("obj.#name#(args)")`** sees the locals and the arguments of the function, and is the way to call a rule method by name.
+- **`new_()` works inside `__construct`** of a component, and namespaced views and `esc()` work from `cfinclude` in a view rendered for the validator.
+- **`StructKeyExists` on a config component** sees the properties set on `this`, so the group name lookup in `Config\Validation` (`signup`, `signup_errors`) works with `LinkedHashMap` values built in the body.
+- **Real requests through the controller**: `validate()` reads a GET query, a POST form body and a PUT form body; a JSON `Content-Type` ends in an `HTTPException` "Provided JSON format is not supported." (500).
+- **Table test**: 1036 rule cases in non strict and strict mode against the answers of the original; 0 mismatches, 17 limit cases (the scalar type cases above). A further 53 checks of `lang()`, messages, labels, groups, errors, views, dot arrays, placeholders and exceptions, 0 failures.
+
