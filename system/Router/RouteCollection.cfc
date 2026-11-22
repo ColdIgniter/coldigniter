@@ -237,10 +237,11 @@
 		<cfset routes = this>
 
 		<cfloop from="1" to="#ArrayLen(routeFiles)#" index="i">
-			<cfif is_file(routeFiles[i])>
+			<cfif NOT is_file(routeFiles[i])>
+				<cfset log_message("warning", "Routes file not found: """ & routeFiles[i] & """")>
+			<cfelse>
 				<cfinclude template="#includePath(routeFiles[i])#">
 			</cfif>
-			<!--- Not ported yet: log_message("warning", "Routes file not found") --->
 		</cfloop>
 
 		<cfset discoverRoutes()>

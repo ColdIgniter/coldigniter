@@ -62,6 +62,66 @@
 </cffunction>
 
 <!---
+ * Allows user to retrieve values from the environment
+ * variables that have been set. Especially useful for
+ * retrieving values set from the .env file for
+ * use in config files.
+ *
+ * Difference: the values are in request.ColdIgniter.env (see
+ * Config/DotEnv.cfc), then the CGI variables of the server stand in for
+ * $_SERVER. The name is not case-sensitive in the first place. There is no
+ * null, so "null" gives an empty string, and so does a variable that is
+ * not found and has no default. Not ported yet: getenv().
+ *
+ * Difference: only the server variables of server_value() and the names
+ * that start with "HTTP_" are read from the CGI scope, and a server
+ * variable that a request header has supplied is not used (see
+ * server_value()). So any other name, such as "CI_ENVIRONMENT" or
+ * "app.baseURL", cannot be supplied by a client with a header. The
+ * original has the same split: $_SERVER holds the headers only as
+ * "HTTP_*".
+ *
+ * @param key     The name
+ * @param default The value when it is not found
+ *
+ * @return The value: true, false or an empty string for the words "true",
+ *         "false", "empty" and "null" in any case, else the string
+--->
+<cffunction name="env" returntype="any" output="no" hint="Allows user to retrieve values from the environment variables that have been set">
+	<cfargument name="key" type="string" required="yes">
+	<cfargument name="default" type="any" required="no" default="">
+	<cfset var value = "">
+	<cfset var found = false>
+
+	<cfif StructKeyExists(request.ColdIgniter.env, arguments.key)>
+		<cfset value = request.ColdIgniter.env[arguments.key]>
+		<cfset found = true>
+	<cfelseif server_value(arguments.key) NEQ "">
+		<cfset value = server_value(arguments.key)>
+		<cfset found = true>
+	</cfif>
+
+	<!--- Not found? Return the default value --->
+	<cfif NOT found>
+		<cfreturn arguments.default>
+	</cfif>
+
+	<!--- Handle any boolean values --->
+	<!--- Difference: Compare() is used, since CFML equality treats "yes" as true and "no" as false --->
+	<cfif Compare(LCase(value), "true") EQ 0>
+		<cfreturn true>
+	<cfelseif Compare(LCase(value), "false") EQ 0>
+		<cfreturn false>
+	<cfelseif Compare(LCase(value), "empty") EQ 0>
+		<cfreturn "">
+	<cfelseif Compare(LCase(value), "null") EQ 0>
+		<cfreturn "">
+	</cfif>
+
+	<cfreturn value>
+</cffunction>
+
+<!---
  * Performs simple auto-escaping of data for security reasons.
  * Might consider making this more complex at a later date.
  *
@@ -286,6 +346,36 @@
 </cffunction>
 
 <!---
+ * A convenience/compatibility method for logging events through
+ * the Log system.
+ *
+ * Allowed log levels are:
+ *  - emergency
+ *  - alert
+ *  - critical
+ *  - error
+ *  - warning
+ *  - notice
+ *  - info
+ *  - debug
+ *
+ * Not ported yet: the TestLogger of the "testing" environment.
+ *
+ * @param level   The level
+ * @param message The message
+ * @param context A map (see array_())
+--->
+<cffunction name="log_message" returntype="void" output="no" hint="A convenience/compatibility method for logging events through the Log system">
+	<cfargument name="level" type="string" required="yes">
+	<cfargument name="message" type="string" required="yes">
+	<cfargument name="context" type="any" required="no" default="">
+
+	<!--- Not ported yet: when running tests, the TestLogger is used --->
+
+	<cfset service("logger").log_(arguments.level, arguments.message, arguments.context)>
+</cffunction>
+
+<!---
  * Convenience method that works with the current global request and
  * router instances to redirect using named/reverse-routed routes
  * to determine the URL to go to.
@@ -303,6 +393,45 @@
 	</cfif>
 
 	<cfreturn response>
+</cffunction>
+
+<!---
+ * Renders a backtrace.
+ *
+ * Difference: the rows are the ones of the tagContext of a caught error
+ * (template, line and id). The id is the name of a function when the engine
+ * knows it, else "??". The rows have no class, type or arguments.
+ *
+ * @param backtrace A list of rows (structs)
+--->
+<cffunction name="render_backtrace" returntype="string" output="no" hint="Renders a backtrace">
+	<cfargument name="backtrace" type="array" required="yes">
+	<cfset var backtraces = ArrayNew(1)>
+	<cfset var frame = "">
+	<cfset var file = "">
+	<cfset var idx = "">
+	<cfset var functionName = "">
+	<cfset var index = 0>
+
+	<cfloop from="1" to="#ArrayLen(arguments.backtrace)#" index="index">
+		<cfset frame = arguments.backtrace[index]>
+
+		<cfset file = "[internal function]">
+		<cfif StructKeyExists(frame, "template")>
+			<cfset file = frame.template & "(" & frame.line & ")">
+		</cfif>
+
+		<cfset functionName = "">
+		<cfif StructKeyExists(frame, "id")>
+			<cfset functionName = frame.id>
+		</cfif>
+
+		<cfset idx = RJustify(index, 2)>
+
+		<cfset ArrayAppend(backtraces, idx & " " & clean_path(file) & ": " & functionName & "()")>
+	</cfloop>
+
+	<cfreturn implode(Chr(10), backtraces)>
 </cffunction>
 
 <!---
@@ -337,6 +466,83 @@
 
 	<!--- Not ported yet: service("routes").reverseRoute(method, params) --->
 	<cfreturn false>
+</cffunction>
+
+<!---
+ * Returns a value of the server (the CGI scope), or an empty string.
+ *
+ * Difference: this has no counterpart in the original, where $_SERVER holds
+ * only what the web server sets. On the server (verified) the engine's
+ * connector puts a request header and a server variable in one table, and
+ * the header wins: a header "Server-Port-Secure: 1" or "HTTPS: on" changes
+ * CGI.SERVER_PORT_SECURE, CGI.HTTPS and the secure flag of the servlet
+ * request, "Remote-Addr: 192.0.2.9" changes the client address and
+ * "Request-Method: POST" the method, and the servlet request has no value
+ * that a header cannot reach. What a client cannot change is the list of
+ * the header names it sent (the engine gives every name in upper case, and
+ * "Server_Port" and "Server-Port" are one name; dots stay as they are). The
+ * names are compared with everything but letters and digits removed, on both
+ * sides, so no spelling of a variable's name can get past. So the CGI
+ * scope is read for a name only if
+ *  - it starts with "HTTP_" (a request header, as in the original), or
+ *  - it is in the fixed list below and no request header has that name
+ *    (in the stripped form).
+ * A server variable that a header has supplied reads as empty (a client
+ * that forges one gets no value, for HTTPS that means "not secure"). Any
+ * other name is not read: a header can supply any name.
+ * CONTENT_TYPE and CONTENT_LENGTH are request headers by nature and are
+ * read as they are.
+ * This list is the only place that names the server variables: env() and
+ * the server array of Superglobals use it.
+ *
+ * @param key The name of the variable
+ *
+ * @return The value, or an empty string
+--->
+<cffunction name="server_value" returntype="string" output="no" hint="Returns a value of the server (the CGI scope) unless a request header supplied it">
+	<cfargument name="key" type="string" required="yes">
+	<cfset var headers = "">
+	<cfset var name = "">
+
+	<cfif REFindNoCase("^HTTP_[A-Z0-9_]+$", arguments.key) GT 0>
+		<cfreturn CGI[arguments.key]>
+	</cfif>
+
+	<cfif ListFindNoCase(server_names(), arguments.key) EQ 0>
+		<cfreturn "">
+	</cfif>
+
+	<cfif Compare(UCase(arguments.key), "CONTENT_TYPE") EQ 0 OR Compare(UCase(arguments.key), "CONTENT_LENGTH") EQ 0>
+		<cfreturn CGI[arguments.key]>
+	</cfif>
+
+	<!--- The names of the request headers, once per request --->
+	<cfif NOT StructKeyExists(request.ColdIgniter, "headerNames")>
+		<cfset headers = GetHttpRequestData().headers>
+		<cfset request.ColdIgniter.headerNames = StructNew()>
+
+		<cfloop collection="#headers#" item="name">
+			<cfset request.ColdIgniter.headerNames[REReplace(UCase(name), "[^A-Z0-9]", "", "all")] = true>
+		</cfloop>
+	</cfif>
+
+	<!--- Difference: names are compared with everything but letters and digits removed, so a header spelled with dashes, dots or doubled separators still counts as the variable --->
+	<cfif StructKeyExists(request.ColdIgniter.headerNames, REReplace(UCase(arguments.key), "[^A-Z0-9]", "", "all"))>
+		<cfreturn "">
+	</cfif>
+
+	<cfreturn CGI[arguments.key]>
+</cffunction>
+
+<!---
+ * The names of the server variables that server_value() reads (see there).
+ * The real variables of the server and of the engine, as found on the
+ * server; the list is the one place that has them.
+ *
+ * @return A comma separated list
+--->
+<cffunction name="server_names" returntype="string" output="no" hint="The names of the server variables that server_value() reads">
+	<cfreturn "APPL_MD_PATH,APPL_PHYSICAL_PATH,AUTH_TYPE,AUTH_USER,CERT_COOKIE,CERT_FLAGS,CERT_ISSUER,CERT_KEYSIZE,CERT_SECRETKEYSIZE,CERT_SERIALNUMBER,CERT_SERVER_ISSUER,CERT_SERVER_SUBJECT,CERT_SUBJECT,CF_TEMPLATE_PATH,CONTENT_LENGTH,CONTENT_TYPE,CONTEXT_PATH,GATEWAY_INTERFACE,HTTPS,HTTPS_KEYSIZE,HTTPS_SECRETKEYSIZE,HTTPS_SERVER_ISSUER,HTTPS_SERVER_SUBJECT,INSTANCE_ID,LOCAL_ADDR,PATH_INFO,PATH_TRANSLATED,QUERY_STRING,REMOTE_ADDR,REMOTE_HOST,REMOTE_PORT,REMOTE_USER,REQUEST_METHOD,REQUEST_URI,SCRIPT_NAME,SERVER_NAME,SERVER_PORT,SERVER_PORT_SECURE,SERVER_PROTOCOL,SERVER_SOFTWARE">
 </cffunction>
 
 <!---
