@@ -92,19 +92,23 @@
  * the regular expressions of Java do not take [^\1].
  *
  * Difference: the lazy parts that the original writes .*? are written
- * [^<>]*? here, and the quoted value [^\x01]+? is written [^<>]+?, so that a
- * match never leaves its tag (the text of a tag holds no < and no >). The
- * Java engine has no backtrack limit, and input such as <img src='a' repeated
- * took time that grew about with the cube of its length; here each start is
- * cut off at the next <. For a normal tag the result is the same; a tag with
- * a < or a > in its text is left as it is.
+ * [^<]*? here, and the quoted value [^\x01]+? is written [^<]+?, so that a
+ * match never runs into the next tag. The Java engine has no backtrack
+ * limit, and input such as <img src='a' repeated took time that grew about
+ * with the cube of its length. A look-ahead (?=[^<]*>) right after <img makes
+ * a start that has no > before the next < fail at once, which also cuts off
+ * a single <img followed by many src parts and no >. A > inside a tag, as in
+ * <img src="a>b" onerror=x>, is still matched as in the original. What the
+ * original matches across a < is not matched here: a tag with a < in its text
+ * (as in <img alt="<" src=x>) is left as it is, and a match that the original
+ * spreads over several tags is made one tag at a time.
 --->
 <cffunction name="strip_image_tags" returntype="string" output="no" hint="Strip Image Tags">
 	<cfargument name="str" type="string" required="yes">
 	<cfset var patterns = ArrayNew(1)>
 
-	<cfset ArrayAppend(patterns, "##<img[\s/]+[^<>]*?src\s*=\s*([""'])([^<>]+?)\1[^<>]*?\>##i")>
-	<cfset ArrayAppend(patterns, "##<img[\s/]+[^<>]*?src\s*=\s*?(([^\s""'=<>`]+))[^<>]*?\>##i")>
+	<cfset ArrayAppend(patterns, "##<img(?=[^<]*>)[\s/]+[^<]*?src\s*=\s*([""'])([^<]+?)\1[^<]*?\>##i")>
+	<cfset ArrayAppend(patterns, "##<img(?=[^<]*>)[\s/]+[^<]*?src\s*=\s*?(([^\s""'=<>`]+))[^<]*?\>##i")>
 
 	<cfreturn preg_replace(patterns, "\2", arguments.str)>
 </cffunction>
