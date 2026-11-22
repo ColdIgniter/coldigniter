@@ -90,13 +90,21 @@
  * Difference: the class [^\1] of the original (a character that is not
  * the code 1, as the backslash-one is read there) is written [^\x01], as
  * the regular expressions of Java do not take [^\1].
+ *
+ * Difference: the lazy parts that the original writes .*? are written
+ * [^<>]*? here, and the quoted value [^\x01]+? is written [^<>]+?, so that a
+ * match never leaves its tag (the text of a tag holds no < and no >). The
+ * Java engine has no backtrack limit, and input such as <img src='a' repeated
+ * took time that grew about with the cube of its length; here each start is
+ * cut off at the next <. For a normal tag the result is the same; a tag with
+ * a < or a > in its text is left as it is.
 --->
 <cffunction name="strip_image_tags" returntype="string" output="no" hint="Strip Image Tags">
 	<cfargument name="str" type="string" required="yes">
 	<cfset var patterns = ArrayNew(1)>
 
-	<cfset ArrayAppend(patterns, "##<img[\s/]+.*?src\s*=\s*([""'])([^\x01]+?)\1.*?\>##i")>
-	<cfset ArrayAppend(patterns, "##<img[\s/]+.*?src\s*=\s*?(([^\s""'=<>`]+)).*?\>##i")>
+	<cfset ArrayAppend(patterns, "##<img[\s/]+[^<>]*?src\s*=\s*([""'])([^<>]+?)\1[^<>]*?\>##i")>
+	<cfset ArrayAppend(patterns, "##<img[\s/]+[^<>]*?src\s*=\s*?(([^\s""'=<>`]+))[^<>]*?\>##i")>
 
 	<cfreturn preg_replace(patterns, "\2", arguments.str)>
 </cffunction>

@@ -281,7 +281,8 @@
 		<cfset var i = 0>
 
 		<!--- If the token is found in POST data, we can safely remove it. --->
-		<cfif IsSimpleValue(superglobals.post(tokenName)) AND NOT is_null(superglobals.post(tokenName))>
+		<!--- is_string() of the original: the key exists and holds a simple value, an empty string too --->
+		<cfif array_key_exists(tokenName, superglobals.getPostArray()) AND IsSimpleValue(superglobals.post(tokenName))>
 			<cfset superglobals.unsetPost(tokenName)>
 			<cfset arguments.request_.setGlobal("post", superglobals.getPostArray())>
 

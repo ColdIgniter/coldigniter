@@ -1,14 +1,40 @@
 <!---
+ * Finds the first match of a matcher of the reader (see json_decode()) from
+ * the position of the reader. Returns its place, counted from 1, or 0.
+ *
+ * The matchers read the text in place. REFind() with a start place was found
+ * to take time with the length of the whole text on each call, which made a
+ * long string with many escapes take time with the square of its length.
+--->
+<cffunction name="json_find" returntype="numeric" output="no" hint="Finds a match from the position of a json reader">
+	<cfargument name="matcher" type="any" required="yes">
+	<cfargument name="reader" type="struct" required="yes">
+
+	<cfif arguments.reader.pos GT arguments.reader.length>
+		<cfreturn 0>
+	</cfif>
+
+	<cfif arguments.matcher.find(JavaCast("int", arguments.reader.pos - 1))>
+		<cfreturn arguments.matcher.start() + 1>
+	</cfif>
+
+	<cfreturn 0>
+</cffunction>
+
+<!---
  * Moves the position of a json reader past the white space.
  * The reader is a struct with the text, its length and the position.
 --->
 <cffunction name="json_skip" returntype="void" output="no" hint="Moves a json reader past white space">
 	<cfargument name="reader" type="struct" required="yes">
-	<cfset var white = " " & Chr(9) & Chr(10) & Chr(13)>
+	<cfset var found = json_find(arguments.reader.white, arguments.reader)>
 
-	<cfloop condition="arguments.reader.pos LTE arguments.reader.length AND Find(Mid(arguments.reader.text, arguments.reader.pos, 1), white) GT 0">
-		<cfset arguments.reader.pos = arguments.reader.pos + 1>
-	</cfloop>
+	<!--- one search finds the next character that is not white space --->
+	<cfif found EQ 0>
+		<cfset arguments.reader.pos = arguments.reader.length + 1>
+	<cfelse>
+		<cfset arguments.reader.pos = found>
+	</cfif>
 </cffunction>
 
 <!---
@@ -24,7 +50,8 @@
 	<cfset arguments.reader.pos = arguments.reader.pos + 1>
 
 	<cfloop condition="true">
-		<cfset found = REFind("[""\\]", arguments.reader.text, arguments.reader.pos)>
+		<!--- the end of the run: a quote, a backslash or a control character below 0x20 --->
+		<cfset found = json_find(arguments.reader.stop, arguments.reader)>
 		<cfif found EQ 0>
 			<cfthrow type="ColdIgniter.JsonException" message="Syntax error">
 		</cfif>
@@ -35,6 +62,11 @@
 		<cfif Compare(character, """") EQ 0>
 			<cfset arguments.reader.pos = found + 1>
 			<cfbreak>
+		</cfif>
+
+		<!--- a raw control character inside a string is malformed --->
+		<cfif Compare(character, "\") NEQ 0>
+			<cfthrow type="ColdIgniter.JsonException" message="Control character error, possibly incorrectly encoded">
 		</cfif>
 
 		<!--- a backslash --->
@@ -83,6 +115,7 @@
 	<cfset var span = "">
 	<cfset var match = "">
 	<cfset var token = "">
+	<cfset var found = 0>
 
 	<cfif arguments.depth GT arguments.reader.maxDepth>
 		<cfthrow type="ColdIgniter.JsonException" message="Maximum stack depth exceeded">
@@ -173,7 +206,12 @@
 	</cfif>
 
 	<!--- a number, true, false or null --->
-	<cfset token = Mid(arguments.reader.text, arguments.reader.pos, 64)>
+	<!--- the token runs to the first character that no number or word has --->
+	<cfset found = json_find(arguments.reader.word, arguments.reader)>
+	<cfif found EQ 0>
+		<cfset found = arguments.reader.length + 1>
+	</cfif>
+	<cfset token = Mid(arguments.reader.text, arguments.reader.pos, found - arguments.reader.pos)>
 	<cfset match = REFind("^(-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][-+]?[0-9]+)?|true|false|null)", token, 1, true)>
 	<cfif match.pos[1] EQ 0>
 		<cfthrow type="ColdIgniter.JsonException" message="Syntax error">
@@ -213,6 +251,10 @@
 	<cfset reader.length = Len(arguments.json)>
 	<cfset reader.pos = 1>
 	<cfset reader.maxDepth = 32>
+	<!--- the matchers of json_find(): the first character that is not white space, the end of a run in a string (a quote, a backslash or a control character below 0x20), the end of a number or word --->
+	<cfset reader.white = CreateObject("java", "java.util.regex.Pattern").compile(JavaCast("string", "[^ \t\r\n]")).matcher(JavaCast("string", arguments.json))>
+	<cfset reader.stop = CreateObject("java", "java.util.regex.Pattern").compile(JavaCast("string", "[""\\\x00-\x1f]")).matcher(JavaCast("string", arguments.json))>
+	<cfset reader.word = CreateObject("java", "java.util.regex.Pattern").compile(JavaCast("string", "[^-+.0-9A-Za-z]")).matcher(JavaCast("string", arguments.json))>
 
 	<cfset result = json_value(reader, 1, arguments.spans)>
 	<cfset json_skip(reader)>
