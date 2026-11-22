@@ -1,4 +1,46 @@
 <!---
+ * Decodes a url-encoded string (a plus becomes a space).
+ *
+ * URLDecode() throws for a percent sign without two hexadecimal digits
+ * after it. As in the original, such a sign is then kept as it is and
+ * the rest is decoded.
+--->
+<cffunction name="parse_str_decode" returntype="string" output="no" hint="Decodes a url-encoded string, keeping a percent sign that is not followed by two hexadecimal digits">
+	<cfargument name="string" type="string" required="yes">
+	<cfset var buffer = "">
+	<cfset var text = arguments.string>
+	<cfset var position = Find("%", text)>
+	<cfset var start = 1>
+
+	<cfif position EQ 0>
+		<cfreturn URLDecode(text)>
+	</cfif>
+
+	<cfset buffer = CreateObject("java", "java.lang.StringBuffer").init()>
+
+	<cfloop condition="position GT 0">
+		<cfset buffer.append(Mid(text, start, position - start + 1))>
+		<cfset start = position + 1>
+
+		<!--- a percent sign that stands alone is written as %25 --->
+		<cfif start + 1 GT Len(text) OR REFind("^[0-9A-Fa-f][0-9A-Fa-f]$", Mid(text, start, 2)) EQ 0>
+			<cfset buffer.append("25")>
+		</cfif>
+
+		<cfset position = 0>
+		<cfif start LTE Len(text)>
+			<cfset position = Find("%", text, start)>
+		</cfif>
+	</cfloop>
+
+	<cfif start LTE Len(text)>
+		<cfset buffer.append(Mid(text, start, Len(text) - start + 1))>
+	</cfif>
+
+	<cfreturn URLDecode(buffer.toString())>
+</cffunction>
+
+<!---
  * Parses a query string into an array with string keys (see array_()).
  *
  * Difference: the result is returned, as the original takes a second
@@ -9,6 +51,11 @@
  * becomes an underscore, a[b]=1 makes a nested map, a[]=1 appends, and
  * a nested map whose keys are 0, 1, 2 ... is a list (an ArrayNew(1))
  * here. A name that repeats replaces the earlier value.
+ *
+ * As in the original, at most max_input_vars pairs are taken (the
+ * others are dropped) and a name with more than max_input_nesting_level
+ * pairs of brackets is dropped. They are read with ini_get(), and the
+ * defaults of the original are 1000 and 64.
 --->
 <cffunction name="parse_str" returntype="any" output="no" hint="Parses a query string into an array with string keys">
 	<cfargument name="string" type="string" required="yes">
@@ -25,17 +72,34 @@
 	<cfset var entry = "">
 	<cfset var list = "">
 	<cfset var key = "">
-	<cfset var other = "">
+	<cfset var nexts = CreateObject("java", "java.util.IdentityHashMap").init()>
+	<cfset var maxVars = 1000>
+	<cfset var maxNesting = 64>
+	<cfset var lead = "">
 	<cfset var found = true>
 	<cfset var count = 0>
 	<cfset var position = 0>
 	<cfset var i = 0>
 	<cfset var j = 0>
 
+	<!--- the defaults of max_input_vars and max_input_nesting_level --->
+	<cfif Val(ini_get("max_input_vars")) GT 0>
+		<cfset maxVars = Val(ini_get("max_input_vars"))>
+	</cfif>
+	<cfif Val(ini_get("max_input_nesting_level")) GT 0>
+		<cfset maxNesting = Val(ini_get("max_input_nesting_level"))>
+	</cfif>
+
 	<cfloop from="1" to="#ArrayLen(pairs)#" index="i">
 		<cfset pair = pairs[i]>
 
 		<cfif pair NEQ "">
+			<!--- the pairs after max_input_vars are dropped --->
+			<cfset count = count + 1>
+			<cfif count GT maxVars>
+				<cfbreak>
+			</cfif>
+
 			<cfset position = Find("=", pair)>
 			<cfif position GT 0>
 				<cfset name = Left(pair, position - 1)>
@@ -45,31 +109,38 @@
 				<cfset value = "">
 			</cfif>
 
-			<cftry>
-				<cfset name = URLDecode(name)>
-				<cfcatch type="any"></cfcatch>
-			</cftry>
-			<cftry>
-				<cfset value = URLDecode(value)>
-				<cfcatch type="any"></cfcatch>
-			</cftry>
+			<!--- the name ends at a NUL character, which is written %00 --->
+			<cfset position = FindNoCase("%00", name)>
+			<cfif position GT 0>
+				<cfset name = Left(name, position - 1)>
+			</cfif>
+
+			<cfset name = parse_str_decode(name)>
+			<cfset value = parse_str_decode(value)>
 
 			<cfset name = LTrim(name)>
 			<cfset keys = ArrayNew(1)>
 			<cfset rest = "">
 			<cfset position = Find("[", name)>
 
-			<cfif position GT 0 AND Find("]", name, position) GT 0>
-				<cfset ArrayAppend(keys, Left(name, position - 1))>
-				<cfset rest = substr(name, position - 1)>
-			<cfelseif position GT 0>
-				<!--- an opening bracket without a closing one is part of the name --->
-				<cfset ArrayAppend(keys, Left(name, position - 1) & "_" & substr(name, position))>
+			<cfif position GT 0>
+				<cfset lead = Left(name, position - 1)>
 			<cfelse>
-				<cfset ArrayAppend(keys, name)>
+				<cfset lead = name>
 			</cfif>
 
-			<cfset keys[1] = Replace(Replace(keys[1], ".", "_", "all"), " ", "_", "all")>
+			<!--- only the part before the first bracket has its dots and spaces replaced --->
+			<cfset lead = Replace(Replace(lead, ".", "_", "all"), " ", "_", "all")>
+
+			<cfif position GT 0 AND Find("]", name, position) GT 0>
+				<cfset ArrayAppend(keys, lead)>
+				<cfset rest = substr(name, position - 1)>
+			<cfelseif position GT 0 AND lead NEQ "">
+				<!--- an opening bracket without a closing one becomes an underscore, the rest is kept --->
+				<cfset ArrayAppend(keys, lead & "_" & substr(name, position))>
+			<cfelse>
+				<cfset ArrayAppend(keys, lead)>
+			</cfif>
 
 			<cfloop condition="Left(rest, 1) EQ '[' AND Find(']', rest) GT 0">
 				<cfset position = Find("]", rest)>
@@ -77,7 +148,8 @@
 				<cfset rest = substr(rest, position)>
 			</cfloop>
 
-			<cfif keys[1] NEQ "">
+			<!--- a name with more than max_input_nesting_level pairs of brackets is dropped --->
+			<cfif keys[1] NEQ "" AND ArrayLen(keys) - 1 LTE maxNesting>
 				<cfset container = result>
 
 				<cfloop from="1" to="#ArrayLen(keys)#" index="j">
@@ -85,13 +157,17 @@
 
 					<!--- an empty pair of brackets appends, with the next free number --->
 					<cfif key EQ "" AND j GT 1>
-						<cfset count = 0>
-						<cfloop collection="#container#" item="other">
-							<cfif REFind("^[0-9]+$", other) GT 0 AND Val(other) GTE count>
-								<cfset count = Val(other) + 1>
-							</cfif>
-						</cfloop>
-						<cfset key = ToString(count)>
+						<cfset key = "0">
+						<cfif nexts.containsKey(container)>
+							<cfset key = ToString(Int(nexts.get(container)))>
+						</cfif>
+					</cfif>
+
+					<!--- keep the next free number of the map --->
+					<cfif REFind("^[0-9]+$", key) GT 0>
+						<cfif NOT nexts.containsKey(container) OR Val(key) GTE nexts.get(container)>
+							<cfset nexts.put(container, Val(key) + 1)>
+						</cfif>
 					</cfif>
 
 					<cfif j EQ ArrayLen(keys)>
