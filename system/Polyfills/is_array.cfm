@@ -1,7 +1,7 @@
 <!---
  * Finds whether a variable is an array.
  *
- * A PHP array is a list or a map, so both a CFML array and a struct
+ * An array of the original is a list or a map, so both a CFML array and a struct
  * (also an array_() map) count.
 --->
 <cffunction name="is_array" returntype="boolean" output="no" hint="Finds whether a variable is an array (a list or a map)">

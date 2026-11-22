@@ -4,8 +4,6 @@
  * Additional methods to make a PSR-7 Request class
  * compliant with the framework's own RequestInterface.
  *
- * @see https://github.com/php-fig/http-message/blob/master/src/RequestInterface.php
- *
  * A trait is a file of properties and functions that the component
  * includes where the original says "use RequestTrait".
  *
@@ -311,6 +309,9 @@
 
 	<cfif NOT found AND array_key_exists(arguments.index, this.globals[arguments.name])>
 		<cfset value = this.globals[arguments.name][arguments.index]>
+	<cfelseif NOT found AND arguments.name EQ "server">
+		<!--- the CGI scope does not list the request headers (HTTP_*), but a read by name finds them --->
+		<cfset value = service("superglobals").server(arguments.index)>
 	</cfif>
 
 	<!--- Not ported yet: the filters of an array (array_walk_recursive with filter_var), and of a string (filter_var) --->
