@@ -69,4 +69,6 @@ to `contributing/cfml/notes/server_probe_results.md` and to the reference.
 
 - Commits: lower-case conventional commits. Default branch is `trunk`; work on a branch and open a pull request.
 - Describe the project as "a CFML port of CodeIgniter 4".
+- Version: `CI_VERSION` in `system/ColdIgniter.cfc` is the only place it is written. ColdIgniter has its own
+  version line (major 4), not upstream's. Between releases it ends in `-dev`; a release is a `vX.Y.Z` tag on `trunk`.
 - Build in small steps, a few things at a time, following the order in the reference.
