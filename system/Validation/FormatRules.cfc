@@ -633,6 +633,7 @@
 		<cfset var second = -1>
 		<cfset var micro = -1>
 		<cfset var haveTime = false>
+		<cfset var allowExtra = false>
 		<cfset var pos = 1>
 		<cfset var fpos = 1>
 		<cfset var strLength = Len(arguments.str)>
@@ -754,6 +755,7 @@
 
 				<cfset haveTime = true>
 			<cfelseif Compare(token, "D") EQ 0 OR Compare(token, "l") EQ 0>
+				<!--- Difference: only the letters are read as the day name, and only the English names and short names are known. The original reads up to a separator and accepts more (for example a name followed by other characters, or a relative text). Not checked against the original on this machine --->
 				<cfset word = readWord(arguments.str, pos)>
 
 				<cfif ListFindNoCase(days, word) EQ 0>
@@ -762,6 +764,7 @@
 
 				<cfset pos = pos + Len(word)>
 			<cfelseif Compare(token, "F") EQ 0 OR Compare(token, "M") EQ 0>
+				<!--- Difference: only the letters are read as the month name, and only the English names, the three letter names and sept are known. The original also skips a leading space, tab, dash, dot or slash and accepts the roman numerals i to xii; this port does not. Not checked against the original on this machine --->
 				<cfset word = readWord(arguments.str, pos)>
 				<cfset index = ListFindNoCase(months, word)>
 
@@ -830,8 +833,8 @@
 				<cfif second EQ unset><cfset second = 0></cfif>
 				<cfif micro EQ unset><cfset micro = 0></cfif>
 			<cfelseif Compare(token, "+") EQ 0>
-				<!--- extra characters in the text are a warning, and a warning is not valid --->
-				<cfreturn false>
+				<!--- the original only allows trailing text and keeps reading the format; text that is left is a warning, and a warning is not valid (see the check after the loop) --->
+				<cfset allowExtra = true>
 			<cfelseif Compare(token, "\") EQ 0>
 				<!--- the next character of the format has to be in the text --->
 				<cfset fpos = fpos + 1>

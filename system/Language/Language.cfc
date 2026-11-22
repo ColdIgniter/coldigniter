@@ -369,7 +369,7 @@
 		<cfset var i = 0>
 		<cfset var j = 0>
 
-		<!--- Not ported yet: service("locator").search(path, "php", false) --->
+		<!--- Not ported yet: service("locator").search(path, extension, false) --->
 		<cfloop collection="#prefixes#" item="prefix">
 			<cfloop from="1" to="#ArrayLen(prefixes[prefix])#" index="i">
 				<cfset file = prefixes[prefix][i] & Replace(arguments.path, "/", request.DIRECTORY_SEPARATOR, "all")>
