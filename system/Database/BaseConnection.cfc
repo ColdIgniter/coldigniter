@@ -27,8 +27,11 @@
  * __get() and __isset() are not ported, as every property can be read
  * from the component.
  *
- * Not ported yet: the query builder (BaseBuilder, so table() and
- * newQuery()), the prepared queries (BasePreparedQuery, so prepare()).
+ * Difference: table() and newQuery() find the builder class with
+ * str_replace("Connection", "Builder", this.__class) and class_exists(),
+ * and use ColdIgniter\Database\BaseBuilder when there is none.
+ *
+ * Not ported yet: the prepared queries (BasePreparedQuery, so prepare()).
  *
  * @template TConnection
  * @template TResult
@@ -1082,8 +1085,7 @@
 	 *
 	 * @throws DatabaseException
 	 *
-	 * Not ported yet: the query builder (BaseBuilder), so after the check
-	 * of the name this throws.
+	 * Difference: the class is found by name, see the header of this file.
 	--->
 	<cffunction name="table" access="public" returntype="any" output="no">
 		<cfargument name="tableName" type="any" required="yes">
@@ -1103,17 +1105,35 @@
 			<cfthrow type="ColdIgniter.Database.Exceptions.DatabaseException" message="You must set the database table to be used with your query.">
 		</cfif>
 
-		<cfthrow type="ColdIgniter.LogicException" message="Not ported yet: the query builder.">
+		<cfreturn new_(builderClass_(), arguments.tableName, this)>
 	</cffunction>
 
 	<!---
 	 * Returns a new instance of the BaseBuilder class with a cleared FROM clause.
 	 *
-	 * Not ported yet: the query builder (BaseBuilder).
+	 * Difference: the class is found by name, see the header of this file.
 	--->
 	<cffunction name="newQuery" access="public" returntype="any" output="no">
+		<cfset var aliases = this.aliasedTables>
+		<cfset var builder = "">
 
-		<cfthrow type="ColdIgniter.LogicException" message="Not ported yet: the query builder.">
+		<!--- save the aliases, as the FROM of the new builder clears them --->
+		<cfset builder = this.table(",").from(ArrayNew(1), "true")>
+
+		<cfset this.aliasedTables = aliases>
+
+		<cfreturn builder>
+	</cffunction>
+
+	<!--- the class of the query builder of this connection --->
+	<cffunction name="builderClass_" access="private" returntype="string" output="no">
+		<cfset var className = str_replace("Connection", "Builder", this.__class)>
+
+		<cfif class_exists(className)>
+			<cfreturn className>
+		</cfif>
+
+		<cfreturn "ColdIgniter\Database\BaseBuilder">
 	</cffunction>
 
 	<!---
