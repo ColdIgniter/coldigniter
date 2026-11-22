@@ -22,39 +22,94 @@
 <cfcomponent output="no" hint="Filters">
 
 	<!---
-	 * The processed filters that will be used.
-	 * A map with the keys before and after, each a list of strings.
+	 * The Config\Filters instance
 	--->
 	<cfset this.config = "">
+
+	<!---
+	 * The active IncomingRequest or CLIRequest
+	--->
 	<cfset this.request_ = "">
+
+	<!---
+	 * The active Response instance
+	--->
 	<cfset this.response = "">
+
+	<!---
+	 * The Config\Modules instance
+	--->
 	<cfset this.modules = "">
 
 	<!---
-	 * Whether the filters were initialized for this request.
+	 * Whether we've done initial processing on the filter lists.
 	--->
 	<cfset this.initialized = false>
 
+	<!---
+	 * The filter list to execute for the current request (URI path).
+	 *
+	 * This property is for display. Use filtersClass to execute filters.
+	 * This does not include "Required Filters".
+	 *
+	 * A map with the keys before and after, each a list of strings:
+	 *
+	 * [
+	 *     'before' => [
+	 *         'alias',
+	 *         'alias:arg1',
+	 *         'alias:arg1,arg2',
+	 *     ],
+	 *     'after'  => [
+	 *         'alias',
+	 *         'alias:arg1',
+	 *         'alias:arg1,arg2',
+	 *     ],
+	 * ]
+	--->
 	<cfset this.filters = CreateObject("java", "java.util.LinkedHashMap").init()>
 	<cfset this.filters["before"] = ArrayNew(1)>
 	<cfset this.filters["after"] = ArrayNew(1)>
 
+	<!---
+	 * The collection of filter classnames and their arguments to execute for
+	 * the current request (URI path).
+	 *
+	 * This does not include "Required Filters".
+	 *
+	 * A map with the keys before and after, each a list of lists of two,
+	 * the classname and its arguments:
+	 *
+	 * [
+	 *     'before' => [
+	 *         [classname, arguments],
+	 *     ],
+	 *     'after'  => [
+	 *         [classname, arguments],
+	 *     ],
+	 * ]
+	--->
 	<cfset this.filtersClass = CreateObject("java", "java.util.LinkedHashMap").init()>
 	<cfset this.filtersClass["before"] = ArrayNew(1)>
 	<cfset this.filtersClass["after"] = ArrayNew(1)>
 
 	<!---
-	 * Cache for filter class instances, a map of the class name to the filter.
+	 * List of filter class instances, a map of the class name to the filter
+	 * [classname => instance].
 	--->
 	<cfset this.filterClassInstances = CreateObject("java", "java.util.LinkedHashMap").init()>
 
 	<!---
 	 * Any arguments to be passed to filters.
+	 *
+	 * A map [name => params]. Deprecated upstream (4.6.0), no longer used.
 	--->
 	<cfset this.arguments_ = CreateObject("java", "java.util.LinkedHashMap").init()>
 
 	<!---
-	 * Handle to the filter classes' arguments.
+	 * Any arguments to be passed to filtersClass.
+	 *
+	 * A map [classname => arguments]. Deprecated upstream (4.6.0), no longer used.
 	--->
 	<cfset this.argumentsClass = CreateObject("java", "java.util.LinkedHashMap").init()>
 
@@ -150,8 +205,16 @@
 			<cfelseif instanceof_(result, "ColdIgniter\HTTP\ResponseInterface")>
 				<!--- short circuit - bypass any other filters --->
 				<cfreturn result>
-			<cfelseif IsSimpleValue(result) AND Len(result) GT 0>
-				<!--- an empty result is ignored --->
+			<cfelseif IsSimpleValue(result) AND Len(result) GT 0 AND NOT IsBoolean(result)>
+				<!---
+				 An empty result is ignored.
+				 Difference: a value that is boolean-like is ignored too (true, false,
+				 yes, no in any case, and any number, also a java.lang.Boolean). The
+				 original stops only for a string, and a boolean is not one there, but
+				 here the literal false is the string "false" and cannot be told apart
+				 from it. A filter that returns false must not stop the chain with
+				 the controller still running.
+				--->
 				<cfreturn result>
 			</cfif>
 		</cfloop>
@@ -375,8 +438,13 @@
 			<cfreturn this>
 		</cfif>
 
-		<!--- Decode URL-encoded string --->
-		<cfset arguments.uri = URLDecode(arguments.uri)>
+		<!---
+		 Decode URL-encoded string.
+		 Difference: URLDecode() throws for a percent sign that is not followed
+		 by two hexadecimal digits, and urldecode() of the original keeps
+		 such a sign, so parse_str_decode() is used (see parse_str.cfm).
+		--->
+		<cfset arguments.uri = parse_str_decode(arguments.uri)>
 
 		<!--- Not ported yet: Feature oldFilterOrder, the new order is always used. --->
 		<cfset processFilters(arguments.uri)>

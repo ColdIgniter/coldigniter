@@ -172,8 +172,22 @@
 				<cfset ArrayAppend(this.performanceLog, entry)>
 			</cfif>
 
-			<cfif IsBoolean(result) AND NOT result>
-				<cfreturn false>
+			<!---
+			 Upstream stops only for the value false itself. On this server
+			 <cfreturn false> gives the string "false" (probed), so a string
+			 that is exactly "false" stops the chain; the string "false" cannot
+			 be told apart from false. A java.lang.Boolean false (JavaCast) stops
+			 it too. 0, "0", "no" and "" do not.
+			--->
+			<cfif IsSimpleValue(result)>
+				<cfif Compare(result, "false") EQ 0>
+					<cfreturn false>
+				</cfif>
+				<cfif result.getClass().getName() EQ "java.lang.Boolean">
+					<cfif NOT result>
+						<cfreturn false>
+					</cfif>
+				</cfif>
 			</cfif>
 		</cfloop>
 
@@ -182,7 +196,9 @@
 
 	<!---
 	 * Getter for the internal listeners list, sorted by priority.
-	 * Equal priorities keep the order they were registered in.
+	 * Difference: equal priorities keep the order they were registered in,
+	 * where array_multisort() of the original orders them by the callable
+	 * value.
 	 *
 	 * @return A list of callables.
 	--->
@@ -198,7 +214,10 @@
 
 		<!--- The list is not sorted --->
 		<cfif NOT this.listeners_[arguments.eventName][1]>
-			<!--- Sort it! A stable insertion sort of both lists together. --->
+			<!---
+			 Sort it! A stable insertion sort of both lists together.
+			 Difference: equal priorities keep their registration order (see above).
+			--->
 			<cfloop from="2" to="#ArrayLen(this.listeners_[arguments.eventName][2])#" index="i">
 				<cfset j = i>
 				<cfloop condition="j GT 1 AND this.listeners_[arguments.eventName][2][j - 1] GT this.listeners_[arguments.eventName][2][j]">
