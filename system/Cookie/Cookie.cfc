@@ -159,10 +159,10 @@
 	 * @throws CookieException
 	--->
 	<cffunction name="fromHeaderString" access="public" returntype="any" output="no">
-		<cfargument name="cookie" type="string" required="yes">
+		<cfargument name="cookie_" type="string" required="yes">
 		<cfargument name="raw" type="boolean" required="no" default="false">
 		<cfset var data = array_merge(static_("ColdIgniter\Cookie\Cookie").defaults)>
-		<cfset var parts = CreateObject("java", "java.lang.String").init(arguments.cookie).split(";[\s]*")>
+		<cfset var parts = CreateObject("java", "java.lang.String").init(arguments.cookie_).split(";[\s]*")>
 		<cfset var first = explode("=", parts[1], 2)>
 		<cfset var decoder = CreateObject("java", "java.net.URLDecoder")>
 		<cfset var name = "">
@@ -454,20 +454,20 @@
 	 * keeps an empty prefix empty.
 	--->
 	<cffunction name="clone_" access="private" returntype="any" output="no">
-		<cfset var cookie = request.ColdIgniter.autoloader.instantiate(this.__class)>
+		<cfset var cookie_ = request.ColdIgniter.autoloader.instantiate(this.__class)>
 
-		<cfset cookie.prefix = this.prefix>
-		<cfset cookie.name = this.name>
-		<cfset cookie.value = this.value>
-		<cfset cookie.expires = this.expires>
-		<cfset cookie.path = this.path>
-		<cfset cookie.domain = this.domain>
-		<cfset cookie.secure = this.secure>
-		<cfset cookie.httponly = this.httponly>
-		<cfset cookie.samesite = this.samesite>
-		<cfset cookie.raw = this.raw>
+		<cfset cookie_.prefix = this.prefix>
+		<cfset cookie_.name = this.name>
+		<cfset cookie_.value = this.value>
+		<cfset cookie_.expires = this.expires>
+		<cfset cookie_.path = this.path>
+		<cfset cookie_.domain = this.domain>
+		<cfset cookie_.secure = this.secure>
+		<cfset cookie_.httponly = this.httponly>
+		<cfset cookie_.samesite = this.samesite>
+		<cfset cookie_.raw = this.raw>
 
-		<cfreturn cookie>
+		<cfreturn cookie_>
 	</cffunction>
 
 	<!---
@@ -475,14 +475,14 @@
 	--->
 	<cffunction name="withPrefix" access="public" returntype="any" output="no">
 		<cfargument name="prefix" type="string" required="no" default="">
-		<cfset var cookie = "">
+		<cfset var cookie_ = "">
 
 		<cfset validatePrefix(arguments.prefix, this.secure, this.path, this.domain)>
 
-		<cfset cookie = clone_()>
-		<cfset cookie.prefix = arguments.prefix>
+		<cfset cookie_ = clone_()>
+		<cfset cookie_.prefix = arguments.prefix>
 
-		<cfreturn cookie>
+		<cfreturn cookie_>
 	</cffunction>
 
 	<!---
@@ -490,14 +490,14 @@
 	--->
 	<cffunction name="withName" access="public" returntype="any" output="no">
 		<cfargument name="name" type="string" required="yes">
-		<cfset var cookie = "">
+		<cfset var cookie_ = "">
 
 		<cfset validateName(arguments.name, this.raw)>
 
-		<cfset cookie = clone_()>
-		<cfset cookie.name = arguments.name>
+		<cfset cookie_ = clone_()>
+		<cfset cookie_.name = arguments.name>
 
-		<cfreturn cookie>
+		<cfreturn cookie_>
 	</cffunction>
 
 	<!---
@@ -505,14 +505,14 @@
 	--->
 	<cffunction name="withValue" access="public" returntype="any" output="no">
 		<cfargument name="value" type="string" required="yes">
-		<cfset var cookie = "">
+		<cfset var cookie_ = "">
 
 		<cfset validateValue(arguments.value, this.raw)>
 
-		<cfset cookie = clone_()>
-		<cfset cookie.value = arguments.value>
+		<cfset cookie_ = clone_()>
+		<cfset cookie_.value = arguments.value>
 
-		<cfreturn cookie>
+		<cfreturn cookie_>
 	</cffunction>
 
 	<!---
@@ -520,22 +520,22 @@
 	--->
 	<cffunction name="withExpires" access="public" returntype="any" output="no">
 		<cfargument name="expires" type="any" required="yes">
-		<cfset var cookie = clone_()>
+		<cfset var cookie_ = clone_()>
 
-		<cfset cookie.expires = convertExpiresTimestamp(arguments.expires)>
+		<cfset cookie_.expires = convertExpiresTimestamp(arguments.expires)>
 
-		<cfreturn cookie>
+		<cfreturn cookie_>
 	</cffunction>
 
 	<!---
 	 * {@inheritDoc}
 	--->
 	<cffunction name="withExpired" access="public" returntype="any" output="no">
-		<cfset var cookie = clone_()>
+		<cfset var cookie_ = clone_()>
 
-		<cfset cookie.expires = 0>
+		<cfset cookie_.expires = 0>
 
-		<cfreturn cookie>
+		<cfreturn cookie_>
 	</cffunction>
 
 	<!---
@@ -545,7 +545,7 @@
 		<cfargument name="path" type="string" required="no" default="">
 		<cfset var defaults = static_("ColdIgniter\Cookie\Cookie").defaults>
 		<cfset var path_ = arguments.path>
-		<cfset var cookie = "">
+		<cfset var cookie_ = "">
 
 		<cfif Len(path_) EQ 0 OR Compare(path_, "0") EQ 0>
 			<cfset path_ = defaults["path"]>
@@ -554,10 +554,10 @@
 		<cfset validatePath(path_)>
 		<cfset validatePrefix(this.prefix, this.secure, path_, this.domain)>
 
-		<cfset cookie = clone_()>
-		<cfset cookie.path = path_>
+		<cfset cookie_ = clone_()>
+		<cfset cookie_.path = path_>
 
-		<cfreturn cookie>
+		<cfreturn cookie_>
 	</cffunction>
 
 	<!---
@@ -567,7 +567,7 @@
 		<cfargument name="domain" type="string" required="no" default="">
 		<cfset var defaults = static_("ColdIgniter\Cookie\Cookie").defaults>
 		<cfset var domain_ = arguments.domain>
-		<cfset var cookie = "">
+		<cfset var cookie_ = "">
 
 		<cfif Len(domain_) EQ 0>
 			<cfset domain_ = defaults["domain"]>
@@ -576,10 +576,10 @@
 		<cfset validateDomain(domain_)>
 		<cfset validatePrefix(this.prefix, this.secure, this.path, domain_)>
 
-		<cfset cookie = clone_()>
-		<cfset cookie.domain = domain_>
+		<cfset cookie_ = clone_()>
+		<cfset cookie_.domain = domain_>
 
-		<cfreturn cookie>
+		<cfreturn cookie_>
 	</cffunction>
 
 	<!---
@@ -587,15 +587,15 @@
 	--->
 	<cffunction name="withSecure" access="public" returntype="any" output="no">
 		<cfargument name="secure" type="boolean" required="no" default="true">
-		<cfset var cookie = "">
+		<cfset var cookie_ = "">
 
 		<cfset validatePrefix(this.prefix, arguments.secure, this.path, this.domain)>
 		<cfset validateSameSite(this.samesite, arguments.secure)>
 
-		<cfset cookie = clone_()>
-		<cfset cookie.secure = arguments.secure>
+		<cfset cookie_ = clone_()>
+		<cfset cookie_.secure = arguments.secure>
 
-		<cfreturn cookie>
+		<cfreturn cookie_>
 	</cffunction>
 
 	<!---
@@ -603,11 +603,11 @@
 	--->
 	<cffunction name="withHTTPOnly" access="public" returntype="any" output="no">
 		<cfargument name="httponly" type="boolean" required="no" default="true">
-		<cfset var cookie = clone_()>
+		<cfset var cookie_ = clone_()>
 
-		<cfset cookie.httponly = arguments.httponly>
+		<cfset cookie_.httponly = arguments.httponly>
 
-		<cfreturn cookie>
+		<cfreturn cookie_>
 	</cffunction>
 
 	<!---
@@ -615,14 +615,14 @@
 	--->
 	<cffunction name="withSameSite" access="public" returntype="any" output="no">
 		<cfargument name="samesite" type="string" required="yes">
-		<cfset var cookie = "">
+		<cfset var cookie_ = "">
 
 		<cfset validateSameSite(arguments.samesite, this.secure)>
 
-		<cfset cookie = clone_()>
-		<cfset cookie.samesite = ucfirst(LCase(arguments.samesite))>
+		<cfset cookie_ = clone_()>
+		<cfset cookie_.samesite = ucfirst(LCase(arguments.samesite))>
 
-		<cfreturn cookie>
+		<cfreturn cookie_>
 	</cffunction>
 
 	<!---
@@ -630,15 +630,15 @@
 	--->
 	<cffunction name="withRaw" access="public" returntype="any" output="no">
 		<cfargument name="raw" type="boolean" required="no" default="true">
-		<cfset var cookie = "">
+		<cfset var cookie_ = "">
 
 		<cfset validateName(this.name, arguments.raw)>
 		<cfset validateValue(this.value, arguments.raw)>
 
-		<cfset cookie = clone_()>
-		<cfset cookie.raw = arguments.raw>
+		<cfset cookie_ = clone_()>
+		<cfset cookie_.raw = arguments.raw>
 
-		<cfreturn cookie>
+		<cfreturn cookie_>
 	</cffunction>
 
 	<!--- ===================================================================== --->

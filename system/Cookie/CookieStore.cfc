@@ -29,13 +29,13 @@
 		<cfargument name="headers" type="any" required="yes">
 		<cfargument name="raw" type="boolean" required="no" default="false">
 		<cfset var cookies = ArrayNew(1)>
-		<cfset var cookie = "">
+		<cfset var cookie_ = "">
 		<cfset var i = 0>
 
 		<cfloop from="1" to="#ArrayLen(arguments.headers)#" index="i">
 			<cftry>
-				<cfset cookie = static_("ColdIgniter\Cookie\Cookie").fromHeaderString(arguments.headers[i], arguments.raw)>
-				<cfset ArrayAppend(cookies, cookie)>
+				<cfset cookie_ = static_("ColdIgniter\Cookie\Cookie").fromHeaderString(arguments.headers[i], arguments.raw)>
+				<cfset ArrayAppend(cookies, cookie_)>
 
 				<cfcatch type="ColdIgniter.Cookie.Exceptions.CookieException">
 					<cfset log_message("error", cfcatch.type & ": " & cfcatch.message)>
@@ -120,10 +120,10 @@
 	 * @return static
 	--->
 	<cffunction name="put" access="public" returntype="any" output="no">
-		<cfargument name="cookie" type="any" required="yes">
+		<cfargument name="cookie_" type="any" required="yes">
 		<cfset var store = clone_()>
 
-		<cfset store.cookies[arguments.cookie.getId()] = arguments.cookie>
+		<cfset store.cookies[arguments.cookie_.getId()] = arguments.cookie_>
 
 		<cfreturn store>
 	</cffunction>
