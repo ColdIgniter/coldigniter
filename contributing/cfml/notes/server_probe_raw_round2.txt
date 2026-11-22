@@ -1,0 +1,99 @@
+
+
+
+
+array-assign-copy: orig=1 copy=2
+
+array-udf-arguments-scope: inside=2 outside=2
+
+array-udf-local-copy: inside=2 outside=1
+
+array-cfc-method: inside=2 outside=2
+
+array-in-struct-copy: s1.list=2 tmp=3
+
+loader-sibling-extends: base-hi meta=Sibling
+
+loader-deep-extends-rooted-path: ERROR [Application] Could not find the ColdFusion Component sys.Base. | Please check that the given name is correct and that the component exists.
+
+deep-createobject-rooted-path: ERROR [Application] Could not find the ColdFusion Component sys.Base. | Please check that the given name is correct and that the component exists.
+
+app-extends-sys: ERROR [Application] Could not find the ColdFusion Component sys.Base. | Please check that the given name is correct and that the component exists.
+
+type-check-across-packages: ERROR [sys.Base] The argument O passed to function takesBase() is not of type sys.Base. | If the component name is specified as a type of this argument, the reason for this error might be that a definition file for such component cannot be found or is  not accessible.
+
+type-check-rejects: ERROR [sys.Base] The argument O passed to function takesBase() is not of type sys.Base. | If the component name is specified as a type of this argument, the reason for this error might be that a definition file for such component cannot be found or is  not accessible.
+
+savecontent: [ac][b]
+
+runtime-methods: getApplicationMaxTimeout,getApplicationTimeout,getClass,getMappings,getRequestTimeoutLimit,getSaveClassFiles,getSessionMaxTimeout,getSessionTimeout,getTemplateCacheSize,getWhitespace,isCachePaths,isTrustedCache,setCachePaths,setSaveClassFiles,setTemplateCacheSize,setTrustedCache,setWhitespace,timeoutRequests
+
+runtime-values: trusted=NO templateCacheSize=1024
+
+runtime-values2: saveClass=YES whitespace=NO
+
+script-throw-is-not-a-statement: Variable THROW is undefined.
+
+isdefined-local-and-args: throw fn=NO writeoutput=YES
+
+request-in-cfc: YES
+
+
+== red.cfm
+HTTP/1.1 302 Moved Temporarily
+Server: Microsoft-IIS/4.0
+Date: Sun, 22 Nov 2026 07:35:39 GMT
+Connection: close
+Set-Cookie: PROBE_C=1;path=/
+location: /_t/x.cfm
+Content-Type: text/html; charset=UTF-8
+
+
+== red2.cfm
+HTTP/1.1 303 See Other
+Server: Microsoft-IIS/4.0
+Date: Sun, 22 Nov 2026 07:35:39 GMT
+Connection: close
+Set-Cookie: probe_h=1; path=/; HttpOnly
+Location: /_t/x.cfm
+Content-Type: text/html; charset=UTF-8
+
+
+== s404.cfm
+HTTP/1.1 404 Not Found
+Server: Microsoft-IIS/4.0
+Date: Sun, 22 Nov 2026 07:35:39 GMT
+Connection: close
+Content-Type: text/html; charset=utf-8
+
+custom 404 body from cfml
+== s500.cfm
+HTTP/1.1 500 Internal Server Error
+Server: Microsoft-IIS/4.0
+Date: Sun, 22 Nov 2026 07:35:39 GMT
+Connection: close
+Content-Type: text/html; charset=UTF-8
+
+custom 500 body from cfml
+== json.cfm
+HTTP/1.1 200 OK
+Server: Microsoft-IIS/4.0
+Date: Sun, 22 Nov 2026 07:35:39 GMT
+Connection: close
+Content-Type: application/json; charset=utf-8
+
+{"ok":true}
+== whitespace from cfc output on/off
+'\n\n\n\n[\n  \n  on][off]'
+== missing cfm
+HTTP/1.1 200 OK
+Server: Microsoft-IIS/4.0
+Date: Sun, 22 Nov 2026 07:35:39 GMT
+Connection: close
+Content-Type: text/html; charset=UTF-8
+
+6,1,0,63958
+== edit pickup
+one -> one
+two -> two
+three -> three
