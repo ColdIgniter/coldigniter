@@ -1008,8 +1008,6 @@
 	 *
 	 * You can also use validation_list_errors() in Form helper.
 	 *
-	 * Not ported yet: the form helper.
-	 *
 	 * @param template The name of a template of the config
 	--->
 	<cffunction name="listErrors" access="public" returntype="string" output="no">
@@ -1028,8 +1026,6 @@
 	 * Displays a single error in formatted HTML as defined in the template view.
 	 *
 	 * You can also use validation_show_error() in Form helper.
-	 *
-	 * Not ported yet: the form helper.
 	 *
 	 * @param field    The field name
 	 * @param template The name of a template of the config
