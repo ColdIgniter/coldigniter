@@ -126,6 +126,30 @@
 	</cffunction>
 
 	<!---
+	 * The Parser is a simple template parser.
+	 *
+	 * Not ported yet: the file locator (service("locator")).
+	--->
+	<cffunction name="parser" access="public" returntype="any" output="no">
+		<cfargument name="viewPath" type="string" required="no" default="">
+		<cfargument name="config" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("parser", arguments.viewPath, arguments.config)>
+		</cfif>
+
+		<cfif arguments.viewPath EQ "" OR arguments.viewPath EQ "0">
+			<cfset arguments.viewPath = new_("Config\Paths").viewDirectory>
+		</cfif>
+		<cfif is_null(arguments.config)>
+			<cfset arguments.config = variables.config("Config\View")>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\View\Parser", arguments.config, arguments.viewPath, "", request.CI_DEBUG, static_("Config\Services").get("logger"))>
+	</cffunction>
+
+	<!---
 	 * The Renderer class is the class that actually displays a file to the user.
 	 * The default View class within ColdIgniter is intentionally simple, but this
 	 * service could easily be replaced by a template engine if the user needed to.
@@ -400,6 +424,38 @@
 		</cfif>
 
 		<cfreturn new_("ColdIgniter\Superglobals", arguments.server, arguments.get, arguments.post, arguments.cookie, arguments.files, arguments.request_)>
+	</cffunction>
+
+	<!---
+	 * The Timer class provides a simple way to Benchmark portions of your
+	 * application.
+	--->
+	<cffunction name="timer" access="public" returntype="any" output="no">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("timer")>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\Debug\Timer")>
+	</cffunction>
+
+	<!---
+	 * Return the debug toolbar.
+	--->
+	<cffunction name="toolbar" access="public" returntype="any" output="no">
+		<cfargument name="config" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("toolbar", arguments.config)>
+		</cfif>
+
+		<cfif is_null(arguments.config)>
+			<cfset arguments.config = variables.config("Config\Toolbar")>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\Debug\Toolbar", arguments.config)>
 	</cffunction>
 
 	<!---

@@ -2,8 +2,7 @@
  * Class View
  *
  * Not ported yet: layouts and sections, include, renderString, the
- * cache options, decorators, the file locator, the performance data
- * and the debug toolbar comments.
+ * cache options, decorators and the file locator.
 --->
 <cfcomponent output="no" hint="Class View">
 
@@ -46,11 +45,24 @@
 	<cfset this.debug = false>
 
 	<!---
+	 * Cache stats about our performance here,
+	 * when CI_DEBUG = true
+	 *
+	 * A list of maps with the keys start, end and view.
+	--->
+	<cfset this.performanceData = ArrayNew(1)>
+
+	<!---
 	 * Whether data should be saved between renders.
 	--->
 	<cfset this.saveData = false>
 
 	<cfset this.config = "">
+
+	<!---
+	 * The number of views rendered, for the comments of the debug toolbar.
+	--->
+	<cfset this.viewsCount = 0>
 
 	<cffunction name="__construct" access="public" returntype="any" output="no">
 		<cfargument name="config" type="any" required="yes">
@@ -100,8 +112,13 @@
 		<cfargument name="saveData" type="any" required="no" default="">
 		<cfset var fileExt = "">
 		<cfset var output = "">
+		<cfset var filters = "">
+		<cfset var requiredAfterFilters = "">
+		<cfset var requiredResult = "">
+		<cfset var filtersClass = "">
+		<cfset var debugBarEnabled = false>
 
-		<cfset this.renderVars["start"] = GetTickCount()>
+		<cfset this.renderVars["start"] = microtime(true)>
 
 		<!---
 		 Store the results here so even if
@@ -156,7 +173,31 @@
 		--->
 		<cfset output = new_("ColdIgniter\View\Closure").call(this.renderVars["file"], this.tempData)>
 
-		<!--- Not ported yet: layouts, decorators, performance data, debug toolbar, cache --->
+		<!--- Not ported yet: layouts, decorators, cache --->
+
+		<cfset logPerformance(this.renderVars["start"], microtime(true), this.renderVars["view"])>
+
+		<!--- Check if DebugToolbar is enabled. --->
+		<cfset filters = service("filters")>
+		<cfset requiredResult = filters.getRequiredFilters("after")>
+		<cfset requiredAfterFilters = requiredResult[1]>
+		<cfif in_array("toolbar", requiredAfterFilters)>
+			<cfset debugBarEnabled = true>
+		<cfelse>
+			<cfset filtersClass = filters.getFiltersClass()>
+			<cfset debugBarEnabled = in_array("ColdIgniter\Filters\DebugToolbar", filtersClass["after"])>
+		</cfif>
+
+		<cfif this.debug AND debugBarEnabled AND (is_null(arguments.options) OR NOT array_key_exists("debug", arguments.options) OR arguments.options["debug"] IS true)>
+			<cfif in_array("ColdIgniter\Debug\Toolbar\Collectors\Views", config("Config\Toolbar").collectors)>
+				<!--- Clean up our path names to make them a little cleaner --->
+				<cfset this.renderVars["file"] = clean_path(this.renderVars["file"])>
+				<cfset this.viewsCount = this.viewsCount + 1>
+				<cfset this.renderVars["file"] = this.viewsCount & " " & this.renderVars["file"]>
+
+				<cfset output = "<!-- DEBUG-VIEW START " & this.renderVars["file"] & " -->" & Chr(10) & output & Chr(10) & "<!-- DEBUG-VIEW ENDED " & this.renderVars["file"] & " -->" & Chr(10)>
+			</cfif>
+		</cfif>
 
 		<cfset this.tempData = "">
 
@@ -264,6 +305,29 @@
 		</cfif>
 
 		<cfreturn this.tempData>
+	</cffunction>
+
+	<!---
+	 * Returns the performance data that might have been collected
+	 * during the execution. Used primarily in the Debug Toolbar.
+	 *
+	 * @return A list of maps with the keys start, end and view
+	--->
+	<cffunction name="getPerformanceData" access="public" returntype="any" output="no">
+		<cfreturn this.performanceData>
+	</cffunction>
+
+	<!---
+	 * Logs performance data for rendering a view.
+	--->
+	<cffunction name="logPerformance" access="public" returntype="void" output="no">
+		<cfargument name="start" type="numeric" required="yes">
+		<cfargument name="end" type="numeric" required="yes">
+		<cfargument name="view" type="string" required="yes">
+
+		<cfif this.debug>
+			<cfset ArrayAppend(this.performanceData, array_("start", arguments.start, "end", arguments.end, "view", arguments.view))>
+		</cfif>
 	</cffunction>
 
 	<cffunction name="prepareTemplateData" access="private" returntype="void" output="no">

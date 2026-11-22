@@ -25,8 +25,7 @@
  *
  * Not ported yet: {session_vars}, the session is not ported yet.
  *
- * Not ported yet: logCache is kept, but nothing reads it until the
- * debug toolbar is ported.
+ * logCache is read by the Logs collector of the debug toolbar.
 --->
 <cfcomponent output="no" hint="The ColdIgniter Logger">
 
