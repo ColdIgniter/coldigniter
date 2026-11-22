@@ -6,9 +6,18 @@
  * file or folder that cannot be written is not an error: handle() returns
  * false, as the original does when fopen() fails.
  *
- * Not ported yet: the file permissions (chmod) of a new file, and the
- * header that protects a log file with the extension of the scripting
- * language, which makes no sense for a plain text file.
+ * Difference: the original puts a line that stops the script at the top of
+ * a new log file with the extension of its own scripting language. Here the extensions that the
+ * server runs as templates (cfm and cfml, in any case) get a first line
+ * with the cfabort tag, so a request for the file outputs nothing. The
+ * extension cfc is refused: a request for a component file shows the
+ * description of the component, which would show the log, and the tag
+ * cannot protect it. handle() returns false for it and writes nothing.
+ * A line of the log that is not valid in a template can still make the
+ * server fail to compile the file and show the error, so these extensions
+ * are only for a folder that is not served.
+ *
+ * Not ported yet: the file permissions (chmod) of a new file.
 --->
 <cfcomponent output="no" extends="BaseHandler" hint="Log error messages to file system">
 
@@ -80,8 +89,16 @@
 		<cfset var filepath = this.path & "log-" & date("Y-m-d") & "." & this.fileExtension>
 		<cfset var msg = "">
 		<cfset var written = true>
+		<cfset var extension = LCase(this.fileExtension)>
 
-		<!--- Not ported yet: the protection of a log file with a script extension --->
+		<cfif Compare(extension, "cfc") EQ 0>
+			<cfreturn false>
+		</cfif>
+
+		<!--- Only add protection to template files --->
+		<cfif (Compare(extension, "cfm") EQ 0 OR Compare(extension, "cfml") EQ 0) AND NOT is_file(filepath)>
+			<cfset msg = msg & "<cfabort>" & Chr(10) & Chr(10)>
+		</cfif>
 
 		<cfset msg = msg & UCase(arguments.level) & " - " & date(this.dateFormat) & " --> " & arguments.message & Chr(10)>
 

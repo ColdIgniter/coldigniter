@@ -127,10 +127,20 @@
 		<cfif IsArray(arguments.config.threshold)>
 			<cfset loggableLevels = arguments.config.threshold>
 		<cfelse>
-			<!--- range(1, threshold) --->
-			<cfloop from="1" to="#Int(Val(arguments.config.threshold))#" index="i">
-				<cfset ArrayAppend(loggableLevels, i)>
-			</cfloop>
+			<!---
+			 range(1, threshold)
+			 Difference: range() counts down when the threshold is below 1, so
+			 a threshold of 0 or less gives 1 first and then 0 and the numbers
+			 below it. Only the 1 (emergency) is a level, so it is logged
+			 whatever the threshold is.
+			--->
+			<cfif Fix(Val(arguments.config.threshold)) LT 1>
+				<cfset ArrayAppend(loggableLevels, 1)>
+			<cfelse>
+				<cfloop from="1" to="#Fix(Val(arguments.config.threshold))#" index="i">
+					<cfset ArrayAppend(loggableLevels, i)>
+				</cfloop>
+			</cfif>
 		</cfif>
 
 		<!--- Now convert loggable levels to strings. --->
@@ -139,7 +149,8 @@
 			<cfset stringLevel = ""> <!--- array_search() --->
 
 			<cfloop collection="#this.logLevels#" item="level">
-				<cfif this.logLevels[level] EQ loggableLevels[i]>
+				<!--- Difference: Compare() is used, the original compares strictly, and CFML equality treats "yes" and "true" as 1 --->
+				<cfif Compare(this.logLevels[level], loggableLevels[i]) EQ 0>
 					<cfset stringLevel = level>
 				</cfif>
 			</cfloop>
@@ -152,7 +163,7 @@
 		<cfset this.dateFormat = arguments.config.dateFormat>
 
 		<cfif StructIsEmpty(arguments.config.handlers)>
-			<cfset static_("ColdIgniter\Exceptions\FrameworkException").forNoHandlers("LoggerConfig")>
+			<cfset static_("ColdIgniter\Log\Exceptions\LogException").forNoHandlers("LoggerConfig")>
 		</cfif>
 
 		<!--- Save the handler configuration for later. --->
@@ -343,7 +354,7 @@
 	 *
 	 * @return string
 	--->
-	<cffunction name="interpolate" access="package" returntype="string" output="no">
+	<cffunction name="interpolate" access="private" returntype="string" output="no">
 		<cfargument name="message" type="any" required="yes">
 		<cfargument name="context" type="any" required="no" default="">
 		<cfset var replace = array_()>
@@ -413,7 +424,7 @@
 	<!---
 	 * Converts context values to strings without raising errors.
 	--->
-	<cffunction name="stringifyContextValue" access="package" returntype="string" output="no">
+	<cffunction name="stringifyContextValue" access="private" returntype="string" output="no">
 		<cfargument name="key" type="string" required="yes">
 		<cfargument name="value" type="any" required="yes">
 		<cfset var file = "">
