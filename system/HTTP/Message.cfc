@@ -241,10 +241,10 @@
 	<cffunction name="validateValue" access="private" returntype="void" output="no">
 		<cfargument name="value" type="any" required="yes">
 
-		<!--- a number needs no check (the original returns for an int) --->
-		<cfif IsNumeric(arguments.value)>
-			<cfreturn>
-		</cfif>
+		<!---
+		 The original returns for an int. There is no int type here, and
+		 the text of a number passes the check below anyway.
+		--->
 
 		<!--- The regular expression excludes obs-fold per RFC 7230#3.2.4 --->
 		<cfif NOT JavaCast("string", arguments.value).matches("[\x20\x09\x21-\x7E\u0080-\uFFFF]*")>

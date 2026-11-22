@@ -233,7 +233,7 @@
 
 		<cfset frontEndHttps = header("Front-End-Https")>
 
-		<cfreturn frontEndHttps NEQ "" AND frontEndHttps NEQ "0" AND LCase(frontEndHttps) NEQ "off">
+		<cfreturn frontEndHttps NEQ "" AND Compare(frontEndHttps, "0") NEQ 0 AND LCase(frontEndHttps) NEQ "off">
 	</cffunction>
 
 	<!---
@@ -469,9 +469,9 @@
 		 checks the initial POST data, not anything that might
 		 have been added since.
 		--->
-		<cfif NOT is_null(service("superglobals").post(arguments.index))>
+		<cfif array_key_exists(arguments.index, service("superglobals").getPostArray())>
 			<cfreturn getPost(arguments.index, arguments.filter, arguments.flags)>
-		<cfelseif NOT is_null(service("superglobals").get(arguments.index))>
+		<cfelseif array_key_exists(arguments.index, service("superglobals").getGetArray())>
 			<cfreturn getGet(arguments.index, arguments.filter, arguments.flags)>
 		</cfif>
 
@@ -513,9 +513,9 @@
 		 checks the initial GET data, not anything that might
 		 have been added since.
 		--->
-		<cfif NOT is_null(service("superglobals").get(arguments.index))>
+		<cfif array_key_exists(arguments.index, service("superglobals").getGetArray())>
 			<cfreturn getGet(arguments.index, arguments.filter, arguments.flags)>
-		<cfelseif NOT is_null(service("superglobals").post(arguments.index))>
+		<cfelseif array_key_exists(arguments.index, service("superglobals").getPostArray())>
 			<cfreturn getPost(arguments.index, arguments.filter, arguments.flags)>
 		</cfif>
 
