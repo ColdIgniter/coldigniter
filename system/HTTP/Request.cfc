@@ -1,10 +1,12 @@
 <!---
  * Representation of an incoming, server-side HTTP request.
  *
- * Not ported yet: getIPAddress, getEnv, setGlobal, fetchGlobal and the
- * filters of getServer.
+ * Not ported yet: withMethod (see OutgoingRequest).
 --->
 <cfcomponent output="no" extends="OutgoingRequest" hint="Representation of an incoming, server-side HTTP request">
+
+	<!--- use RequestTrait --->
+	<cfinclude template="RequestTrait.cfm">
 
 	<!---
 	 * Constructor.
@@ -13,6 +15,12 @@
 	--->
 	<cffunction name="__construct" access="public" returntype="any" output="no">
 		<cfargument name="config" type="any" required="no" default="">
+
+		<cfif is_null(arguments.config)>
+			<cfset arguments.config = config("Config\App")>
+		</cfif>
+
+		<cfset this.config = arguments.config>
 
 		<cfif this.method EQ "">
 			<cfset this.method = getServer("REQUEST_METHOD")>
@@ -37,17 +45,6 @@
 		<cfset this.method = arguments.method>
 
 		<cfreturn this>
-	</cffunction>
-
-	<!---
-	 * Fetch an item from the server array.
-	 *
-	 * @param index Index for item to be fetched from the server values
-	--->
-	<cffunction name="getServer" access="public" returntype="any" output="no">
-		<cfargument name="index" type="string" required="yes">
-
-		<cfreturn service("superglobals").server(arguments.index)>
 	</cffunction>
 
 </cfcomponent>
