@@ -55,8 +55,9 @@
         <p><b>#esc(clean_path(variables.file))#</b> at line <b>#esc(line)#</b></p>
 
         <cfif is_file(variables.file)>
+            <cfset __source = exceptionHandler.highlightFile(variables.file, line, 15)>
             <div class="source">
-                #exceptionHandler.highlightFile(variables.file, line, 15)#
+                <cfif NOT IsBoolean(__source)>#__source#</cfif>
             </div>
         </cfif>
     </div>
@@ -298,6 +299,7 @@
             <!-- Memory -->
             <div class="content" id="memory">
 
+                <!--- Not ported yet: there is no peak usage, so the memory the runtime holds is shown, and its maximum as the limit --->
                 <table>
                     <tbody>
                         <tr>
