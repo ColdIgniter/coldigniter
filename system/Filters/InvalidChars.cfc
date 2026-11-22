@@ -20,7 +20,10 @@
 
 	<!---
 	 * Regular expression for valid control codes. It is a Java regular
-	 * expression that has to match the whole string.
+	 * expression that has to match the whole string. As the original, which
+	 * uses [:^cntrl:] with the u modifier (Unicode property mode), it
+	 * refuses every character of the Cc category, so also U+0080 to U+009F,
+	 * and lets carriage return, line feed and tab through.
 	--->
 	<cfset this.controlCodeRegex = "[\r\n\t\P{Cc}]*">
 

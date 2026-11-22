@@ -163,15 +163,18 @@
 		<cfset runRequiredAfterFilters(filters)>
 
 		<!---
-		 Is there a post-system event?
-		 The "performance" filter is not ported (there is no benchmark
-		 service), so its work is done here.
+		 Upstream the required after filter "performance" does this, in
+		 runRequiredAfterFilters, so it comes before the post-system event.
+		 The filter is not ported (there is no benchmark service), so its
+		 work is done here.
 		--->
-		<cfset static_("ColdIgniter\Events\Events").trigger("post_system")>
 		<cfset this.totalTime = (GetTickCount() - this.startTime) / 1000>
 		<cfif IsSimpleValue(this.response.getBody())>
 			<cfset this.response.setBody(displayPerformanceMetrics(this.response.getBody()))>
 		</cfif>
+
+		<!--- Is there a post-system event? --->
+		<cfset static_("ColdIgniter\Events\Events").trigger("post_system")>
 
 		<cfif arguments.returnResponse>
 			<cfreturn this.response>

@@ -24,7 +24,13 @@
 	 * @param request_   The request
 	 * @param arguments_ An empty string, or a list of strings
 	 *
-	 * @return A request or response to use, or anything else to carry on.
+	 * @return A request replaces the request for the filters and the
+	 *         controller that follow. A response stops the other filters and
+	 *         the controller and is sent. An empty string or nothing carries
+	 *         on. Any other non-empty string stops the other filters but the
+	 *         controller still runs, as upstream. Difference: true, false,
+	 *         yes, no and numbers, which the engine cannot tell from the
+	 *         literals, carry on like an empty result.
 	--->
 	<cffunction name="before" access="public" returntype="any" output="no">
 		<cfargument name="request_" type="any" required="yes">
