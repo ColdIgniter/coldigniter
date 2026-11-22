@@ -76,7 +76,7 @@
 	<cfset filters = service("filters").getFilters()>
 	<cfset before = filters["before"]>
 
-	<cfif (in_array("csrf", before, true) OR array_key_exists("csrf", before)) AND Find(base_url(), arguments.action) GT 0 AND FindNoCase("method=""get""", form) EQ 0>
+	<cfif (in_array("csrf", before, true) OR array_key_exists("csrf", before)) AND Find(base_url(), arguments.action) GT 0 AND FindNoCase("method=""get""", form_) EQ 0>
 		<cfset form_ = form_ & csrf_field(csrfId)>
 	</cfif>
 
