@@ -49,8 +49,30 @@
 		<cfset setExceptionHandler()>
 		<!--- Not ported yet: initializeKint, autoloadHelpers --->
 
-		<cfset app = initializeColdIgniter()>
-		<cfset runColdIgniter(app)>
+		<!---
+		 There is no set_exception_handler, so the error that the
+		 request ends with is caught here and passed to the handler
+		 that setExceptionHandler() would have registered.
+		--->
+		<cftry>
+			<cfset app = initializeColdIgniter()>
+			<cfset runColdIgniter(app)>
+
+			<cfcatch type="any">
+				<cftry>
+					<cfset static_("Config\Services").exceptions().exceptionHandler(cfcatch)>
+
+					<!---
+					 An error in the handler itself must not reach the
+					 error page of the server, which shows details.
+					--->
+					<cfcatch type="any">
+						<cfheader statuscode="500" statustext="Internal Server Error">
+						<cfset request.ColdIgniter.output = "<h1>500 - Internal Server Error</h1>">
+					</cfcatch>
+				</cftry>
+			</cfcatch>
+		</cftry>
 
 		<!---
 		 Exits the application, setting the exit code for CLI-based
@@ -192,18 +214,7 @@
 		<!--- Not ported yet: is_cli(), so the context is always "web" --->
 		<cfset arguments.app.setContext("web")>
 
-		<!---
-		 There is no set_exception_handler, so the error that the
-		 request ends with is caught here and passed to the handler
-		 that setExceptionHandler() would have registered.
-		--->
-		<cftry>
-			<cfset arguments.app.run()>
-
-			<cfcatch type="any">
-				<cfset static_("Config\Services").exceptions().exceptionHandler(cfcatch)>
-			</cfcatch>
-		</cftry>
+		<cfset arguments.app.run()>
 	</cffunction>
 
 </cfcomponent>

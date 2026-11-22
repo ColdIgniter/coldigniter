@@ -210,7 +210,7 @@
 
 				<!--- Each line closes its own span, unlike the original. --->
 				<cfif n EQ arguments.lineNumber>
-					<cfset out = out & "<span class='line highlight'><span class='number'>" & RJustify(n, format) & "</span> " & row & Chr(10) & "</span>">
+					<cfset out = out & "<span class=""line highlight""><span class=""number"">" & RJustify(n, format) & "</span> " & row & Chr(10) & "</span>">
 				<cfelse>
 					<cfset out = out & "<span class=""line""><span class=""number"">" & RJustify(n, format) & "</span> " & row & Chr(10) & "</span>">
 				</cfif>
@@ -234,6 +234,12 @@
 		<cfargument name="statusCode" type="numeric" required="yes">
 		<cfargument name="viewFile" type="any" required="no" default="">
 		<cfset var vars = "">
+
+		<!---
+		 The body that the request has left so far is dropped, so that
+		 it does not come out in front of the error page.
+		--->
+		<cfset request.ColdIgniter.output = "">
 
 		<cfif is_null(arguments.viewFile)>
 			<cfset request.ColdIgniter.output = request.ColdIgniter.output & "The error view file was not specified. Cannot display error view.">
