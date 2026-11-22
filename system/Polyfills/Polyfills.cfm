@@ -12,9 +12,12 @@
 <cfinclude template="implode.cfm">
 <cfinclude template="in_array.cfm">
 <cfinclude template="includePath.cfm">
+<cfinclude template="ini_get.cfm">
+<cfinclude template="ini_set.cfm">
 <cfinclude template="is_file.cfm">
 <cfinclude template="is_null.cfm">
 <cfinclude template="method_exists.cfm">
+<cfinclude template="nl2br.cfm">
 <cfinclude template="new_.cfm">
 <cfinclude template="parse_url.cfm">
 <cfinclude template="realpath.cfm">
