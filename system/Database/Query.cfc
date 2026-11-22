@@ -1,8 +1,9 @@
 <!---
  * Query builder
  *
- * Difference: there is no Stringable, so getQuery() is what __toString()
- * gives, and a caller that needs the text of a Query calls it.
+ * Difference: there is no Stringable, so a caller that needs the text of a
+ * Query calls __toString() (or getQuery()) itself. A method cannot have the
+ * name toString on this server, so the name of the original is kept.
  *
  * Difference: the binds are kept as a list of pairs [value, escape] for the
  * simple (?) binds, and as a map (see array_()) of name to the pair for the
@@ -833,6 +834,13 @@
 		</cfloop>
 
 		<cfreturn result & substr(sql, last)>
+	</cffunction>
+
+	<!---
+	 * Return text representation of the query
+	--->
+	<cffunction name="__toString" access="public" returntype="string" output="no">
+		<cfreturn this.getQuery()>
 	</cffunction>
 
 </cfcomponent>

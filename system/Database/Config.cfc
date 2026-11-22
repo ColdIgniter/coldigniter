@@ -20,7 +20,7 @@
 	 *
 	 * @var array<string, BaseConnection>
 	--->
-	<cfset this.instances = array_()>
+	<cfset this.instances = CreateObject("java", "java.util.LinkedHashMap").init()>
 
 	<!---
 	 * The main instance used to manage all of

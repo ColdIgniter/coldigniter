@@ -326,7 +326,12 @@
 	 *
 	 * @var array<string, string>
 	--->
-	<cfset this.dateFormat = array_("date", "Y-m-d", "datetime", "Y-m-d H:i:s", "datetime-ms", "Y-m-d H:i:s.v", "datetime-us", "Y-m-d H:i:s.u", "time", "H:i:s")>
+	<cfset this.dateFormat = CreateObject("java", "java.util.LinkedHashMap").init()>
+	<cfset this.dateFormat["date"] = "Y-m-d">
+	<cfset this.dateFormat["datetime"] = "Y-m-d H:i:s">
+	<cfset this.dateFormat["datetime-ms"] = "Y-m-d H:i:s.v">
+	<cfset this.dateFormat["datetime-us"] = "Y-m-d H:i:s.u">
+	<cfset this.dateFormat["time"] = "H:i:s">
 
 	<!---
 	 * @param array<string, mixed> $params
@@ -1624,12 +1629,12 @@
 
 		<cfif IsObject(value)>
 			<cfif Compare(value.__class, "ColdIgniter\Database\RawSql") EQ 0>
-				<cfreturn value.toString()>
+				<cfreturn value.__toString()>
 			</cfif>
 
 			<!--- Stringable --->
-			<cfif StructKeyExists(value, "toString")>
-				<cfreturn "'" & this.escapeString(value.toString()) & "'">
+			<cfif StructKeyExists(value, "__toString")>
+				<cfreturn "'" & this.escapeString(value.__toString()) & "'">
 			</cfif>
 
 			<cfreturn value>
@@ -1717,10 +1722,10 @@
 		<!--- Stringable --->
 		<cfif IsObject(value)>
 			<cfif Compare(value.__class, "ColdIgniter\Database\RawSql") EQ 0>
-				<cfreturn value.toString()>
+				<cfreturn value.__toString()>
 			</cfif>
 
-			<cfset value = value.toString()>
+			<cfset value = value.__toString()>
 		</cfif>
 
 		<cfset value = _escapeString(value)>

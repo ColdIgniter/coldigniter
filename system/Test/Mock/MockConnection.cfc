@@ -19,7 +19,7 @@
 	 *   execute?: false|object|resource,
 	 * }
 	--->
-	<cfset this.returnValues = array_()>
+	<cfset this.returnValues = CreateObject("java", "java.util.LinkedHashMap").init()>
 
 	<!---
 	 * Database schema for Postgre and SQLSRV
@@ -129,6 +129,8 @@
 
 			<cfset shifted = return_[1]>
 			<cfset ArrayDeleteAt(return_, 1)>
+			<!--- An array is copied when it is assigned, so the shortened list is stored again. --->
+			<cfset this.returnValues["connect"] = return_>
 
 			<cfreturn shifted>
 		</cfif>

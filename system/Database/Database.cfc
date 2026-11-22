@@ -26,7 +26,7 @@
 	 *
 	 * @var array<string, BaseConnection>
 	--->
-	<cfset this.connections = array_()>
+	<cfset this.connections = CreateObject("java", "java.util.LinkedHashMap").init()>
 
 	<!---
 	 * Parses the connection binds and creates a Database Connection instance.

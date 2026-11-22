@@ -1,8 +1,8 @@
 <!---
  * Raw SQL string.
  *
- * Difference: there is no Stringable, so toString() stands in for
- * __toString(), and a caller that needs the text of a RawSql calls it.
+ * Difference: there is no Stringable, so a caller that needs the text of
+ * a RawSql calls __toString() itself.
  * There is no clone, so with() makes a new object.
 --->
 <cfcomponent output="no" hint="Raw SQL string">
@@ -27,7 +27,7 @@
 		<cfreturn this>
 	</cffunction>
 
-	<cffunction name="toString" access="public" returntype="string" output="no">
+	<cffunction name="__toString" access="public" returntype="string" output="no">
 
 		<cfreturn this.string>
 	</cffunction>

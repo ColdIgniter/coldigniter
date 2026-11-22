@@ -48,7 +48,7 @@
 	<!---
 	 * @var array<class-string, list<object>>
 	--->
-	<cfset this.customResultObject = array_()>
+	<cfset this.customResultObject = CreateObject("java", "java.util.LinkedHashMap").init()>
 
 	<!---
 	 * Current row index
