@@ -15,8 +15,10 @@
 	--->
 	<cffunction name="forInvalidMethodTriggered" access="public" returntype="void" output="no">
 		<cfargument name="method" type="string" required="yes">
+		<cfset var parameters = ArrayNew(1)>
 
-		<cfthrow type="ColdIgniter.Database.Exceptions.DataException" message="#lang('Database.invalidEvent', array_(arguments.method))#">
+		<cfset ArrayAppend(parameters, arguments.method)>
+		<cfthrow type="ColdIgniter.Database.Exceptions.DataException" message="#lang('Database.invalidEvent', parameters)#">
 	</cffunction>
 
 	<!---
@@ -25,8 +27,10 @@
 	--->
 	<cffunction name="forEmptyDataset" access="public" returntype="void" output="no">
 		<cfargument name="mode" type="string" required="yes">
+		<cfset var parameters = ArrayNew(1)>
 
-		<cfthrow type="ColdIgniter.Database.Exceptions.DataException" message="#lang('Database.emptyDataset', array_(arguments.mode))#">
+		<cfset ArrayAppend(parameters, arguments.mode)>
+		<cfthrow type="ColdIgniter.Database.Exceptions.DataException" message="#lang('Database.emptyDataset', parameters)#">
 	</cffunction>
 
 	<!---
@@ -36,8 +40,10 @@
 	--->
 	<cffunction name="forEmptyPrimaryKey" access="public" returntype="void" output="no">
 		<cfargument name="mode" type="string" required="yes">
+		<cfset var parameters = ArrayNew(1)>
 
-		<cfthrow type="ColdIgniter.Database.Exceptions.DataException" message="#lang('Database.emptyPrimaryKey', array_(arguments.mode))#">
+		<cfset ArrayAppend(parameters, arguments.mode)>
+		<cfthrow type="ColdIgniter.Database.Exceptions.DataException" message="#lang('Database.emptyPrimaryKey', parameters)#">
 	</cffunction>
 
 	<!---
@@ -47,8 +53,10 @@
 	--->
 	<cffunction name="forInvalidArgument" access="public" returntype="void" output="no">
 		<cfargument name="argument" type="string" required="yes">
+		<cfset var parameters = ArrayNew(1)>
 
-		<cfthrow type="ColdIgniter.Database.Exceptions.DataException" message="#lang('Database.invalidArgument', array_(arguments.argument))#">
+		<cfset ArrayAppend(parameters, arguments.argument)>
+		<cfthrow type="ColdIgniter.Database.Exceptions.DataException" message="#lang('Database.invalidArgument', parameters)#">
 	</cffunction>
 
 	<!---
@@ -56,8 +64,10 @@
 	--->
 	<cffunction name="forInvalidAllowedFields" access="public" returntype="void" output="no">
 		<cfargument name="model" type="string" required="yes">
+		<cfset var parameters = ArrayNew(1)>
 
-		<cfthrow type="ColdIgniter.Database.Exceptions.DataException" message="#lang('Database.invalidAllowedFields', array_(arguments.model))#">
+		<cfset ArrayAppend(parameters, arguments.model)>
+		<cfthrow type="ColdIgniter.Database.Exceptions.DataException" message="#lang('Database.invalidAllowedFields', parameters)#">
 	</cffunction>
 
 	<!---
@@ -65,8 +75,10 @@
 	--->
 	<cffunction name="forTableNotFound" access="public" returntype="void" output="no">
 		<cfargument name="table" type="string" required="yes">
+		<cfset var parameters = ArrayNew(1)>
 
-		<cfthrow type="ColdIgniter.Database.Exceptions.DataException" message="#lang('Database.tableNotFound', array_(arguments.table))#">
+		<cfset ArrayAppend(parameters, arguments.table)>
+		<cfthrow type="ColdIgniter.Database.Exceptions.DataException" message="#lang('Database.tableNotFound', parameters)#">
 	</cffunction>
 
 	<!---
@@ -74,8 +86,10 @@
 	--->
 	<cffunction name="forEmptyInputGiven" access="public" returntype="void" output="no">
 		<cfargument name="argument" type="string" required="yes">
+		<cfset var parameters = ArrayNew(1)>
 
-		<cfthrow type="ColdIgniter.Database.Exceptions.DataException" message="#lang('Database.forEmptyInputGiven', array_(arguments.argument))#">
+		<cfset ArrayAppend(parameters, arguments.argument)>
+		<cfthrow type="ColdIgniter.Database.Exceptions.DataException" message="#lang('Database.forEmptyInputGiven', parameters)#">
 	</cffunction>
 
 	<!---

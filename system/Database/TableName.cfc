@@ -79,8 +79,8 @@
 	 * @param string actualTable Actual table name with DB prefix
 	 * @param string alias       Alias name
 	 *
-	 * Difference: the original passes the alias in the place of the database
-	 * name, a quirk that is kept.
+	 * As in the original, the alias is passed in the place of the database
+	 * name.
 	--->
 	<cffunction name="fromActualName" access="public" returntype="any" output="no">
 		<cfargument name="dbPrefix" type="string" required="yes">
