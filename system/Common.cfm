@@ -477,6 +477,48 @@
 </cffunction>
 
 <!---
+ * Provides access to "old input" that was set in the session
+ * during a redirect().withInput().
+ *
+ * Differs from the original: an escape of false is a real boolean or the
+ * text "false". A value that is a list or a map is not escaped
+ * (see esc()).
+ *
+ * @param key     The key of the input
+ * @param default A string
+ * @param escape  attr, css, html, js, raw, url or false
+ *
+ * @return A string, a list or a map
+--->
+<cffunction name="old" returntype="any" output="no" hint="Provides access to old input that was set in the session during a redirect().withInput()">
+	<cfargument name="key" type="string" required="yes">
+	<cfargument name="default" type="any" required="no" default="">
+	<cfargument name="escape" type="any" required="no" default="html">
+	<cfset var request_obj = "">
+	<cfset var value = "">
+
+	<!--- Ensure the session is loaded --->
+	<cfif Compare(session_status(), "none") EQ 0 AND Compare(request.ENVIRONMENT, "testing") NEQ 0>
+		<cfset session_()>
+	</cfif>
+
+	<cfset request_obj = service("request")>
+
+	<cfset value = request_obj.getOldInput(arguments.key)>
+
+	<!--- Return the default value if nothing found in the old input. --->
+	<cfif is_null(value)>
+		<cfreturn arguments.default>
+	</cfif>
+
+	<cfif (is_bool(arguments.escape) AND NOT arguments.escape) OR Compare(arguments.escape, "false") EQ 0>
+		<cfreturn value>
+	</cfif>
+
+	<cfreturn esc(value, arguments.escape)>
+</cffunction>
+
+<!---
  * Convenience method that works with the current global request and
  * router instances to redirect using named/reverse-routed routes
  * to determine the URL to go to.
