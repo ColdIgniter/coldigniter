@@ -2256,7 +2256,7 @@
 		<cfif IsArray(arguments.set_)>
 			<cfset first = arguments.set_[1]>
 
-			<cfif isArr_(first) OR IsObject(first)>
+			<cfif (isArr_(first) OR IsObject(first)) AND NOT isNullMarker_(first)>
 				<cfset rows = arguments.set_>
 			<cfelse>
 				<cfset ArrayAppend(rows, arguments.set_)>
@@ -2264,7 +2264,7 @@
 		<cfelse>
 			<cfset first = arguments.set_.values().iterator().next()>
 
-			<cfif isArr_(first) OR IsObject(first)>
+			<cfif (isArr_(first) OR IsObject(first)) AND NOT isNullMarker_(first)>
 				<cfset rows = toList_(arguments.set_)>
 			<cfelse>
 				<cfset ArrayAppend(rows, arguments.set_)>
