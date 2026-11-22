@@ -131,7 +131,7 @@
 	<cffunction name="read" access="public" returntype="any" output="no">
 		<cfargument name="id" type="string" required="yes">
 		<cfset var data = "">
-		<cfset var file = "">
+		<cfset var file_ = "">
 		<cfset var maxlifetime = ini_get("session.gc_maxlifetime")>
 
 		<cfif NOT validId(arguments.id)>
@@ -142,14 +142,14 @@
 			<cfset maxlifetime = 1440>
 		</cfif>
 
-		<cfset file = CreateObject("java", "java.io.File").init(this.filePath & arguments.id)>
+		<cfset file_ = CreateObject("java", "java.io.File").init(this.filePath & arguments.id)>
 
 		<cflock name="ColdIgniterSession#arguments.id#" type="exclusive" timeout="10">
-			<cfset this.fileNew = NOT file.isFile()>
+			<cfset this.fileNew = NOT file_.isFile()>
 
 			<!--- an expired file is not data any more --->
-			<cfif NOT this.fileNew AND file.lastModified() LT (time() - maxlifetime) * 1000>
-				<cfset file.delete()>
+			<cfif NOT this.fileNew AND file_.lastModified() LT (time() - maxlifetime) * 1000>
+				<cfset file_.delete()>
 				<cfset this.fileNew = true>
 			</cfif>
 
@@ -176,7 +176,7 @@
 	<cffunction name="write" access="public" returntype="boolean" output="no">
 		<cfargument name="id" type="string" required="yes">
 		<cfargument name="data" type="string" required="yes">
-		<cfset var file = "">
+		<cfset var file_ = "">
 		<cfset var stamp = "">
 
 		<!--- If the two IDs don't match, we have a session_regenerate_id() call --->
@@ -190,7 +190,7 @@
 			<cfreturn false>
 		</cfif>
 
-		<cfset file = CreateObject("java", "java.io.File").init(this.filePath & arguments.id)>
+		<cfset file_ = CreateObject("java", "java.io.File").init(this.filePath & arguments.id)>
 
 		<cfif Compare(this.fingerprint, LCase(Hash(arguments.data))) EQ 0>
 			<cfif this.fileNew>
@@ -200,7 +200,7 @@
 			<cfset stamp = CreateObject("java", "java.lang.Long").parseLong(JavaCast("string", Int(time()) & "000"))>
 
 			<cflock name="ColdIgniterSession#arguments.id#" type="exclusive" timeout="10">
-				<cfset file.setLastModified(stamp)>
+				<cfset file_.setLastModified(stamp)>
 			</cflock>
 
 			<cfreturn true>
@@ -241,7 +241,7 @@
 	--->
 	<cffunction name="destroy" access="public" returntype="boolean" output="no">
 		<cfargument name="id" type="string" required="yes">
-		<cfset var file = "">
+		<cfset var file_ = "">
 
 		<cfif NOT validId(arguments.id)>
 			<cfreturn false>
@@ -249,11 +249,11 @@
 
 		<cfset close()>
 
-		<cfset file = CreateObject("java", "java.io.File").init(this.filePath & arguments.id)>
+		<cfset file_ = CreateObject("java", "java.io.File").init(this.filePath & arguments.id)>
 
 		<cflock name="ColdIgniterSession#arguments.id#" type="exclusive" timeout="10">
-			<cfif file.isFile()>
-				<cfif NOT file.delete()>
+			<cfif file_.isFile()>
+				<cfif NOT file_.delete()>
 					<cfreturn false>
 				</cfif>
 			</cfif>
@@ -306,7 +306,7 @@
 			<cfif REFind("[A-Za-z0-9_]", ch)>
 				<cfset quoted = quoted & ch>
 			<cfelse>
-				<cfset quoted = quoted & "" & ch>
+				<cfset quoted = quoted & "\" & ch>
 			</cfif>
 		</cfloop>
 

@@ -458,6 +458,9 @@ Tested on the scratch site with curl and a cookie jar (a real server for every l
 | 8 requests at once on one id | all 200; the file stays a whole WDDX packet; 5 of the 8 new keys survive (the last write wins: a lost update, not a damaged file) |
 | a request that never asks for the session | no `ci_session` cookie, no file (the count of files did not change) |
 
+- A session file name quoted for a regular expression with a backslash before every character that is not a letter, a digit or an underscore (`app.sess`, `a+b`, `x(y`) matches only that cookie name plus a 32 character hex id with `String.matches`: the garbage collector removed exactly one file per name, and the decoys `appXsess<id>`, `aab<id>` and `xxy<id>` stayed; no exception for `x(y`. A file written in the same second is newer than `(time() - 0) * 1000`, so the check needs files at least a second old.
+- A cookie built with `new_("ColdIgniter\Cookie\Cookie", name, "", options)` with the option `prefix` set to an empty string keeps the empty prefix (the default is not put back), and `.withExpired()` then `setCookie(cookie)` replaces the cookie of the same id in the store: with `Config\Cookie.prefix = "app_"` the response held one line, `ci_session=deleted; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`.
+
 ## Language and validation (2026-11-22)
 
 - **A method named like a method of `java.lang.Object`** (`equals`) fails with "The names of user defined functions cannot be the same as built-in ColdFusion functions", like `Val` (a method `val` fails too). Use a trailing underscore.
@@ -470,4 +473,3 @@ Tested on the scratch site with curl and a cookie jar (a real server for every l
 - **`StructKeyExists` on a config component** sees the properties set on `this`, so the group name lookup in `Config\Validation` (`signup`, `signup_errors`) works with `LinkedHashMap` values built in the body.
 - **Real requests through the controller**: `validate()` reads a GET query, a POST form body and a PUT form body; a JSON `Content-Type` ends in an `HTTPException` "Provided JSON format is not supported." (500).
 - **Table test**: 1036 rule cases in non strict and strict mode against the answers of the original; 0 mismatches, 17 limit cases (the scalar type cases above). A further 53 checks of `lang()`, messages, labels, groups, errors, views, dot arrays, placeholders and exceptions, 0 failures.
-

@@ -106,7 +106,7 @@
 	<cffunction name="__construct" access="public" returntype="any" output="no">
 		<cfargument name="config" type="any" required="yes">
 		<cfargument name="ipAddress" type="string" required="yes">
-		<cfset var cookie = variables.config("Config\Cookie")>
+		<cfset var cookie_ = variables.config("Config\Cookie")>
 
 		<!--- Store Session configurations --->
 		<cfset this.cookieName = arguments.config.cookieName>
@@ -114,9 +114,9 @@
 		<cfset this.savePath = arguments.config.savePath>
 
 		<!--- Session cookies have no prefix. --->
-		<cfset this.cookieDomain = cookie.domain>
-		<cfset this.cookiePath = cookie.path>
-		<cfset this.cookieSecure = cookie.secure>
+		<cfset this.cookieDomain = cookie_.domain>
+		<cfset this.cookiePath = cookie_.path>
+		<cfset this.cookieSecure = cookie_.secure>
 
 		<cfset this.ipAddress = arguments.ipAddress>
 
@@ -137,8 +137,12 @@
 	 * when session_destroy() is called.
 	--->
 	<cffunction name="destroyCookie" access="private" returntype="boolean" output="no">
+		<cfset var cookie_ = "">
 
-		<cfset service("response").deleteCookie(this.cookieName, this.cookieDomain, this.cookiePath, "")>
+		<!--- Difference: the cookie goes to the response, as no engine function sets one; the prefix is forced empty, as the prefix of Config\Cookie is ignored here; the line also carries the SameSite of the Cookie defaults, which the original does not send --->
+		<cfset cookie_ = new_("ColdIgniter\Cookie\Cookie", this.cookieName, "", array_("prefix", "", "path", this.cookiePath, "domain", this.cookieDomain, "secure", this.cookieSecure, "httponly", true)).withExpired()>
+
+		<cfset service("response").setCookie(cookie_)>
 
 		<cfreturn true>
 	</cffunction>
