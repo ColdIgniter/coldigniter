@@ -42,3 +42,11 @@ $RECYCLE.BIN/
 
 /writable/uploads/*
 !/writable/uploads/index.html
+
+#-------------------------
+# Local Files
+#-------------------------
+/app/Config/Routes.local.cfm
+
+__pycache__/
+*.pyc
