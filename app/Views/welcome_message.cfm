@@ -14,7 +14,7 @@
             transition: background-color 300ms ease, color 300ms ease;
         }
         *:focus {
-            background-color: rgba(204, 153, 51, .2);
+            background-color: rgba(51, 102, 204, .2);
             outline: none;
         }
         html, body {
@@ -62,8 +62,8 @@
         }
         header li.menu-item a:hover,
         header li.menu-item a:focus {
-            background-color: rgba(204, 153, 51, .2);
-            color: rgba(204, 153, 51, 1);
+            background-color: rgba(51, 102, 204, .2);
+            color: rgba(51, 102, 204, 1);
         }
         header .logo {
             float: left;
@@ -77,7 +77,7 @@
             font-weight: bold;
         }
         header .menu-toggle button {
-            background-color: rgba(204, 153, 51, .6);
+            background-color: rgba(51, 102, 204, .6);
             border: none;
             border-radius: 3px;
             color: rgba(255, 255, 255, 1);
@@ -92,7 +92,7 @@
         }
         header .menu-toggle button:hover,
         header .menu-toggle button:focus {
-            background-color: rgba(204, 153, 51, .8);
+            background-color: rgba(51, 102, 204, .8);
             color: rgba(255, 255, 255, .8);
         }
         header .heroe {
@@ -135,7 +135,7 @@
             display: block;
         }
         section a {
-            color: rgba(204, 153, 51, 1);
+            color: rgba(51, 102, 204, 1);
         }
         section svg {
             margin-bottom: -5px;
@@ -156,7 +156,7 @@
             stroke-width: 32px;
         }
         footer {
-            background-color: rgba(204, 153, 51, .8);
+            background-color: rgba(51, 102, 204, .8);
             text-align: center;
         }
         footer .environment {
@@ -188,11 +188,11 @@
                 display: none;
             }
             header li.menu-item a {
-                background-color: rgba(204, 153, 51, .1);
+                background-color: rgba(51, 102, 204, .1);
             }
             header li.menu-item a:hover,
             header li.menu-item a:focus {
-                background-color: rgba(204, 153, 51, .7);
+                background-color: rgba(51, 102, 204, .7);
                 color: rgba(255, 255, 255, .8);
             }
         }
