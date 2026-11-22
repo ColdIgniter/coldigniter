@@ -149,7 +149,7 @@
 
 		<!--- Not ported yet: the refresh of the GET values --->
 
-		<cfreturn static_("CodeIgniter\HTTP\URI").removeDotSegments(path)>
+		<cfreturn static_("ColdIgniter\HTTP\URI").removeDotSegments(path)>
 	</cffunction>
 
 	<!---
@@ -182,7 +182,7 @@
 
 		<!--- Not ported yet: the refresh of the GET values --->
 
-		<cfreturn static_("CodeIgniter\HTTP\URI").removeDotSegments(path)>
+		<cfreturn static_("ColdIgniter\HTTP\URI").removeDotSegments(path)>
 	</cffunction>
 
 	<!---
@@ -199,7 +199,7 @@
 			<cfset relativePath = arguments.routePath & "?" & query>
 		</cfif>
 
-		<cfreturn new_("CodeIgniter\HTTP\SiteURI", this.appConfig, relativePath, getHost())>
+		<cfreturn new_("ColdIgniter\HTTP\SiteURI", this.appConfig, relativePath, getHost())>
 	</cffunction>
 
 	<!---

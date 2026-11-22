@@ -1,4 +1,4 @@
-<cfcomponent output="no" parent="CodeIgniter\Config\View">
+<cfcomponent output="no" parent="ColdIgniter\Config\View">
 
 	<!---
 	 * When false, the view method will clear the data between each
@@ -43,7 +43,7 @@
 	 * have a chance to alter the generated output just prior to caching
 	 * the results.
 	 *
-	 * All classes must implement CodeIgniter\View\ViewDecoratorInterface
+	 * All classes must implement ColdIgniter\View\ViewDecoratorInterface
 	--->
 	<cfset this.decorators = ArrayNew(1)>
 

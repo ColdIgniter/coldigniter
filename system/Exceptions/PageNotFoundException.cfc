@@ -4,9 +4,9 @@
  * here until the language service is ported.
  *
  * An exception is not an object here. The methods throw the exception
- * themselves, with the type "CodeIgniter.Exceptions.PageNotFoundException":
+ * themselves, with the type "ColdIgniter.Exceptions.PageNotFoundException":
  *
- *     <cfset static_("CodeIgniter\Exceptions\PageNotFoundException").forPageNotFound()>
+ *     <cfset static_("ColdIgniter\Exceptions\PageNotFoundException").forPageNotFound()>
  *
  * stands in for "throw PageNotFoundException::forPageNotFound()".
 --->
@@ -24,24 +24,24 @@
 			<cfset arguments.message = "Page Not Found">
 		</cfif>
 
-		<cfthrow type="CodeIgniter.Exceptions.PageNotFoundException" errorcode="#this.code#" message="#arguments.message#">
+		<cfthrow type="ColdIgniter.Exceptions.PageNotFoundException" errorcode="#this.code#" message="#arguments.message#">
 	</cffunction>
 
 	<cffunction name="forEmptyController" access="public" returntype="void" output="no">
-		<cfthrow type="CodeIgniter.Exceptions.PageNotFoundException" errorcode="#this.code#" message="No Controller specified.">
+		<cfthrow type="ColdIgniter.Exceptions.PageNotFoundException" errorcode="#this.code#" message="No Controller specified.">
 	</cffunction>
 
 	<cffunction name="forControllerNotFound" access="public" returntype="void" output="no">
 		<cfargument name="controller" type="string" required="yes">
 		<cfargument name="method" type="string" required="yes">
 
-		<cfthrow type="CodeIgniter.Exceptions.PageNotFoundException" errorcode="#this.code#" message="Controller or its method is not found: #arguments.controller#::#arguments.method#">
+		<cfthrow type="ColdIgniter.Exceptions.PageNotFoundException" errorcode="#this.code#" message="Controller or its method is not found: #arguments.controller#::#arguments.method#">
 	</cffunction>
 
 	<cffunction name="forMethodNotFound" access="public" returntype="void" output="no">
 		<cfargument name="method" type="string" required="yes">
 
-		<cfthrow type="CodeIgniter.Exceptions.PageNotFoundException" errorcode="#this.code#" message="Controller method is not found: #arguments.method#">
+		<cfthrow type="ColdIgniter.Exceptions.PageNotFoundException" errorcode="#this.code#" message="Controller method is not found: #arguments.method#">
 	</cffunction>
 
 </cfcomponent>

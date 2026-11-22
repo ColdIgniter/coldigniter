@@ -51,11 +51,11 @@
 	 * to their location on the file system. These are used by the
 	 * Autoloader to locate files the first time they have been instantiated.
 	 *
-	 * Do not change the name of the CodeIgniter namespace or your application
+	 * Do not change the name of the ColdIgniter namespace or your application
 	 * will break.
 	--->
 	<cfset this.corePsr4 = CreateObject("java", "java.util.LinkedHashMap").init()>
-	<cfset this.corePsr4["CodeIgniter"] = request.SYSTEMPATH>
+	<cfset this.corePsr4["ColdIgniter"] = request.SYSTEMPATH>
 	<cfset this.corePsr4["Config"] = request.APPPATH & "Config">
 
 	<!---
@@ -85,7 +85,7 @@
 	 * with preference to the developer ones.
 	--->
 	<cffunction name="__construct" access="public" returntype="any" output="no">
-		<!--- Not ported yet: the CodeIgniter\Devkit namespace of the testing environment --->
+		<!--- Not ported yet: the ColdIgniter\Devkit namespace of the testing environment --->
 
 		<cfset this.psr4 = array_merge(this.corePsr4, this.psr4)>
 		<cfset this.classmap = array_merge(this.coreClassmap, this.classmap)>

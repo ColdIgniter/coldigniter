@@ -8,13 +8,13 @@
 	<cfargument name="filename" type="string" required="yes">
 	<cfset var key = realpath(arguments.filename)>
 
-	<cfif StructKeyExists(request.CodeIgniter.included, key)>
+	<cfif StructKeyExists(request.ColdIgniter.included, key)>
 		<cfreturn true>
 	</cfif>
 
-	<cfset request.CodeIgniter.included[key] = true>
-	<cfset request.CodeIgniter.functions.__require(arguments.filename)>
-	<cfset StructAppend(variables, request.CodeIgniter.functions.__functions(), false)>
+	<cfset request.ColdIgniter.included[key] = true>
+	<cfset request.ColdIgniter.functions.__require(arguments.filename)>
+	<cfset StructAppend(variables, request.ColdIgniter.functions.__functions(), false)>
 
 	<cfreturn true>
 </cffunction>

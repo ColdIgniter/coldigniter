@@ -10,7 +10,7 @@
  * - Message body
  *
  * The body is not written to the client here. No output can leave a
- * method, so send() leaves the body in request.CodeIgniter.output and
+ * method, so send() leaves the body in request.ColdIgniter.output and
  * the front controller writes it.
  *
  * Not ported yet: the Content Security Policy, cookies, redirect,
@@ -160,7 +160,7 @@
 	--->
 	<cffunction name="getStatusCode" access="public" returntype="numeric" output="no">
 		<cfif this.statusCode EQ 0>
-			<cfthrow type="CodeIgniter.HTTP.Exceptions.HTTPException" message="HTTP Response is missing a status code">
+			<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="HTTP Response is missing a status code">
 		</cfif>
 
 		<cfreturn this.statusCode>
@@ -212,12 +212,12 @@
 
 		<!--- Valid range? --->
 		<cfif arguments.code LT 100 OR arguments.code GT 599>
-			<cfthrow type="CodeIgniter.HTTP.Exceptions.HTTPException" message="#arguments.code# is not a valid HTTP return status code">
+			<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="#arguments.code# is not a valid HTTP return status code">
 		</cfif>
 
 		<!--- Unknown and no message? --->
 		<cfif NOT StructKeyExists(this.statusCodes, JavaCast("string", arguments.code)) AND arguments.reason EQ "">
-			<cfthrow type="CodeIgniter.HTTP.Exceptions.HTTPException" message="Unknown HTTP status code provided with no message: #arguments.code#">
+			<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Unknown HTTP status code provided with no message: #arguments.code#">
 		</cfif>
 
 		<cfset this.statusCode = arguments.code>
@@ -321,7 +321,7 @@
 	 * Sends the Body of the message to the browser.
 	--->
 	<cffunction name="sendBody" access="public" returntype="any" output="no">
-		<cfset request.CodeIgniter.output = request.CodeIgniter.output & this.body>
+		<cfset request.ColdIgniter.output = request.ColdIgniter.output & this.body>
 
 		<cfreturn this>
 	</cffunction>

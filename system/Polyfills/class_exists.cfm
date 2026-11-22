@@ -5,5 +5,5 @@
 <cffunction name="class_exists" returntype="boolean" output="no" hint="Checks if the class has been defined">
 	<cfargument name="class" type="string" required="yes">
 
-	<cfreturn request.CodeIgniter.autoloader.classExists(arguments.class)>
+	<cfreturn request.ColdIgniter.autoloader.classExists(arguments.class)>
 </cffunction>

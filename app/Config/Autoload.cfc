@@ -12,7 +12,7 @@
  * NOTE: This class is required prior to Autoloader instantiation,
  *       and does not extend BaseConfig.
 --->
-<cfcomponent output="no" parent="CodeIgniter\Config\AutoloadConfig">
+<cfcomponent output="no" parent="ColdIgniter\Config\AutoloadConfig">
 
 	<!---
 	 * -------------------------------------------------------------------
@@ -22,7 +22,7 @@
 	 * their location on the file system. These are used by the autoloader
 	 * to locate files the first time they have been instantiated.
 	 *
-	 * The 'Config' (APPPATH . 'Config') and 'CodeIgniter' (SYSTEMPATH) are
+	 * The 'Config' (APPPATH . 'Config') and 'ColdIgniter' (SYSTEMPATH) are
 	 * already mapped for you.
 	 *
 	 * You may change the name of the 'App' namespace if you wish,

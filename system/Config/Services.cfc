@@ -2,13 +2,13 @@
  * Services Configuration file.
  *
  * Services are simply other classes/libraries that the system uses
- * to do its job. This is used by CodeIgniter to allow the core of the
+ * to do its job. This is used by ColdIgniter to allow the core of the
  * framework to be swapped out easily without affecting the usage within
  * the rest of your application.
  *
  * This is used in place of a Dependency Injection container primarily
  * due to its simplicity, which allows a better long-term maintenance
- * of the applications built on top of CodeIgniter. A bonus side-effect
+ * of the applications built on top of ColdIgniter. A bonus side-effect
  * is that IDEs are able to determine what class you are calling
  * whereas with DI Containers there usually isn't a way for them to do this.
  *
@@ -24,26 +24,26 @@
 <cfcomponent output="no" extends="BaseService" hint="Services Configuration file">
 
 	<!---
-	 * CodeIgniter, the core of the framework.
+	 * ColdIgniter, the core of the framework.
 	--->
-	<cffunction name="codeigniter" access="public" returntype="any" output="no">
+	<cffunction name="coldigniter" access="public" returntype="any" output="no">
 		<cfargument name="config" type="any" required="no" default="">
 		<cfargument name="getShared" type="boolean" required="no" default="true">
 
 		<cfif arguments.getShared>
-			<cfreturn getSharedInstance("codeigniter", arguments.config)>
+			<cfreturn getSharedInstance("coldigniter", arguments.config)>
 		</cfif>
 
 		<cfif is_null(arguments.config)>
 			<cfset arguments.config = variables.config("Config\App")>
 		</cfif>
 
-		<cfreturn new_("CodeIgniter\CodeIgniter", arguments.config)>
+		<cfreturn new_("ColdIgniter\ColdIgniter", arguments.config)>
 	</cffunction>
 
 	<!---
 	 * The Renderer class is the class that actually displays a file to the user.
-	 * The default View class within CodeIgniter is intentionally simple, but this
+	 * The default View class within ColdIgniter is intentionally simple, but this
 	 * service could easily be replaced by a template engine if the user needed to.
 	--->
 	<cffunction name="renderer" access="public" returntype="any" output="no">
@@ -62,7 +62,7 @@
 			<cfset arguments.config = variables.config("Config\View")>
 		</cfif>
 
-		<cfreturn new_("CodeIgniter\View\View", arguments.config, arguments.viewPath, "", request.CI_DEBUG, "")>
+		<cfreturn new_("ColdIgniter\View\View", arguments.config, arguments.viewPath, "", request.CI_DEBUG, "")>
 	</cffunction>
 
 	<!---
@@ -85,7 +85,7 @@
 	<!---
 	 * Create the current Request object, either IncomingRequest or CLIRequest.
 	 *
-	 * This method is called from CodeIgniter::getRequestObject().
+	 * This method is called from ColdIgniter::getRequestObject().
 	--->
 	<cffunction name="createRequest" access="public" returntype="void" output="no">
 		<cfargument name="config" type="any" required="yes">
@@ -118,7 +118,7 @@
 		</cfif>
 
 		<!--- Not ported yet: UserAgent --->
-		<cfreturn new_("CodeIgniter\HTTP\IncomingRequest", arguments.config, static_("Config\Services").get("uri"), "", "")>
+		<cfreturn new_("ColdIgniter\HTTP\IncomingRequest", arguments.config, static_("Config\Services").get("uri"), "", "")>
 	</cffunction>
 
 	<!---
@@ -136,7 +136,7 @@
 			<cfset arguments.config = variables.config("Config\App")>
 		</cfif>
 
-		<cfreturn new_("CodeIgniter\HTTP\Response", arguments.config)>
+		<cfreturn new_("ColdIgniter\HTTP\Response", arguments.config)>
 	</cffunction>
 
 	<!---
@@ -150,7 +150,7 @@
 			<cfreturn getSharedInstance("routes")>
 		</cfif>
 
-		<cfreturn new_("CodeIgniter\Router\RouteCollection", "", new_("Config\Modules"), config("Config\Routing"))>
+		<cfreturn new_("ColdIgniter\Router\RouteCollection", "", new_("Config\Modules"), config("Config\Routing"))>
 	</cffunction>
 
 	<!---
@@ -173,7 +173,7 @@
 			<cfset arguments.request_ = static_("Config\Services").get("request")>
 		</cfif>
 
-		<cfreturn new_("CodeIgniter\Router\Router", arguments.routes, arguments.request_)>
+		<cfreturn new_("ColdIgniter\Router\Router", arguments.routes, arguments.request_)>
 	</cffunction>
 
 	<!---
@@ -195,7 +195,7 @@
 			<cfset arguments.superglobals = static_("Config\Services").get("superglobals")>
 		</cfif>
 
-		<cfreturn new_("CodeIgniter\HTTP\SiteURIFactory", arguments.config, arguments.superglobals)>
+		<cfreturn new_("ColdIgniter\HTTP\SiteURIFactory", arguments.config, arguments.superglobals)>
 	</cffunction>
 
 	<!---
@@ -214,7 +214,7 @@
 			<cfreturn getSharedInstance("superglobals", arguments.server, arguments.get, arguments.post, arguments.cookie, arguments.files, arguments.request_)>
 		</cfif>
 
-		<cfreturn new_("CodeIgniter\Superglobals", arguments.server, arguments.get, arguments.post, arguments.cookie, arguments.files, arguments.request_)>
+		<cfreturn new_("ColdIgniter\Superglobals", arguments.server, arguments.get, arguments.post, arguments.cookie, arguments.files, arguments.request_)>
 	</cffunction>
 
 	<!---
@@ -237,7 +237,7 @@
 			<cfreturn factory.createFromGlobals()>
 		</cfif>
 
-		<cfreturn new_("CodeIgniter\HTTP\URI", arguments.uri)>
+		<cfreturn new_("ColdIgniter\HTTP\URI", arguments.uri)>
 	</cffunction>
 
 </cfcomponent>

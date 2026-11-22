@@ -21,14 +21,14 @@
 	<cfset var options = StructNew()>
 
 	<cfif arguments.getShared>
-		<cfreturn static_("CodeIgniter\Config\Factories").get("config", arguments.name)>
+		<cfreturn static_("ColdIgniter\Config\Factories").get("config", arguments.name)>
 	</cfif>
 
 	<cfset options["getShared"] = arguments.getShared>
 	<cfset ArrayAppend(arguments_, arguments.name)>
 	<cfset ArrayAppend(arguments_, options)>
 
-	<cfreturn static_("CodeIgniter\Config\Factories").__callStatic("config", arguments_)>
+	<cfreturn static_("ColdIgniter\Config\Factories").__callStatic("config", arguments_)>
 </cffunction>
 
 <!---
@@ -39,7 +39,7 @@
  *
  * These are equal:
  *  - timer = service("timer")
- *  - timer = static_("CodeIgniter\Config\Services").timer()
+ *  - timer = static_("ColdIgniter\Config\Services").timer()
  *
  * service(name, param, param, ...)
 --->

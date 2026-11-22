@@ -201,13 +201,13 @@ made to keep each file line by line beside its CodeIgniter 4 original.
 
 **Class names and creation**
 
-- A class is named as upstream, with backslashes: `"CodeIgniter\Router\Router"`, `"Config\App"`, `"App\Controllers\Home"`.
+- A class is named as upstream, with backslashes: `"ColdIgniter\Router\Router"`, `"Config\App"`, `"App\Controllers\Home"`.
 - `new_(class, args...)` stands in for `new`. It asks the autoloader for the object and then calls its `__construct` method with the arguments. So **a constructor is named `__construct`** and ends with `<cfreturn this>`.
 - `static_(class)` returns one shared object per request for a class that upstream uses statically: `static_("Config\Services").router()`.
 - Each namespace root has an `autoload.cfm` (`system/autoload.cfm`, `app/autoload.cfm`). It is the one file that creates components of that tree, which is what keeps rule "no mapping" intact. `system/Autoloader/Autoloader.cfc` maps a namespace to a folder and includes the right `autoload.cfm`.
 - The global functions (the polyfills and `Common.cfm`) live in `system/Polyfills/Functions.cfc`. The autoloader copies them into every object it creates, so a method can call `is_null()`, `config()`, `service()`, `view()` and so on with no scope.
 - `require_once(file)` includes a file of functions once per request; the first definition of a name wins.
-- What the runtime keeps for one request is in `request.CodeIgniter` (`functions`, `autoloader`, `statics`, `included`, `output`).
+- What the runtime keeps for one request is in `request.ColdIgniter` (`functions`, `autoloader`, `statics`, `included`, `output`).
 
 **Properties and names**
 
@@ -220,17 +220,17 @@ made to keep each file line by line beside its CodeIgniter 4 original.
   - a stand-in for a keyword: `new_`, `static_`, `array_`; variadic arguments are collected as `arguments_`.
 - Null is the empty string, tested with `is_null()`.
 - `array_(key, value, ...)` makes an ordered, case-sensitive map (`java.util.LinkedHashMap`); read it with brackets.
-- Exceptions are thrown with dotted type names that follow the class name: `CodeIgniter.Exceptions.PageNotFoundException` (errorcode 404), `CodeIgniter.HTTP.Exceptions.BadRequestException` (400), `CodeIgniter.Router.Exceptions.RouterException`.
+- Exceptions are thrown with dotted type names that follow the class name: `ColdIgniter.Exceptions.PageNotFoundException` (errorcode 404), `ColdIgniter.HTTP.Exceptions.BadRequestException` (400), `ColdIgniter.Router.Exceptions.RouterException`.
 
 **Inheritance**
 
 - Inside one folder tree: plain `extends="Sibling"` and `super.method(positional)`.
-- Across trees: `<cfcomponent parent="CodeIgniter\Controller">`. The autoloader copies the parent's methods into the object, skipping names the child has, and gives it a `parent` struct, so `parent.initController(...)` reads like `parent::initController(...)`. Limit: a chain with two cross-tree steps shares one `parent`.
+- Across trees: `<cfcomponent parent="ColdIgniter\Controller">`. The autoloader copies the parent's methods into the object, skipping names the child has, and gives it a `parent` struct, so `parent.initController(...)` reads like `parent::initController(...)`. Limit: a chain with two cross-tree steps shares one `parent`.
 
 **Output**
 
-- Nothing can be written from inside the `output="no"` call chain. `Response.send()` sets the status, the headers and the content type itself and puts the body in `request.CodeIgniter.output`; `public/index.cfm` writes it after `Boot.bootWeb(paths)` returns.
-- A view is rendered by a throwaway `CodeIgniter\View\Closure` object, one per render. A view reads its data by name and can call the global functions. Static text is written as is; dynamic parts go in `cfoutput`.
+- Nothing can be written from inside the `output="no"` call chain. `Response.send()` sets the status, the headers and the content type itself and puts the body in `request.ColdIgniter.output`; `public/index.cfm` writes it after `Boot.bootWeb(paths)` returns.
+- A view is rendered by a throwaway `ColdIgniter\View\Closure` object, one per render. A view reads its data by name and can call the global functions. Static text is written as is; dynamic parts go in `cfoutput`.
 - A method is called by name with `Evaluate("controller.#method#(...)")`.
 
 **What a ported file says about its gaps:** a comment "Not ported yet: ..." at the place where upstream does the work. Not ported so far: filters, events, benchmark, page cache, logger, file locator, helpers, auto-routing, closures as route handlers, `_remap`, route groups and options, redirects, named and reverse routes, locale negotiation, module discovery, `.env`, the Content Security Policy, cookies, the user agent, GET and POST values, view layouts and sections, and the exception handler (a plain 404 and 400 page in `Boot.runCodeIgniter` stands in for it).

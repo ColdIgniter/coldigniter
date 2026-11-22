@@ -11,12 +11,12 @@
 	 * static classes, the files that require_once() has loaded, and the
 	 * body that the response leaves for the front controller to print.
 	--->
-	<cfset request.CodeIgniter = StructNew()>
-	<cfset request.CodeIgniter.functions = CreateObject("component", "Polyfills.Functions")>
-	<cfset request.CodeIgniter.autoloader = "">
-	<cfset request.CodeIgniter.statics = StructNew()>
-	<cfset request.CodeIgniter.included = StructNew()>
-	<cfset request.CodeIgniter.output = "">
+	<cfset request.ColdIgniter = StructNew()>
+	<cfset request.ColdIgniter.functions = CreateObject("component", "Polyfills.Functions")>
+	<cfset request.ColdIgniter.autoloader = "">
+	<cfset request.ColdIgniter.statics = StructNew()>
+	<cfset request.ColdIgniter.included = StructNew()>
+	<cfset request.ColdIgniter.output = "">
 
 	<cfset define("DIRECTORY_SEPARATOR", Right(GetDirectoryFromPath(GetCurrentTemplatePath()), 1))>
 
@@ -46,8 +46,8 @@
 		<cfset loadAutoloader()>
 		<!--- Not ported yet: setExceptionHandler, initializeKint, autoloadHelpers --->
 
-		<cfset app = initializeCodeIgniter()>
-		<cfset runCodeIgniter(app)>
+		<cfset app = initializeColdIgniter()>
+		<cfset runColdIgniter(app)>
 
 		<!---
 		 Exits the application, setting the exit code for CLI-based
@@ -158,9 +158,9 @@
 		 class files, a first autoloader is made here by hand, which only
 		 knows the two namespaces that are needed to create the real one.
 		--->
-		<cfset var loader = request.CodeIgniter.functions.__inject(CreateObject("component", "Autoloader.Autoloader"))>
+		<cfset var loader = request.ColdIgniter.functions.__inject(CreateObject("component", "Autoloader.Autoloader"))>
 
-		<cfset loader.addNamespace("CodeIgniter", request.SYSTEMPATH)>
+		<cfset loader.addNamespace("ColdIgniter", request.SYSTEMPATH)>
 		<cfset loader.addNamespace("Config", request.APPPATH & "Config")>
 		<cfset loader.register()>
 
@@ -168,8 +168,8 @@
 		<cfset static_("Config\Services").autoloader().initialize_(new_("Config\Autoload"), new_("Config\Modules")).register()>
 	</cffunction>
 
-	<cffunction name="initializeCodeIgniter" access="private" returntype="any" output="no">
-		<cfset var app = static_("Config\Services").codeigniter()>
+	<cffunction name="initializeColdIgniter" access="private" returntype="any" output="no">
+		<cfset var app = static_("Config\Services").coldigniter()>
 		<cfset app.initialize_()>
 
 		<cfreturn app>
@@ -179,7 +179,7 @@
 	 * Now that everything is set up, it's time to actually fire
 	 * up the engines and make this app do its thang.
 	--->
-	<cffunction name="runCodeIgniter" access="private" returntype="void" output="no">
+	<cffunction name="runColdIgniter" access="private" returntype="void" output="no">
 		<cfargument name="app" type="any" required="yes">
 
 		<!--- Not ported yet: is_cli(), so the context is always "web" --->
@@ -193,16 +193,16 @@
 		<cftry>
 			<cfset arguments.app.run()>
 
-			<cfcatch type="CodeIgniter.HTTP.Exceptions.BadRequestException">
+			<cfcatch type="ColdIgniter.HTTP.Exceptions.BadRequestException">
 				<cfheader statuscode="400" statustext="Bad Request">
 				<cfcontent type="text/html; charset=UTF-8">
-				<cfset request.CodeIgniter.output = "<h1>400 - Bad Request</h1><p>" & HTMLEditFormat(cfcatch.message) & "</p>">
+				<cfset request.ColdIgniter.output = "<h1>400 - Bad Request</h1><p>" & HTMLEditFormat(cfcatch.message) & "</p>">
 			</cfcatch>
 
-			<cfcatch type="CodeIgniter.Exceptions.PageNotFoundException">
+			<cfcatch type="ColdIgniter.Exceptions.PageNotFoundException">
 				<cfheader statuscode="404" statustext="Not Found">
 				<cfcontent type="text/html; charset=UTF-8">
-				<cfset request.CodeIgniter.output = "<h1>404 - File Not Found</h1><p>" & HTMLEditFormat(cfcatch.message) & "</p>">
+				<cfset request.ColdIgniter.output = "<h1>404 - File Not Found</h1><p>" & HTMLEditFormat(cfcatch.message) & "</p>">
 			</cfcatch>
 		</cftry>
 	</cffunction>

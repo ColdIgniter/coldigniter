@@ -11,7 +11,7 @@
  * method format you should use for your service methods. For more examples,
  * see the core Services file at system/Config/Services.cfc.
 --->
-<cfcomponent output="no" parent="CodeIgniter\Config\Services" hint="Services Configuration file">
+<cfcomponent output="no" parent="ColdIgniter\Config\Services" hint="Services Configuration file">
 
 	<!---
 	 * <cffunction name="example" access="public" returntype="any" output="no">
@@ -21,7 +21,7 @@
 	 *         <cfreturn getSharedInstance("example")>
 	 *     </cfif>
 	 *
-	 *     <cfreturn new_("CodeIgniter\Example")>
+	 *     <cfreturn new_("ColdIgniter\Example")>
 	 * </cffunction>
 	--->
 

@@ -86,7 +86,7 @@
 		<!--- applyParts --->
 		<cfset parts = parse_url(uri)>
 		<cfif StructCount(parts) EQ 0>
-			<cfthrow type="CodeIgniter.HTTP.Exceptions.HTTPException" message="Unable to parse URI: ""#uri#""">
+			<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Unable to parse URI: ""#uri#""">
 		</cfif>
 		<cfset parts["query"] = query>
 		<cfset parts["fragment"] = fragment>
@@ -103,7 +103,7 @@
 		<cfset var result = ArrayNew(1)>
 
 		<cfif StructCount(parts) EQ 0>
-			<cfthrow type="CodeIgniter.HTTP.Exceptions.HTTPException" message="Unable to parse URI: ""#arguments.relativePath#""">
+			<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Unable to parse URI: ""#arguments.relativePath#""">
 		</cfif>
 
 		<cfif arguments.relativePath EQ "/">
@@ -133,7 +133,7 @@
 		<cfargument name="scheme" type="string" required="no" default="">
 		<cfset var baseURL = normalizeBaseURL(arguments.configApp)>
 
-		<cfset var uri = new_("CodeIgniter\HTTP\URI", baseURL)>
+		<cfset var uri = new_("ColdIgniter\HTTP\URI", baseURL)>
 
 		<!--- Update scheme --->
 		<cfif arguments.scheme NEQ "">
@@ -190,7 +190,7 @@
 
 		<!--- Validate baseURL --->
 		<cfif REFind("^[A-Za-z][A-Za-z0-9+.-]*://[^/ ]+/", baseURL) EQ 0>
-			<cfthrow type="CodeIgniter.Config.Exceptions.ConfigException" message="Config\App::baseURL ""#baseURL#"" is not a valid URL.">
+			<cfthrow type="ColdIgniter.Config.Exceptions.ConfigException" message="Config\App::baseURL ""#baseURL#"" is not a valid URL.">
 		</cfif>
 
 		<cfreturn baseURL>

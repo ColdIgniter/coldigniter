@@ -11,7 +11,7 @@
 <cfcomponent output="no" hint="The core of the framework">
 
 	<!---
-	 * The current version of CodeIgniter Framework
+	 * The current version of ColdIgniter Framework
 	--->
 	<cfset this.CI_VERSION = "4.7.6">
 
@@ -125,7 +125,7 @@
 		<cfset var e = "">
 
 		<cfif is_null(this.context)>
-			<cfthrow type="CodeIgniter.Exceptions.LogicException" message="Context must be set before run() is called.">
+			<cfthrow type="ColdIgniter.Exceptions.LogicException" message="Context must be set before run() is called.">
 		</cfif>
 
 		<!--- Not ported yet: the page cache, the output buffer level, startBenchmark --->
@@ -138,7 +138,7 @@
 		<cftry>
 			<cfset this.response = handleRequest(arguments.routes, "", arguments.returnResponse)>
 
-			<cfcatch type="CodeIgniter.Exceptions.PageNotFoundException">
+			<cfcatch type="ColdIgniter.Exceptions.PageNotFoundException">
 				<cfset e = StructNew()>
 				<cfset e.message = cfcatch.message>
 				<cfset e.code = 404>
@@ -214,7 +214,7 @@
 		<cfset controller = createController()>
 
 		<cfif NOT method_exists(controller, this.method)>
-			<cfset static_("CodeIgniter\Exceptions\PageNotFoundException").forMethodNotFound(this.method)>
+			<cfset static_("ColdIgniter\Exceptions\PageNotFoundException").forMethodNotFound(this.method)>
 		</cfif>
 
 		<!--- Not ported yet: the "post_controller_constructor" event --->
@@ -312,13 +312,13 @@
 
 		<!--- No controller specified - we don't know what to do now. --->
 		<cfif is_null(this.controller)>
-			<cfset static_("CodeIgniter\Exceptions\PageNotFoundException").forEmptyController()>
+			<cfset static_("ColdIgniter\Exceptions\PageNotFoundException").forEmptyController()>
 		</cfif>
 
 		<!--- Try to autoload the class --->
 		<cfif NOT class_exists(this.controller, true)
 			OR (Left(this.method, 1) EQ "_" AND this.method NEQ "__invoke")>
-			<cfset static_("CodeIgniter\Exceptions\PageNotFoundException").forControllerNotFound(this.controller, this.method)>
+			<cfset static_("ColdIgniter\Exceptions\PageNotFoundException").forControllerNotFound(this.controller, this.method)>
 		</cfif>
 
 		<!--- Not ported yet: the before() methods of the route attributes --->
@@ -414,9 +414,9 @@
 
 		<!--- Throws new PageNotFoundException and remove exception message on production. --->
 		<cfif request.ENVIRONMENT NEQ "production" OR NOT isWeb()>
-			<cfset static_("CodeIgniter\Exceptions\PageNotFoundException").forPageNotFound(arguments.e.message)>
+			<cfset static_("ColdIgniter\Exceptions\PageNotFoundException").forPageNotFound(arguments.e.message)>
 		</cfif>
-		<cfset static_("CodeIgniter\Exceptions\PageNotFoundException").forPageNotFound("")>
+		<cfset static_("ColdIgniter\Exceptions\PageNotFoundException").forPageNotFound("")>
 	</cffunction>
 
 	<!---

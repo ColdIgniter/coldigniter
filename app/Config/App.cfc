@@ -1,11 +1,11 @@
-<cfcomponent output="no" parent="CodeIgniter\Config\BaseConfig">
+<cfcomponent output="no" parent="ColdIgniter\Config\BaseConfig">
 
 	<!---
 	 * --------------------------------------------------------------------------
 	 * Base Site URL
 	 * --------------------------------------------------------------------------
 	 *
-	 * URL to your CodeIgniter root. Typically, this will be your base URL,
+	 * URL to your ColdIgniter root. Typically, this will be your base URL,
 	 * WITH a trailing slash:
 	 *
 	 * E.g., http://example.com/
@@ -153,7 +153,7 @@
 	 * --------------------------------------------------------------------------
 	 *
 	 * If your server is behind a reverse proxy, you must whitelist the proxy
-	 * IP addresses from which CodeIgniter should trust headers such as
+	 * IP addresses from which ColdIgniter should trust headers such as
 	 * X-Forwarded-For or Client-IP in order to properly identify
 	 * the visitor's IP address.
 	 *
