@@ -43,6 +43,7 @@
 <cfinclude template="json_encode.cfm">
 <cfinclude template="ltrim_.cfm">
 <cfinclude template="mb_strlen.cfm">
+<cfinclude template="md5.cfm">
 <cfinclude template="method_exists.cfm">
 <cfinclude template="microtime.cfm">
 <cfinclude template="new_.cfm">
@@ -55,6 +56,7 @@
 <cfinclude template="preg_replace.cfm">
 <cfinclude template="print_r.cfm">
 <cfinclude template="random_bytes.cfm">
+<cfinclude template="rawurldecode.cfm">
 <cfinclude template="rawurlencode.cfm">
 <cfinclude template="realpath.cfm">
 <cfinclude template="regex_guard_.cfm">
