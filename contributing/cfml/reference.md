@@ -233,7 +233,7 @@ made to keep each file line by line beside its CodeIgniter 4 original.
 - A view is rendered by a throwaway `ColdIgniter\View\Closure` object, one per render. A view reads its data by name and can call the global functions. Static text is written as is; dynamic parts go in `cfoutput`.
 - A method is called by name with `Evaluate("controller.#method#(...)")`.
 
-**What a ported file says about its gaps:** a comment "Not ported yet: ..." at the place where upstream does the work. Not ported so far: filters, events, benchmark, page cache, logger, file locator, helpers, auto-routing, closures as route handlers, `_remap`, route groups and options, redirects, named and reverse routes, locale negotiation, module discovery, `.env`, the Content Security Policy, cookies, the user agent, GET and POST values, view layouts and sections, and the exception handler (a plain 404 and 400 page in `Boot.runCodeIgniter` stands in for it).
+**What a ported file says about its gaps:** a comment "Not ported yet: ..." at the place where upstream does the work. Not ported so far: filters, events, benchmark, page cache, logger, file locator, helpers, auto-routing, closures as route handlers, `_remap`, route groups and options, redirects, named and reverse routes, locale negotiation, module discovery, `.env`, the Content Security Policy, cookies, the user agent, GET and POST values, view layouts and sections, and in the exception handler: logging, the error and shutdown handlers, deprecations, API (non-HTML) responses, sensitive data masking and lang strings.
 
 ### The house conventions
 

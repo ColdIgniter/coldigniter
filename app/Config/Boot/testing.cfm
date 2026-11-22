@@ -12,8 +12,9 @@
  | make sure they don't make it to production. And save us hours of
  | painful debugging.
  |
- | Nothing is set here yet: the error handler is not ported.
+ | Not ported yet: error_reporting, CFML has no error levels.
 --->
+<cfset ini_set("display_errors", "1")>
 
 <!---
  |--------------------------------------------------------------------------
