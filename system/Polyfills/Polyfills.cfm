@@ -10,6 +10,8 @@
 <cfinclude template="array_replace_recursive.cfm">
 <cfinclude template="array_reverse.cfm">
 <cfinclude template="array_unique.cfm">
+<cfinclude template="bin2hex.cfm">
+<cfinclude template="bitxor_.cfm">
 <cfinclude template="class_exists.cfm">
 <cfinclude template="date.cfm">
 <cfinclude template="define.cfm">
@@ -18,6 +20,9 @@
 <cfinclude template="filter_var.cfm">
 <cfinclude template="floatval.cfm">
 <cfinclude template="gmdate.cfm">
+<cfinclude template="hash_equals.cfm">
+<cfinclude template="hex2bin.cfm">
+<cfinclude template="http_build_query.cfm">
 <cfinclude template="identical_.cfm">
 <cfinclude template="implode.cfm">
 <cfinclude template="in_array.cfm">
@@ -29,6 +34,7 @@
 <cfinclude template="is_file.cfm">
 <cfinclude template="is_null.cfm">
 <cfinclude template="is_numeric.cfm">
+<cfinclude template="json_decode.cfm">
 <cfinclude template="ltrim_.cfm">
 <cfinclude template="mb_strlen.cfm">
 <cfinclude template="method_exists.cfm">
@@ -36,8 +42,11 @@
 <cfinclude template="nl2br.cfm">
 <cfinclude template="parse_str.cfm">
 <cfinclude template="parse_url.cfm">
+<cfinclude template="preg_match.cfm">
 <cfinclude template="preg_quote.cfm">
+<cfinclude template="preg_replace.cfm">
 <cfinclude template="print_r.cfm">
+<cfinclude template="random_bytes.cfm">
 <cfinclude template="rawurlencode.cfm">
 <cfinclude template="realpath.cfm">
 <cfinclude template="require_once.cfm">
@@ -53,6 +62,7 @@
 <cfinclude template="session_write_close.cfm">
 <cfinclude template="spaceship_.cfm">
 <cfinclude template="static_.cfm">
+<cfinclude template="str_replace.cfm">
 <cfinclude template="strip_tags.cfm">
 <cfinclude template="strpbrk.cfm">
 <cfinclude template="strtr.cfm">
@@ -61,4 +71,5 @@
 <cfinclude template="time.cfm">
 <cfinclude template="trim_.cfm">
 <cfinclude template="ucfirst.cfm">
+<cfinclude template="urlencode.cfm">
 <cfinclude template="version_compare.cfm">
