@@ -15,6 +15,11 @@
  * an empty list or map. A condition inside a pair is read with the data of the
  * whole template, not of the row.
  *
+ * {noparse} ... {/noparse} is kept as it is, and the tags that open and close
+ * the original's code are written as entities. A value of a pair that is a
+ * map is a list of rows, each value that is a map is a row, and any other
+ * value is skipped (the original would read it as a row of one item).
+ *
  * Not ported yet: the plugins ({+ name +}), the filters ({ key | filter }),
  * the cache options, the decorators, the file locator, renderString,
  * setDelimiters, and the data of a single row inside a conditional of a pair.
@@ -100,12 +105,67 @@
 		<cfargument name="template" type="string" required="yes">
 		<cfargument name="data" type="any" required="yes">
 		<cfset var output = stripComments(arguments.template)>
+		<cfset var blocks = StructNew()>
+		<cfset var it = "">
+		<cfset var hash = "">
 
+		<!--- the opening and closing tags of the original's code are neutralized after the comments are gone --->
+		<cfset output = Replace(output, "<" & "?", "&lt;?", "all")>
+		<cfset output = Replace(output, "?" & ">", "?&gt;", "all")>
+
+		<cfset output = extractNoparse(output, blocks)>
 		<cfset output = parseConditionals(output, arguments.data)>
 		<cfset output = parsePair(output, arguments.data)>
 		<cfset output = parseSingle(output, arguments.data)>
 
+		<!--- put the noparse contents back, they are never parsed --->
+		<cfset it = blocks.keySet().iterator()>
+		<cfloop condition="it.hasNext()">
+			<cfset hash = it.next()>
+			<cfset output = Replace(output, "noparse_" & hash, blocks.get(hash), "all")>
+		</cfloop>
+
 		<cfreturn output>
+	</cffunction>
+
+	<!---
+	 * Extracts the {noparse} ... {/noparse} blocks, leaving "noparse_" and the
+	 * hash of the contents in their place.
+	 *
+	 * @param template The template
+	 * @param blocks   A map that receives hash => contents
+	--->
+	<cffunction name="extractNoparse" access="private" returntype="string" output="no">
+		<cfargument name="template" type="string" required="yes">
+		<cfargument name="blocks" type="any" required="yes">
+		<cfset var output = "">
+		<cfset var pos = 1>
+		<cfset var open = "">
+		<cfset var close = "">
+		<cfset var start = 0>
+		<cfset var hash = "">
+		<cfset var contents = "">
+
+		<cfloop condition="true">
+			<cfset open = REFind("\{[[:space:]]*noparse[[:space:]]*\}", arguments.template, pos, true)>
+			<cfif open.pos[1] EQ 0>
+				<cfbreak>
+			</cfif>
+
+			<cfset start = open.pos[1] + open.len[1]>
+			<cfset close = REFind("\{[[:space:]]*/noparse[[:space:]]*\}", arguments.template, start, true)>
+			<cfif close.pos[1] EQ 0>
+				<cfbreak>
+			</cfif>
+
+			<cfset contents = Mid(arguments.template, start, close.pos[1] - start)>
+			<cfset hash = Hash(contents)>
+			<cfset arguments.blocks.put(hash, contents)>
+			<cfset output = output & Mid(arguments.template, pos, open.pos[1] - pos) & "noparse_" & hash>
+			<cfset pos = close.pos[1] + close.len[1]>
+		</cfloop>
+
+		<cfreturn output & Mid(arguments.template, pos, Len(arguments.template) - pos + 1)>
 	</cffunction>
 
 	<!---
@@ -151,6 +211,7 @@
 		<cfset var key = "">
 		<cfset var raw = false>
 		<cfset var value = "">
+		<cfset var scan = 0>
 
 		<cfloop condition="true">
 			<cfset open = Find("{", arguments.template, pos)>
@@ -163,6 +224,13 @@
 				<cfbreak>
 			</cfif>
 
+			<!--- an opening brace inside: only the last one before the closing brace can start a tag --->
+			<cfset scan = close - 1>
+			<cfloop condition="scan GT open AND Compare(Mid(arguments.template, scan, 1), '{') NEQ 0">
+				<cfset scan = scan - 1>
+			</cfloop>
+			<cfset open = scan>
+
 			<cfset inner = Trim(Mid(arguments.template, open + 1, close - open - 1))>
 			<cfset raw = false>
 			<cfset key = inner>
@@ -172,11 +240,7 @@
 				<cfset key = Trim(Mid(inner, 2, Len(inner) - 2))>
 			</cfif>
 
-			<cfif Find("{", Mid(arguments.template, open + 1, close - open - 1)) GT 0>
-				<!--- an opening brace inside: the first one is not a tag --->
-				<cfset output = output & Mid(arguments.template, pos, open - pos + 1)>
-				<cfset pos = open + 1>
-			<cfelseif Compare(key, "") NEQ 0 AND array_key_exists(key, arguments.data) AND IsSimpleValue(arguments.data[key])>
+			<cfif Compare(key, "") NEQ 0 AND array_key_exists(key, arguments.data) AND IsSimpleValue(arguments.data[key])>
 				<cfset value = arguments.data[key]>
 				<cfif raw>
 					<cfset output = output & Mid(arguments.template, pos, open - pos) & value>
@@ -195,7 +259,7 @@
 
 	<!---
 	 * Replaces each {key} ... {/key} where the data has a list of maps (or
-	 * one map) for the key, once for each row, with the row as data.
+	 * a map of maps) for the key, once for each row, with the row as data.
 	--->
 	<cffunction name="parsePair" access="private" returntype="string" output="no">
 		<cfargument name="template" type="string" required="yes">
@@ -205,6 +269,7 @@
 		<cfset var key = "">
 		<cfset var value = "">
 		<cfset var rows = "">
+		<cfset var row = "">
 		<cfset var pos = 0>
 		<cfset var open = 0>
 		<cfset var close = 0>
@@ -240,7 +305,14 @@
 					<cfset replaced = "">
 
 					<cfif IsStruct(value)>
-						<cfset replaced = parse(body, value)>
+						<!--- a map is a list of rows: each of its values that is a map --->
+						<cfset rows = value.values().iterator()>
+						<cfloop condition="rows.hasNext()">
+							<cfset row = rows.next()>
+							<cfif IsStruct(row)>
+								<cfset replaced = replaced & parse(body, row)>
+							</cfif>
+						</cfloop>
 					<cfelse>
 						<cfloop from="1" to="#ArrayLen(value)#" index="i">
 							<cfif IsStruct(value[i])>
