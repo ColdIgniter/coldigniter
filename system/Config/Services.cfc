@@ -60,6 +60,26 @@
 	</cffunction>
 
 	<!---
+	 * Filters allow you to run tasks before and/or after a controller
+	 * is executed. During before filters, the request can be modified,
+	 * and the response can be used to stop the execution.
+	--->
+	<cffunction name="filters" access="public" returntype="any" output="no">
+		<cfargument name="config" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("filters", arguments.config)>
+		</cfif>
+
+		<cfif is_null(arguments.config)>
+			<cfset arguments.config = variables.config("Config\Filters")>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\Filters\Filters", arguments.config, static_("Config\Services").get("request"), static_("Config\Services").get("response"))>
+	</cffunction>
+
+	<!---
 	 * The Renderer class is the class that actually displays a file to the user.
 	 * The default View class within ColdIgniter is intentionally simple, but this
 	 * service could easily be replaced by a template engine if the user needed to.
