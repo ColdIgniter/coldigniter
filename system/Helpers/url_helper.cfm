@@ -229,6 +229,18 @@
  *
  * @param uri        the URL
  * @param title      the link title
+ * Only false (as the original compares with ===) gives the plain
+ * window.open(); so does an argument that is not passed, as its default
+ * is false. On the server the literal false is the string "false" (only
+ * the result of a comparison is a Boolean), so that string, written
+ * exactly, and a Boolean false count as false. "no", "0" and the
+ * number 0 are attribute strings.
+ *
+ * A struct made with dot notation has upper-case keys, so the keys that
+ * are looked up (window_name and the window features) are matched
+ * without regard to case: they are stored in lower case when the
+ * attributes are copied. Other keys stay as they are.
+ *
  * @param attributes any attributes: false, a string, or a struct or an
  *                   array_() of them (the attributes are not changed)
  * @param altConfig  Alternate configuration to use
@@ -236,9 +248,10 @@
 <cffunction name="anchor_popup" returntype="string" output="no" hint="Creates an anchor based on the local URL that opens a new window">
 	<cfargument name="uri" type="any" required="no" default="">
 	<cfargument name="title" type="string" required="no" default="">
-	<cfargument name="attributes" type="any" required="no" default="#false#">
+	<cfargument name="attributes" type="any" required="no">
 	<cfargument name="altConfig" type="any" required="no" default="">
 	<cfset var config_ = "">
+	<cfset var isFalse = false>
 	<cfset var siteUrl = "">
 	<cfset var attributes_ = array_()>
 	<cfset var windowName = "">
@@ -265,7 +278,16 @@
 		<cfset arguments.title = siteUrl>
 	</cfif>
 
-	<cfif IsSimpleValue(arguments.attributes) AND IsBoolean(arguments.attributes) AND NOT arguments.attributes>
+	<!--- $attributes === false (the default is false) --->
+	<cfif NOT IsDefined("arguments.attributes")>
+		<cfset isFalse = true>
+	<cfelseif IsSimpleValue(arguments.attributes) AND IsBoolean(arguments.attributes)
+		AND (Compare(arguments.attributes.getClass().getName(), "java.lang.String") EQ 0 AND Compare(arguments.attributes, "false") EQ 0
+			OR Compare(arguments.attributes.getClass().getName(), "java.lang.Boolean") EQ 0 AND NOT arguments.attributes)>
+		<cfset isFalse = true>
+	</cfif>
+
+	<cfif isFalse>
 		<cfreturn "<a href=""" & siteUrl & """ onclick=""window.open('" & siteUrl & "', '_blank'); return false;"">" & arguments.title & "</a>">
 	</cfif>
 
@@ -278,7 +300,11 @@
 		<!--- a copy, because the original works on a copy of the array --->
 		<cfif IsStruct(arguments.attributes)>
 			<cfloop collection="#arguments.attributes#" item="key">
-				<cfset attributes_[key] = arguments.attributes[key]>
+				<cfif ListFindNoCase("window_name,width,height,scrollbars,menubar,status,resizable,screenx,screeny", key) GT 0>
+					<cfset attributes_[LCase(key)] = arguments.attributes[key]>
+				<cfelse>
+					<cfset attributes_[key] = arguments.attributes[key]>
+				</cfif>
 			</cfloop>
 		<cfelse>
 			<cfloop from="1" to="#ArrayLen(arguments.attributes)#" index="i">
@@ -353,7 +379,6 @@
 	<cfset var prefix = "<a href=""mailto:">
 	<cfset var i = 0>
 	<cfset var key = "">
-	<cfset var val = "">
 	<cfset var j = 0>
 	<cfset var cspNonce = "">
 	<cfset var output = "">
@@ -373,17 +398,29 @@
 	<cfset ArrayAppend(x, """")>
 
 	<cfif NOT (IsSimpleValue(arguments.attributes) AND arguments.attributes EQ "")>
-		<cfif IsStruct(arguments.attributes)>
-			<cfloop collection="#arguments.attributes#" item="key">
-				<cfset val = arguments.attributes[key]>
-				<cfset ArrayAppend(x, " " & key & "=""")>
+		<cfif is_array(arguments.attributes)>
+			<cfif IsStruct(arguments.attributes)>
+				<cfloop collection="#arguments.attributes#" item="key">
+					<cfset ArrayAppend(x, " " & key & "=""")>
 
-				<cfloop from="1" to="#Len(val)#" index="i">
-					<cfset ArrayAppend(x, "|" & Asc(Mid(val, i, 1)))>
+					<cfloop from="1" to="#Len(arguments.attributes[key])#" index="i">
+						<cfset ArrayAppend(x, "|" & Asc(Mid(arguments.attributes[key], i, 1)))>
+					</cfloop>
+
+					<cfset ArrayAppend(x, """")>
 				</cfloop>
+			<cfelse>
+				<!--- a list: the keys are the positions, counted from zero --->
+				<cfloop from="1" to="#ArrayLen(arguments.attributes)#" index="j">
+					<cfset ArrayAppend(x, " " & (j - 1) & "=""")>
 
-				<cfset ArrayAppend(x, """")>
-			</cfloop>
+					<cfloop from="1" to="#Len(arguments.attributes[j])#" index="i">
+						<cfset ArrayAppend(x, "|" & Asc(Mid(arguments.attributes[j], i, 1)))>
+					</cfloop>
+
+					<cfset ArrayAppend(x, """")>
+				</cfloop>
+			</cfif>
 		<cfelse>
 			<cfloop from="1" to="#Len(arguments.attributes)#" index="i">
 				<cfset ArrayAppend(x, Mid(arguments.attributes, i, 1))>
@@ -457,7 +494,7 @@
 	<cfset var i = 0>
 
 	<!--- Find and replace any URLs. --->
-	<cfif arguments.type NEQ "email">
+	<cfif Compare(arguments.type, "email") NEQ 0>
 		<cfset matcher = Pattern.compile("([a-z][a-z0-9+\-.]*://|www\.)[a-z0-9]+(-+[a-z0-9]+)*(\.[a-z0-9]+(-+[a-z0-9]+)*)+(/([^\s()<>;]+\w)?/?)?", JavaCast("int", 2)).matcher(arguments.str)>
 
 		<cfloop condition="matcher.find()">
@@ -489,7 +526,7 @@
 	</cfif>
 
 	<!--- Find and replace any emails. --->
-	<cfif arguments.type NEQ "url">
+	<cfif Compare(arguments.type, "url") NEQ 0>
 		<cfset starts = ArrayNew(1)>
 		<cfset ends = ArrayNew(1)>
 		<cfset matcher = Pattern.compile("([\w\.\-\+]+@[a-z0-9\-]+\.[a-z0-9\-\.]+[^\p{Punct}\s])", JavaCast("int", 2)).matcher(arguments.str)>

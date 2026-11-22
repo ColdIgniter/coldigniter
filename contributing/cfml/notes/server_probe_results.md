@@ -326,3 +326,11 @@ Request values on this site (IIS 4 with the rewrite rules in `public/.htaccess`)
 - On the scratch tree `indexPage = "index.cfm?"` gives `site_url("a/b")` = `http://coldigniter.lan/_tu/index.cfm?/a/b`, which the server answers (200 for an existing route). A query in the argument gives a second `?` (`.../a/b?x=1`), as the router splits on the last `?`.
 - A redirect on IIS answers 302 with a `Refresh: 0;url=...` header (no `Location`), as upstream does for IIS.
 - A helper file is loaded once per request by `helper("url")`; the functions then work in controllers and in views.
+
+## Header values and url helper fixes (verified on the server)
+
+- `cfheader` does not stop a CR LF in a value: `value="a#Chr(13)##Chr(10)#Set-Cookie: probe=1"` sent an `X-Probe: a` header and a second, real `Set-Cookie: probe=1` header (the response splits). The check has to be done before `cfheader`; it is in `Message.setHeader` (the original does it in the Header class).
+- The literal `false` (also in a `var` or as a `cfargument` default) is the string `"false"` (`getClass().getName()` is `java.lang.String`); only the result of a comparison such as `1 EQ 2` is a `java.lang.Boolean`. So `false`, `"no"` and `0` can be told apart as `"false"` against the others, but not `false` against the string `"false"`.
+- A struct made with dot notation (`s.width = 400`) has upper-case keys (`WIDTH`, `ID`); `s["Width"]` keeps its case.
+- `JavaCast("string", s).matches("[...]")` works with `\x20`, `\u0080-￿` and a class that has `##` (a literal `#`).
+- `Chr(0)` is an empty string, so the NUL character cannot be in the default list of the trim polyfills.
