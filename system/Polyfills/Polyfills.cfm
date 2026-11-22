@@ -71,8 +71,10 @@
 <cfinclude template="spaceship_.cfm">
 <cfinclude template="static_.cfm">
 <cfinclude template="str_replace.cfm">
+<cfinclude template="strcspn.cfm">
 <cfinclude template="strip_tags.cfm">
 <cfinclude template="strpbrk.cfm">
+<cfinclude template="strpos.cfm">
 <cfinclude template="strtr.cfm">
 <cfinclude template="strval.cfm">
 <cfinclude template="substr.cfm">
