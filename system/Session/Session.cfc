@@ -115,7 +115,7 @@
 	 * Returns this, or an empty string (null).
 	--->
 	<cffunction name="start" access="public" returntype="any" output="no">
-		<cfset var cookie = "">
+		<cfset var cookie_ = "">
 		<cfset var requestedWith = "">
 		<cfset var regenerateTime = this.config.timeToUpdate>
 		<cfset var data = session_state().data>
@@ -139,17 +139,17 @@
 		<cfset setSaveHandler()>
 
 		<!--- Sanitize the cookie, because the engine does not do that for userspace handlers --->
-		<cfset cookie = service("superglobals").cookie(this.config.cookieName)>
+		<cfset cookie_ = service("superglobals").cookie(this.config.cookieName)>
 
-		<cfif NOT is_null(cookie) AND NOT (IsSimpleValue(cookie) AND CreateObject("java", "java.lang.String").init(cookie).matches(this.sidRegexp))>
+		<cfif NOT is_null(cookie_) AND NOT (IsSimpleValue(cookie_) AND CreateObject("java", "java.lang.String").init(cookie_).matches(this.sidRegexp))>
 			<cfset service("superglobals").unsetCookie(this.config.cookieName)>
-			<cfset cookie = "">
+			<cfset cookie_ = "">
 		</cfif>
 
 		<cfset startSession()>
 
 		<!--- Difference: the engine of the original sends the cookie of a new ID; here it is done below --->
-		<cfif Compare(cookie, session_id()) NEQ 0>
+		<cfif Compare(cookie_, session_id()) NEQ 0>
 			<cfset setCookie()>
 		</cfif>
 
@@ -166,7 +166,7 @@
 			</cfif>
 
 		<!--- Another work-around ... the engine does not seem to send the session cookie unless it is being currently created or regenerated --->
-		<cfelseif NOT is_null(cookie) AND Compare(cookie, session_id()) EQ 0>
+		<cfelseif NOT is_null(cookie_) AND Compare(cookie_, session_id()) EQ 0>
 			<cfset setCookie()>
 		</cfif>
 
@@ -556,7 +556,7 @@
 	<cffunction name="getFlashdata" access="public" returntype="any" output="no">
 		<cfargument name="key" type="any" required="no" default="">
 		<cfset var sessionData = session_state().data>
-		<cfset var vars = ciVars()>
+		<cfset var vars = ciVarsRead()>
 		<cfset var flashdata = array_()>
 		<cfset var keys = "">
 		<cfset var k = "">
@@ -722,7 +722,7 @@
 	<cffunction name="getTempdata" access="public" returntype="any" output="no">
 		<cfargument name="key" type="any" required="no" default="">
 		<cfset var sessionData = session_state().data>
-		<cfset var vars = ciVars()>
+		<cfset var vars = ciVarsRead()>
 		<cfset var tempdata = array_()>
 		<cfset var keys = "">
 		<cfset var k = "">
@@ -950,6 +950,21 @@
 		</cfif>
 
 		<cfreturn NOT is_null(arguments.map.get(JavaCast("string", arguments.key)))>
+	</cffunction>
+
+	<!---
+	 * Difference: the readers do not create $_SESSION['__ci_vars'] (that would
+	 * change the data and rewrite the file); an empty map is returned when it
+	 * is missing.
+	--->
+	<cffunction name="ciVarsRead" access="private" returntype="any" output="no">
+		<cfset var data = session_state().data>
+
+		<cfif NOT data.containsKey("__ci_vars")>
+			<cfreturn array_()>
+		</cfif>
+
+		<cfreturn data.get("__ci_vars")>
 	</cffunction>
 
 	<!---
