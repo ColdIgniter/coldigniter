@@ -605,7 +605,8 @@
 
 		<cfset pattern = "##^[0-9a-f]{" & length & "}$##iS">
 
-		<cfreturn preg_match(pattern, this.hashInCookie) EQ 1>
+		<!--- unguarded: the pattern is linear, and a long cookie must give false, not an error --->
+		<cfreturn preg_match(pattern, this.hashInCookie, true) EQ 1>
 	</cffunction>
 
 	<cffunction name="saveHashInCookie" access="private" returntype="void" output="no">

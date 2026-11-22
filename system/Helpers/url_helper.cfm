@@ -476,7 +476,9 @@
  * only tried at the left edge of a run of its characters (a look-behind),
  * because a try from every position of a long run is quadratic. A scheme
  * glued to a digit, a plus, a hyphen or a dot ("1http://x.example") is
- * no longer linked, nor an email glued to such a run.
+ * no longer linked (a "www." after it still is), nor an email glued to
+ * such a run, nor an email that starts right where the one before it
+ * ended ("x@a.bc_y@e.fg": only the first is linked).
  *
  * Not ported yet: FILTER_VALIDATE_EMAIL, so every match of the email
  * pattern is linked.

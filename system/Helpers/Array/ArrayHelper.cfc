@@ -123,7 +123,7 @@
 	<cffunction name="convertToArray" access="private" returntype="array" output="no">
 		<cfargument name="index" type="string" required="yes">
 		<cfset var segments = ArrayNew(1)>
-		<cfset var text = REReplace(arguments.index, "[* ]+$", "")>
+		<cfset var text = rtrim_(arguments.index, "* ")>
 		<!--- A dot that is not preceded by a backslash (lookbehind needs the Java engine). --->
 		<cfset var matcher = CreateObject("java", "java.util.regex.Pattern").compile("(?<!\\)\.").matcher(text)>
 		<cfset var start = 0>

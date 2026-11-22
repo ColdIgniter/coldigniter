@@ -7,7 +7,8 @@
  *
  * Difference: the run of characters is only tried at its left edge (a
  * look-behind), so a long run that is not at the end is not scanned
- * again from every position (the plain form is quadratic).
+ * again from every position (the plain form is quadratic). The end is
+ * \z, because $ also matches before a last line break.
  *
  * Not ported yet: the NUL character in the default list of characters,
  * because Chr(0) is an empty string on the server.
@@ -21,5 +22,5 @@
 		<cfreturn arguments.string>
 	</cfif>
 
-	<cfreturn JavaCast("string", arguments.string).replaceAll("(?<![" & escaped & "])[" & escaped & "]+$", "")>
+	<cfreturn JavaCast("string", arguments.string).replaceAll("(?<![" & escaped & "])[" & escaped & "]+\z", "")>
 </cffunction>
