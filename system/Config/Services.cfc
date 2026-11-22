@@ -80,6 +80,36 @@
 	</cffunction>
 
 	<!---
+	 * Responsible for loading the language string translations.
+	--->
+	<cffunction name="language" access="public" returntype="any" output="no">
+		<cfargument name="locale" type="string" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+		<cfset var requestLocale = "">
+		<cfset var requestObject = "">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("language", arguments.locale).setLocale_(arguments.locale)>
+		</cfif>
+
+		<cfset requestObject = static_("Config\Services").get("request")>
+
+		<cfif instanceof_(requestObject, "ColdIgniter\HTTP\IncomingRequest")>
+			<cfset requestLocale = requestObject.getLocale_()>
+		<cfelse>
+			<!--- Difference: Locale::getDefault() is the default locale of the application here. --->
+			<cfset requestLocale = variables.config("Config\App").defaultLocale>
+		</cfif>
+
+		<!--- Use '?:' for empty string check --->
+		<cfif arguments.locale EQ "" OR arguments.locale EQ "0">
+			<cfset arguments.locale = requestLocale>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\Language\Language", arguments.locale)>
+	</cffunction>
+
+	<!---
 	 * The Logger class is a PSR-3 compatible Logging class that supports
 	 * multiple handlers that process the actual logging.
 	 *
@@ -373,6 +403,24 @@
 		</cfif>
 
 		<cfreturn new_("ColdIgniter\HTTP\URI", arguments.uri)>
+	</cffunction>
+
+	<!---
+	 * The Validation class provides tools for validating input data.
+	--->
+	<cffunction name="validation" access="public" returntype="any" output="no">
+		<cfargument name="config" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("validation", arguments.config)>
+		</cfif>
+
+		<cfif is_null(arguments.config)>
+			<cfset arguments.config = variables.config("Config\Validation")>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\Validation\Validation", arguments.config, static_("Config\Services").get("renderer"))>
 	</cffunction>
 
 </cfcomponent>

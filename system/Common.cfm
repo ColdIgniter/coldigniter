@@ -346,6 +346,45 @@
 </cffunction>
 
 <!---
+ * A convenience method to translate a string or array of them and format
+ * the result.
+ *
+ * Not ported yet: the intl extension's MessageFormatter, see Language.
+ *
+ * lang(line, args, locale)
+ *
+ * @param line
+ * @param args   A map (see array_()) of named values, a list of values, or an empty string for none
+ * @param locale An empty string (null) for the active locale
+ *
+ * @return A list of strings, or a string
+--->
+<cffunction name="lang" returntype="any" output="no" hint="A convenience method to translate a string or array of them and format the result">
+	<cfargument name="line" type="string" required="yes">
+	<cfargument name="args" type="any" required="no" default="">
+	<cfargument name="locale" type="string" required="no" default="">
+	<cfset var language = service("language")>
+	<cfset var activeLocale = "">
+	<cfset var lines = "">
+
+	<!--- Get active locale --->
+	<cfset activeLocale = language.getLocale_()>
+
+	<cfif arguments.locale NEQ "" AND Compare(arguments.locale, activeLocale) NEQ 0>
+		<cfset language.setLocale_(arguments.locale)>
+	</cfif>
+
+	<cfset lines = language.getLine(arguments.line, arguments.args)>
+
+	<cfif arguments.locale NEQ "" AND Compare(arguments.locale, activeLocale) NEQ 0>
+		<!--- Reset to active locale --->
+		<cfset language.setLocale_(activeLocale)>
+	</cfif>
+
+	<cfreturn lines>
+</cffunction>
+
+<!---
  * A convenience/compatibility method for logging events through
  * the Log system.
  *
