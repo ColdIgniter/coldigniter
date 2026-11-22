@@ -34,6 +34,7 @@
 <cfinclude template="ini_set.cfm">
 <cfinclude template="instanceof_.cfm">
 <cfinclude template="is_array.cfm">
+<cfinclude template="is_bool.cfm">
 <cfinclude template="is_file.cfm">
 <cfinclude template="is_null.cfm">
 <cfinclude template="is_numeric.cfm">
