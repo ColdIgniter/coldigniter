@@ -147,10 +147,10 @@
 	 * Escapes data based on type.
 	 * Sets boolean and null types.
 	--->
-	<cffunction name="callFunction" access="public" returntype="any" output="no">
-		<cfargument name="functionName" type="string" required="yes">
+	<cffunction name="escape" access="public" returntype="any" output="no">
+		<cfargument name="str" type="any" required="yes">
 
-		<cfthrow type="ColdIgniter.LogicException" message="The class does not define callFunction().">
+		<cfthrow type="ColdIgniter.LogicException" message="The class does not define escape().">
 	</cffunction>
 
 	<!---
