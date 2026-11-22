@@ -278,6 +278,7 @@
 			<cfreturn result>
 		</cfif>
 
+		<!--- a position is written without a leading zero: ICU reads {01} as a name, not a position, so it is left as written (the original's behaviour is not checked here, as the intl extension is not at hand) --->
 		<cfset matcher = CreateObject("java", "java.util.regex.Pattern").compile("\{([^{}]+)\}").matcher(JavaCast("string", arguments.message))>
 		<cfset buffer = CreateObject("java", "java.lang.StringBuffer").init()>
 
@@ -288,7 +289,7 @@
 
 			<cfif IsStruct(arguments.args) AND StructKeyExists(arguments.args, name)>
 				<cfset buffer.append(JavaCast("string", strval(arguments.args[name])))>
-			<cfelseif IsArray(arguments.args) AND REFind("^[0-9]+$", name) GT 0 AND Val(name) LT ArrayLen(arguments.args)>
+			<cfelseif IsArray(arguments.args) AND REFind("^(0|[1-9][0-9]*)$", name) GT 0 AND Val(name) LT ArrayLen(arguments.args)>
 				<cfset buffer.append(JavaCast("string", strval(arguments.args[Val(name) + 1])))>
 			<cfelse>
 				<cfset buffer.append(matcher.group(0))>
