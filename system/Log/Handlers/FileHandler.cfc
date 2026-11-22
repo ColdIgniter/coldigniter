@@ -20,7 +20,10 @@
  * Difference: the extension is used as it is in the original. Here only an
  * extension of letters and digits (the whole text) is accepted, and the
  * names the server runs or treats as special (cfm, cfml, cfc, jsp, asp, exe,
- * bat, and so on, in any case) are refused. Anything else makes handle()
+ * bat, and so on, in any case) are refused. A longer extension that starts
+ * with one of those names in three characters (cfmx, aspx, exe1) is refused
+ * too, because the file system gives the file a second, short name that
+ * ends in those three characters. Anything else makes handle()
  * return false and write nothing, so the file cannot leave the log folder
  * or change name on the way to the file system. An empty extension is the
  * default "log", as in the original.
@@ -107,6 +110,11 @@
 
 		<!--- Files that the server runs cannot be protected with a header (see above), and some names are special to the server or the system --->
 		<cfif ListFindNoCase("cfm,cfml,cfc,jsp,jws,asp,asa,cer,cdx,shtml,shtm,stm,idc,htr,htw,ida,idq,printer,exe,dll,bat,cmd,com,pl", extension) GT 0>
+			<cfreturn false>
+		</cfif>
+
+		<!--- The file system also gives a long extension a short name with its first three characters (cfmx is also .CFM) --->
+		<cfif Len(extension) GT 3 AND ListFindNoCase("cfm,cfc,jsp,jws,asp,asa,cer,cdx,sht,stm,idc,htr,htw,ida,idq,pri,exe,dll,bat,cmd,com", Left(extension, 3)) GT 0>
 			<cfreturn false>
 		</cfif>
 
