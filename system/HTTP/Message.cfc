@@ -4,6 +4,9 @@
  * A header is kept as its name and its value line here; the original
  * keeps a Header object for each.
  *
+ * The checks of the Header class (validateName and validateValue) are
+ * done here, in setHeader, as the Header constructor does them.
+ *
  * Not ported yet: appendHeader, prependHeader, addHeader, the Header
  * class, and headers that have more than one value.
 --->
@@ -120,6 +123,9 @@
 			<cfset arguments.value = implode(", ", arguments.value)>
 		</cfif>
 
+		<cfset validateName(arguments.name)>
+		<cfset validateValue(arguments.value)>
+
 		<cfset this.headers_[origName] = arguments.value>
 		<cfset this.headerMap[LCase(origName)] = origName>
 
@@ -204,6 +210,46 @@
 		</cfif>
 
 		<cfreturn arguments.name>
+	</cffunction>
+
+	<!---
+	 * Validate header name.
+	 *
+	 * @see https://datatracker.ietf.org/doc/html/rfc7230#section-3.2
+	 *
+	 * @throws InvalidArgumentException
+	--->
+	<cffunction name="validateName" access="private" returntype="void" output="no">
+		<cfargument name="name" type="string" required="yes">
+
+		<cfif NOT JavaCast("string", arguments.name).matches("[a-zA-Z0-9'`##$%&*+.^_|~!-]+")>
+			<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="The header name is not valid as per RFC 7230.">
+		</cfif>
+	</cffunction>
+
+	<!---
+	 * Validate header value.
+	 *
+	 * The original checks the bytes of the value; a CFML string holds
+	 * characters, so all characters from U+0080 up stand for the bytes
+	 * \x80-\xFF of their UTF-8 form.
+	 *
+	 * @see https://datatracker.ietf.org/doc/html/rfc7230#section-3.2
+	 *
+	 * @throws InvalidArgumentException
+	--->
+	<cffunction name="validateValue" access="private" returntype="void" output="no">
+		<cfargument name="value" type="any" required="yes">
+
+		<!---
+		 The original returns for an int. There is no int type here, and
+		 the text of a number passes the check below anyway.
+		--->
+
+		<!--- The regular expression excludes obs-fold per RFC 7230#3.2.4 --->
+		<cfif NOT JavaCast("string", arguments.value).matches("[\x20\x09\x21-\x7E\u0080-\uFFFF]*")>
+			<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="The header value is not valid as per RFC 7230.">
+		</cfif>
 	</cffunction>
 
 </cfcomponent>

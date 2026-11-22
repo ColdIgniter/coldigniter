@@ -320,6 +320,20 @@ Request values on this site (IIS 4 with the rewrite rules in `public/.htaccess`)
 - Multipart POST: the `form` scope has upper-cased names (`a` becomes `A`, `n[k]` becomes `N` with `K`), plus `FIELDNAMES`; original case cannot be recovered there.
 - `index.cfm?/route?a=1&b=2` passes variables with a route (the factory splits on `?`, as upstream). `index.cfm?/route&a=1` gives 400 because the route becomes `route&a=1`.
 - `X-Requested-With: XMLHttpRequest` is read as a header; `isSecure` stays false behind `X-Forwarded-Proto: https` unless the proxy is trusted (as upstream).
+- A method named like a property clashes (names are case-insensitive): `SiteURI.baseUrl()` against `this.baseURL` gave "Entity has incorrect type for being called as a function"; the method is `baseUrl_`.
+- `obj.method(argumentCollection=struct)` works on a method call; `IsDefined("arguments.x")` is false for an optional argument that was not passed.
+- Java `String.replaceAll` through `JavaCast("string", s)` works, with `(?iu)` and `\pL`; a `LinkedHashMap` passes `IsStruct` and loops with `cfloop collection`.
+- On the scratch tree `indexPage = "index.cfm?"` gives `site_url("a/b")` = `http://coldigniter.lan/_tu/index.cfm?/a/b`, which the server answers (200 for an existing route). A query in the argument gives a second `?` (`.../a/b?x=1`), as the router splits on the last `?`.
+- A redirect on IIS answers 302 with a `Refresh: 0;url=...` header (no `Location`), as upstream does for IIS.
+- A helper file is loaded once per request by `helper("url")`; the functions then work in controllers and in views.
+
+## Header values and url helper fixes (verified on the server)
+
+- `cfheader` does not stop a CR LF in a value: `value="a#Chr(13)##Chr(10)#Set-Cookie: probe=1"` sent an `X-Probe: a` header and a second, real `Set-Cookie: probe=1` header (the response splits). The check has to be done before `cfheader`; it is in `Message.setHeader` (the original does it in the Header class).
+- The literal `false` (also in a `var` or as a `cfargument` default) is the string `"false"` (`getClass().getName()` is `java.lang.String`); only the result of a comparison such as `1 EQ 2` is a `java.lang.Boolean`. So `false`, `"no"` and `0` can be told apart as `"false"` against the others, but not `false` against the string `"false"`.
+- A struct made with dot notation (`s.width = 400`) has upper-case keys (`WIDTH`, `ID`); `s["Width"]` keeps its case.
+- `JavaCast("string", s).matches("[...]")` works with `\x20`, `\u0080-\uFFFF` and a class that has `##` (a literal `#`).
+- `Chr(0)` is an empty string, so the NUL character cannot be in the default list of the trim polyfills.
 - The loop over the `CGI` scope lists only `HTTP_COOKIE`, `HTTP_CONNECTION`, `HTTP_REFERER`, `HTTP_USER_AGENT`, `HTTP_ACCEPT_ENCODING`, `HTTP_ACCEPT_LANGUAGE`, `HTTP_ACCEPT` and `HTTP_HOST` of the request headers. A custom header such as `X-Test-Hdr` is missing from the loop, but `CGI.HTTP_X_TEST_HDR` reads it by name; `getServer("HTTP_X_FORWARDED_FOR")` therefore falls back to a read by name.
 - `URLDecode` throws (a 500 without a catch) for a percent sign that is not followed by two hexadecimal digits (`a+b%`, `%zz`, `%4`, `%41%`); a well-formed `%20` and `%C3%A9` decode and a plus becomes a space. `parse_str` writes such a lone sign as `%25` first, so it stays as it is.
 - `Chr(0)` is an empty string in a literal, `Find(Chr(0), s)` returns 1 for any string; `URLDecode("ab%00cd")` does hold a real NUL character (length 5). `parse_str` cuts a name at the text `%00` before decoding.

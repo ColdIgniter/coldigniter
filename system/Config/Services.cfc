@@ -158,6 +158,28 @@
 	</cffunction>
 
 	<!---
+	 * The Redirect class provides nice way of working with redirects.
+	--->
+	<cffunction name="redirectresponse" access="public" returntype="any" output="no">
+		<cfargument name="config" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+		<cfset var response = "">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("redirectresponse", arguments.config)>
+		</cfif>
+
+		<cfif is_null(arguments.config)>
+			<cfset arguments.config = variables.config("Config\App")>
+		</cfif>
+
+		<cfset response = new_("ColdIgniter\HTTP\RedirectResponse", arguments.config)>
+		<cfset response.setProtocolVersion(static_("Config\Services").get("request").getProtocolVersion())>
+
+		<cfreturn response>
+	</cffunction>
+
+	<!---
 	 * The Routes service is a class that allows for easily building
 	 * a collection of routes.
 	--->
