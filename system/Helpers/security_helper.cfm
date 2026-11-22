@@ -100,7 +100,12 @@
  * a time, with the lazy parts written [^<]*? and the quoted value [^<]+?
  * (a head holds no <, and it ends in a > that every part can reach), so a
  * match never leaves its head and a failing start costs one pass over its
- * head. For a normal tag the result is the same, with these differences:
+ * head. The run of spaces and slashes after <img is taken possessively
+ * ([\s/]++): the lazy part after it can match the same characters, and
+ * without that a head that fails, such as <img, many spaces and >, would be
+ * tried once for every way of splitting the run. The attribute name cannot
+ * start with a space or a slash, so the matches are the same.
+ * For a normal tag the result is the same, with these differences:
  * what the original matches across a < is not matched (a tag with a < in its
  * text, as in <img alt="<" src=x>, is left as it is, and a match that the
  * original spreads over several tags is made one tag at a time), and a tag
@@ -110,8 +115,8 @@
 	<cfargument name="str" type="string" required="yes">
 	<cfset var pattern = CreateObject("java", "java.util.regex.Pattern")>
 	<cfset var heads = pattern.compile(JavaCast("string", "<img[\s/][^<]*>"), JavaCast("int", 2)).matcher(JavaCast("string", arguments.str))>
-	<cfset var quoted = pattern.compile(JavaCast("string", "<img[\s/]+[^<]*?src\s*=\s*([""'])([^<]+?)\1[^<]*?>"), JavaCast("int", 2))>
-	<cfset var bare = pattern.compile(JavaCast("string", "<img[\s/]+[^<]*?src\s*=\s*?(([^\s""'=<>`]+))[^<]*?>"), JavaCast("int", 2))>
+	<cfset var quoted = pattern.compile(JavaCast("string", "<img[\s/]++[^<]*?src\s*=\s*([""'])([^<]+?)\1[^<]*?>"), JavaCast("int", 2))>
+	<cfset var bare = pattern.compile(JavaCast("string", "<img[\s/]++[^<]*?src\s*=\s*?(([^\s""'=<>`]+))[^<]*?>"), JavaCast("int", 2))>
 	<cfset var buffer = CreateObject("java", "java.lang.StringBuffer").init()>
 	<cfset var head = "">
 	<cfset var last = 0>
