@@ -71,8 +71,13 @@
 			</cfif>
 
 			<cfif Compare(currentIndex, "*") EQ 0>
-				<cfset currentIndex = indexes[1]>
-				<cfset ArrayDeleteAt(indexes, 1)>
+				<!--- "array_shift" gives null when nothing follows the star (an index like "a.*."), and null is the key "" --->
+				<cfif ArrayLen(indexes) EQ 0>
+					<cfset currentIndex = "">
+				<cfelse>
+					<cfset currentIndex = indexes[1]>
+					<cfset ArrayDeleteAt(indexes, 1)>
+				</cfif>
 
 				<cfif IsArray(currentArray)>
 					<cfloop from="1" to="#ArrayLen(currentArray)#" index="i">

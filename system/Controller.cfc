@@ -123,7 +123,7 @@
 			</cfif>
 
 			<!--- If no error message is defined, use the error message in the Config\Validation file --->
-			<cfif is_null(arguments.messages)>
+			<cfif is_null(arguments.messages) OR (IsStruct(arguments.messages) AND StructIsEmpty(arguments.messages)) OR (IsArray(arguments.messages) AND ArrayLen(arguments.messages) EQ 0)>
 				<cfset errorName = arguments.rules & "_errors">
 
 				<cfif StructKeyExists(validation, errorName)>
