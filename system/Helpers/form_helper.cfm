@@ -36,7 +36,7 @@
 	<cfset var csrfId = "">
 	<cfset var attributeString = "">
 	<cfset var appConfig = "">
-	<cfset var form = "">
+	<cfset var form_ = "">
 	<cfset var filters = "">
 	<cfset var before = "">
 	<cfset var key = "">
@@ -70,23 +70,23 @@
 		<cfset attributeString = attributeString & " accept-charset=""" & LCase(appConfig.charset) & """">
 	</cfif>
 
-	<cfset form = "<form action=""" & arguments.action & """" & attributeString & ">" & Chr(10)>
+	<cfset form_ = "<form action=""" & arguments.action & """" & attributeString & ">" & Chr(10)>
 
 	<!--- Add CSRF field if enabled, but leave it out for GET requests and requests to external websites --->
 	<cfset filters = service("filters").getFilters()>
 	<cfset before = filters["before"]>
 
 	<cfif (in_array("csrf", before, true) OR array_key_exists("csrf", before)) AND Find(base_url(), arguments.action) GT 0 AND FindNoCase("method=""get""", form) EQ 0>
-		<cfset form = form & csrf_field(csrfId)>
+		<cfset form_ = form_ & csrf_field(csrfId)>
 	</cfif>
 
 	<cfif IsStruct(arguments.hidden)>
 		<cfloop collection="#arguments.hidden#" item="key">
-			<cfset form = form & form_hidden(key, arguments.hidden[key])>
+			<cfset form_ = form_ & form_hidden(key, arguments.hidden[key])>
 		</cfloop>
 	</cfif>
 
-	<cfreturn form>
+	<cfreturn form_>
 </cffunction>
 
 <!---
@@ -329,7 +329,7 @@
 	<cfset var optionMap = "">
 	<cfset var groupMap = "">
 	<cfset var multiple = "">
-	<cfset var form = "">
+	<cfset var form_ = "">
 	<cfset var key = "">
 	<cfset var val = "">
 	<cfset var optgroupKey = "">
@@ -399,7 +399,7 @@
 	<cfif ArrayLen(standard) GT 1 AND FindNoCase("multiple", arguments.extra) EQ 0>
 		<cfset multiple = " multiple=""multiple""">
 	</cfif>
-	<cfset form = "<select " & RTrim(parse_form_attributes(arguments.data, defaults)) & arguments.extra & multiple & ">" & nl>
+	<cfset form_ = "<select " & RTrim(parse_form_attributes(arguments.data, defaults)) & arguments.extra & multiple & ">" & nl>
 
 	<!--- a list of options has the keys 0, 1, ... --->
 	<cfif IsArray(arguments.options)>
@@ -428,7 +428,7 @@
 			</cfif>
 
 			<cfif StructCount(groupMap) GT 0>
-				<cfset form = form & "<optgroup label=""" & key & """>" & nl>
+				<cfset form_ = form_ & "<optgroup label=""" & key & """>" & nl>
 
 				<cfloop collection="#groupMap#" item="optgroupKey">
 					<!--- Keys should always be strings for strict comparison --->
@@ -437,10 +437,10 @@
 					<cfelse>
 						<cfset sel = "">
 					</cfif>
-					<cfset form = form & "<option value=""" & Replace(HTMLEditFormat(optgroupKey), "'", "&##039;", "all") & """" & sel & ">" & groupMap[optgroupKey] & "</option>" & nl>
+					<cfset form_ = form_ & "<option value=""" & Replace(HTMLEditFormat(optgroupKey), "'", "&##039;", "all") & """" & sel & ">" & groupMap[optgroupKey] & "</option>" & nl>
 				</cfloop>
 
-				<cfset form = form & "</optgroup>" & nl>
+				<cfset form_ = form_ & "</optgroup>" & nl>
 			</cfif>
 		<cfelse>
 			<cfif in_array(key, standard, true)>
@@ -448,11 +448,11 @@
 			<cfelse>
 				<cfset sel = "">
 			</cfif>
-			<cfset form = form & "<option value=""" & Replace(HTMLEditFormat(key), "'", "&##039;", "all") & """" & sel & ">" & val & "</option>" & nl>
+			<cfset form_ = form_ & "<option value=""" & Replace(HTMLEditFormat(key), "'", "&##039;", "all") & """" & sel & ">" & val & "</option>" & nl>
 		</cfif>
 	</cfloop>
 
-	<cfreturn form & "</select>" & nl>
+	<cfreturn form_ & "</select>" & nl>
 </cffunction>
 
 <!---
@@ -683,7 +683,7 @@
  * re-populate an input field or textarea
  *
  * Differs from the original: a default that is not a list or a map is a
- * string already. The value is not escaped when it is a list (see esc()).
+ * string already.
  *
  * @param field      Field name
  * @param default    Default value (a string or a list)

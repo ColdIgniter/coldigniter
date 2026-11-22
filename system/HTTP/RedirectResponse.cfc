@@ -87,10 +87,11 @@
 	 * @return this
 	--->
 	<cffunction name="withInput" access="public" returntype="any" output="no">
-		<cfset var session = service("session")>
+		<cfset var sessionObj = service("session")>
 		<cfset var superglobals = service("superglobals")>
 
-		<cfset session.setFlashdata("_ci_old_input", array_("get", superglobals.getGetArray(), "post", superglobals.getPostArray()))>
+		<!--- Differs from the original: the maps are copied, since arrays are not copied on assignment here --->
+		<cfset sessionObj.setFlashdata("_ci_old_input", array_("get", array_merge(superglobals.getGetArray()), "post", array_merge(superglobals.getPostArray())))>
 
 		<cfset withErrors()>
 

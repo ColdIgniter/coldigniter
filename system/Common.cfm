@@ -189,9 +189,13 @@
  *
  * If data is a string, then it simply escapes and returns it.
  *
- * Not ported yet: arrays as data, the "css" context and the encoding
- * (the Escaper library is not ported). The "js" context is a small
- * stand-in for Escaper::escapeJs().
+ * Not ported yet: the "css" context and the encoding (the Escaper
+ * library is not ported). The "js" context is a small stand-in for
+ * Escaper::escapeJs().
+ *
+ * Differs from the original: a list or a map is escaped into a copy,
+ * value by value, and the copy is returned (arrays are not copied on
+ * the way in here).
  *
  * @param data     The string
  * @param context  'attr', 'css', 'html', 'js', 'raw' or 'url'
@@ -204,6 +208,8 @@
 	<cfset var char = "">
 	<cfset var code = 0>
 	<cfset var i = 0>
+	<cfset var result = "">
+	<cfset var key = "">
 
 	<cfset arguments.context = LCase(arguments.context)>
 
@@ -214,6 +220,24 @@
 	--->
 	<cfif arguments.context EQ "raw">
 		<cfreturn arguments.data>
+	</cfif>
+
+	<cfif IsArray(arguments.data)>
+		<cfset result = ArrayNew(1)>
+		<cfloop from="1" to="#ArrayLen(arguments.data)#" index="i">
+			<cfset ArrayAppend(result, esc(arguments.data[i], arguments.context, arguments.encoding))>
+		</cfloop>
+
+		<cfreturn result>
+	</cfif>
+
+	<cfif IsStruct(arguments.data) AND NOT IsObject(arguments.data)>
+		<cfset result = CreateObject("java", "java.util.LinkedHashMap").init()>
+		<cfloop collection="#arguments.data#" item="key">
+			<cfset result[key] = esc(arguments.data[key], arguments.context, arguments.encoding)>
+		</cfloop>
+
+		<cfreturn result>
 	</cfif>
 
 	<cfif IsSimpleValue(arguments.data)>
@@ -484,12 +508,11 @@
  * during a redirect().withInput().
  *
  * Differs from the original: an escape of false is a real boolean or the
- * text "false". A value that is a list or a map is not escaped
- * (see esc()).
+ * text "false".
  *
  * @param key     The key of the input
  * @param default A string
- * @param escape  attr, css, html, js, raw, url or false
+ * @param escape  attr, html, js, raw, url or false (css is not ported yet, see esc())
  *
  * @return A string, a list or a map
 --->
