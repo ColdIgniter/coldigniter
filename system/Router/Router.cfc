@@ -2,7 +2,7 @@
  * Request router.
  *
  * Not ported yet: auto-routing, closures as handlers, redirect routes,
- * the {locale} placeholder, route attributes and filters.
+ * the {locale} placeholder, route attributes.
 --->
 <cfcomponent output="no" hint="Request router">
 
@@ -130,7 +130,11 @@
 
 		<!--- Checks defined routes --->
 		<cfif checkRoutes(arguments.uri)>
-			<!--- Not ported yet: route filters and route attributes --->
+			<cfif this.collection.isFiltered(this.matchedRoute[1])>
+				<cfset this.filtersInfo = this.collection.getFiltersForRoute(this.matchedRoute[1])>
+			</cfif>
+
+			<!--- Not ported yet: route attributes --->
 
 			<cfreturn this.controller>
 		</cfif>

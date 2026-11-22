@@ -344,3 +344,12 @@ Request values on this site (IIS 4 with the rewrite rules in `public/.htaccess`)
 - `java.lang.StringBuffer.append()` was wrapped in `JavaCast("string", ...)` so a numeric-looking piece (`0012`) is not given to a numeric overload; `x=%410012` gives `A0012`, `x=0012` stays `0012`.
 - A number key is only a canonical decimal integer (`^(0|[1-9][0-9]{0,17})$`): `f[007]=a&f[]=b` gives keys `007` and `0`; a 20-digit key is kept as it is and the next is `0`. The next free number is kept in a `java.math.BigInteger` because `ToString(Int(1E+018))` prints in E notation (`f[999999999999999999]=a&f[]=b` gives `1000000000000000000`).
 - A cookie name is checked for a repeat after it is normalised like `parse_str` does: `a.b=1; a_b=2` gives `a_b` = 1 and `%61=1; a=2` gives `a` = 1.
+
+## Filters and events (verified on the server)
+
+- A component method named `log` fails to compile ("names of user defined functions cannot be the same as built-in ColdFusion functions"); other built-in names such as `search` are listed in the same error. Use a trailing underscore.
+- A component-body default cannot call a user function such as `array_()`; `CreateObject("java","java.util.LinkedHashMap").init()` works there and keeps insertion order (read and write with brackets, `cfloop collection`; `IsStruct` is true, `IsArray` false).
+- `Evaluate("target.method(args)")` calls a method on an object or a component name, which is the callable form of events and filters.
+- A Request returned by a before filter replaces the request; a Response stops the controller (403 from a filter, controller not run).
+- `cfthrow` with a dotted type and `errorcode` is shown as a 500 unless the type is in the status-code list of `Debug/Exceptions` (`SecurityException` was added: InvalidChars answers 400 for `%01` and for `%FF`).
+- `ForceHTTPS` on IIS answers 307 with `Refresh: 0;url=https://...` and `Strict-Transport-Security: max-age=31536000`, also for a 404 route.
