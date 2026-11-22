@@ -16,8 +16,8 @@
  * @see http://www.infoq.com/presentations/Simple-Made-Easy
  *
  * AppServices in the original is static_("Config\Services") here.
- * Where the original takes the locator or the logger, an empty string
- * is passed until they are ported.
+ * Where the original takes the locator, an empty string is passed until
+ * it is ported.
  *
  * Not ported yet: every service that is not listed below.
 --->
@@ -80,6 +80,22 @@
 	</cffunction>
 
 	<!---
+	 * The Logger class is a PSR-3 compatible Logging class that supports
+	 * multiple handlers that process the actual logging.
+	 *
+	 * Not ported yet: PSR-3 (the Psr\Log interfaces are not ported).
+	--->
+	<cffunction name="logger" access="public" returntype="any" output="no">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("logger")>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\Log\Logger", variables.config("Config\Logger"))>
+	</cffunction>
+
+	<!---
 	 * The Renderer class is the class that actually displays a file to the user.
 	 * The default View class within ColdIgniter is intentionally simple, but this
 	 * service could easily be replaced by a template engine if the user needed to.
@@ -100,7 +116,7 @@
 			<cfset arguments.config = variables.config("Config\View")>
 		</cfif>
 
-		<cfreturn new_("ColdIgniter\View\View", arguments.config, arguments.viewPath, "", request.CI_DEBUG, "")>
+		<cfreturn new_("ColdIgniter\View\View", arguments.config, arguments.viewPath, "", request.CI_DEBUG, static_("Config\Services").get("logger"))>
 	</cffunction>
 
 	<!---

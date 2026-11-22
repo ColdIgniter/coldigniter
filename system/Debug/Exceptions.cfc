@@ -94,6 +94,10 @@
 		<cfset var statusCode = 0>
 		<cfset var exitCode = 0>
 		<cfset var handler = "">
+		<cfset var uri = "">
+		<cfset var routeInfo = "">
+		<cfset var exFile = "">
+		<cfset var exLine = "">
 
 		<cfset this.exceptionCaughtByExceptionHandler = arguments.exception>
 
@@ -103,11 +107,33 @@
 
 		<cfset this.request_ = service("request")>
 
-		<!---
-		 Not ported yet: logging with log_message(), for the exception
-		 and for the exceptions that caused it (the logger is not ported):
-		 if (config.log EQ true AND NOT in_array(statusCode, config.ignoreCodes))
-		--->
+		<cfif Compare(this.config.log, "true") EQ 0 AND NOT in_array(statusCode, this.config.ignoreCodes)>
+			<cfset uri = this.request_.getPath()>
+			<cfif Compare(uri, "") EQ 0>
+				<cfset uri = "/">
+			</cfif>
+			<cfset routeInfo = "[Method: " & this.request_.getMethod() & ", Route: " & uri & "]">
+
+			<!---
+			 Difference: the class of the exception is its type, the file and
+			 line are the first row of its tagContext, and the trace holds
+			 the rows of the tagContext (see render_backtrace()).
+			--->
+			<cfif ArrayLen(arguments.exception.tagContext) GT 0>
+				<cfset exFile = clean_path(arguments.exception.tagContext[1].template)>
+				<cfset exLine = arguments.exception.tagContext[1].line>
+			</cfif>
+
+			<cfset log_message("critical", arguments.exception.type & ": {message}" & Chr(10) & "{routeInfo}" & Chr(10) & "in {exFile} on line {exLine}." & Chr(10) & "{trace}", array_(
+				"message", arguments.exception.message,
+				"routeInfo", routeInfo,
+				"exFile", exFile, <!--- {file} refers to THIS file --->
+				"exLine", exLine, <!--- {line} refers to THIS line --->
+				"trace", render_backtrace(arguments.exception.tagContext)
+			))>
+
+			<!--- Not ported yet: the previous exceptions, a caught error has no previous one --->
+		</cfif>
 
 		<cfset this.response = service("response")>
 

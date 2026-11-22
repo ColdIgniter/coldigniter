@@ -438,8 +438,7 @@
 	<cffunction name="createController" access="private" returntype="any" output="no">
 		<cfset var class = new_(this.controller)>
 
-		<!--- Not ported yet: the logger --->
-		<cfset class.initController(this.request_, this.response, "")>
+		<cfset class.initController(this.request_, this.response, service("logger"))>
 
 		<cfreturn class>
 	</cffunction>

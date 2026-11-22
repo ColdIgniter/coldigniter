@@ -7,6 +7,11 @@
  * The server values are read from the CGI scope, which cannot be
  * changed: a value set here is kept in this object only.
  *
+ * Difference: a request header can supply a server variable, so the CGI
+ * scope is read through server_value() (see Common.cfm): only the real
+ * server variables and the HTTP_* names, and not a server variable that a
+ * header has supplied.
+ *
  * The get, post and cookie values stand in for the three arrays of the
  * original. They are read from the query string, from a urlencoded
  * body and from the cookie header, so that the names keep the case they
@@ -49,7 +54,7 @@
 
 		<!--- The scopes stand in for the superglobals, where the original reads $_GET, $_POST and $_COOKIE. --->
 		<cfif is_null(arguments.get)>
-			<cfset arguments.get = parse_str(CGI.QUERY_STRING)>
+			<cfset arguments.get = parse_str(server_value("QUERY_STRING"))>
 		</cfif>
 		<cfif is_null(arguments.post)>
 			<cfset arguments.post = readPost()>
@@ -89,15 +94,15 @@
 			<cfreturn this.server_[arguments.key]>
 		</cfif>
 
-		<cfset value = CGI[arguments.key]>
+		<cfset value = server_value(arguments.key)>
 
 		<!--- The web server gives the path without the query string. --->
 		<cfif arguments.key EQ "REQUEST_URI">
 			<cfif value EQ "">
-				<cfset value = CGI.PATH_INFO>
+				<cfset value = server_value("PATH_INFO")>
 			</cfif>
-			<cfif CGI.QUERY_STRING NEQ "">
-				<cfset value = value & "?" & CGI.QUERY_STRING>
+			<cfif server_value("QUERY_STRING") NEQ "">
+				<cfset value = value & "?" & server_value("QUERY_STRING")>
 			</cfif>
 		</cfif>
 
@@ -143,8 +148,8 @@
 		<cfset var key = "">
 
 		<cfloop collection="#CGI#" item="key">
-			<cfif CGI[key] NEQ "">
-				<cfset result[key] = CGI[key]>
+			<cfif server_value(key) NEQ "">
+				<cfset result[key] = server_value(key)>
 			</cfif>
 		</cfloop>
 
@@ -536,7 +541,7 @@
 		<cfset var query = "">
 		<cfset var key = "">
 
-		<cfif CGI.REQUEST_METHOD NEQ "POST">
+		<cfif server_value("REQUEST_METHOD") NEQ "POST">
 			<cfreturn CreateObject("java", "java.util.LinkedHashMap").init()>
 		</cfif>
 
