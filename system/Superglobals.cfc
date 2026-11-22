@@ -574,11 +574,12 @@
 		<cfset var seen = CreateObject("java", "java.util.HashMap").init()>
 		<cfset var name = "">
 		<cfset var position = 0>
+		<cfset var isElement = false>
 		<cfset var i = 0>
 
 		<cfloop from="1" to="#ArrayLen(pairs)#" index="i">
 			<cfif Trim(pairs[i]) NEQ "">
-				<!--- a name that repeats keeps its first value (a name with brackets appends) --->
+				<!--- a name that repeats keeps its first value (an array element appends) --->
 				<cfset name = Trim(pairs[i])>
 				<cfset position = Find("=", name)>
 				<cfif position GT 0>
@@ -591,11 +592,11 @@
 					<cfset name = Left(name, position - 1)>
 				</cfif>
 				<cfset name = LTrim(parse_str_decode(name))>
-				<cfif Find("[", name) EQ 0>
-					<cfset name = Replace(Replace(name, ".", "_", "all"), " ", "_", "all")>
-				</cfif>
+				<cfset position = Find("[", name)>
+				<cfset isElement = position GT 0 AND Find("]", name, position) GT 0>
+				<cfset name = parse_str_key(name)>
 
-				<cfif Find("[", name) GT 0 OR NOT seen.containsKey(name)>
+				<cfif isElement OR NOT seen.containsKey(name)>
 					<cfset seen.put(name, "")>
 
 					<!--- a cookie value is not form-encoded: keep a plus and an ampersand --->

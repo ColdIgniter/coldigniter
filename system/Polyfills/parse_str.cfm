@@ -41,6 +41,33 @@
 </cffunction>
 
 <!---
+ * The top-level key a name has in the result of parse_str(). The name is
+ * given decoded and left-trimmed.
+ *
+ * Only the part before the first bracket has its dots and spaces replaced.
+ * An opening bracket without a closing one becomes an underscore, the
+ * rest is kept. Shared with the cookie reader, so that both name a key
+ * the same way.
+--->
+<cffunction name="parse_str_key" returntype="string" output="no" hint="Returns the top-level key of a decoded name">
+	<cfargument name="name" type="string" required="yes">
+	<cfset var lead = arguments.name>
+	<cfset var position = Find("[", arguments.name)>
+
+	<cfif position GT 0>
+		<cfset lead = Left(arguments.name, position - 1)>
+	</cfif>
+
+	<cfset lead = Replace(Replace(lead, ".", "_", "all"), " ", "_", "all")>
+
+	<cfif position GT 0 AND Find("]", arguments.name, position) EQ 0 AND lead NEQ "">
+		<cfreturn lead & "_" & substr(arguments.name, position)>
+	</cfif>
+
+	<cfreturn lead>
+</cffunction>
+
+<!---
  * Parses a query string into an array with string keys (see array_()).
  *
  * Difference: the result is returned, as the original takes a second
@@ -75,9 +102,9 @@
 	<cfset var nexts = CreateObject("java", "java.util.IdentityHashMap").init()>
 	<cfset var number = "">
 	<cfset var one = CreateObject("java", "java.math.BigInteger").valueOf(JavaCast("long", 1))>
+	<cfset var maximum = CreateObject("java", "java.math.BigInteger").init(JavaCast("string", "9223372036854775807"))>
 	<cfset var maxVars = 1000>
 	<cfset var maxNesting = 64>
-	<cfset var lead = "">
 	<cfset var found = true>
 	<cfset var count = 0>
 	<cfset var position = 0>
@@ -124,24 +151,10 @@
 			<cfset keys = ArrayNew(1)>
 			<cfset rest = "">
 			<cfset position = Find("[", name)>
-
-			<cfif position GT 0>
-				<cfset lead = Left(name, position - 1)>
-			<cfelse>
-				<cfset lead = name>
-			</cfif>
-
-			<!--- only the part before the first bracket has its dots and spaces replaced --->
-			<cfset lead = Replace(Replace(lead, ".", "_", "all"), " ", "_", "all")>
+			<cfset ArrayAppend(keys, parse_str_key(name))>
 
 			<cfif position GT 0 AND Find("]", name, position) GT 0>
-				<cfset ArrayAppend(keys, lead)>
 				<cfset rest = substr(name, position - 1)>
-			<cfelseif position GT 0 AND lead NEQ "">
-				<!--- an opening bracket without a closing one becomes an underscore, the rest is kept --->
-				<cfset ArrayAppend(keys, lead & "_" & substr(name, position))>
-			<cfelse>
-				<cfset ArrayAppend(keys, lead)>
 			</cfif>
 
 			<cfloop condition="Left(rest, 1) EQ '[' AND Find(']', rest) GT 0">
@@ -162,14 +175,19 @@
 					<cfif key EQ "" AND j GT 1>
 						<cfset key = "0">
 						<cfif nexts.containsKey(container)>
+							<!--- past the largest integer the original refuses to append: the pair is dropped --->
+							<cfif nexts.get(container).compareTo(maximum) GT 0>
+								<cfbreak>
+							</cfif>
 							<cfset key = nexts.get(container).toString()>
 						</cfif>
 					</cfif>
 
-					<!--- keep the next free number of the map (only a canonical decimal integer is a number key) --->
-					<cfif REFind("^(0|[1-9][0-9]{0,17})$", key) GT 0>
+					<!--- keep the next free number of the map (only a canonical decimal integer up to the largest integer is a number key;
+					      after a negative key the next index is 0, as in the original before its 8.3 line) --->
+					<cfif REFind("^(0|[1-9][0-9]{0,18})$", key) GT 0>
 						<cfset number = CreateObject("java", "java.math.BigInteger").init(JavaCast("string", key))>
-						<cfif NOT nexts.containsKey(container) OR number.add(one).compareTo(nexts.get(container)) GT 0>
+						<cfif number.compareTo(maximum) LTE 0 AND (NOT nexts.containsKey(container) OR number.add(one).compareTo(nexts.get(container)) GT 0)>
 							<cfset nexts.put(container, number.add(one))>
 						</cfif>
 					</cfif>
