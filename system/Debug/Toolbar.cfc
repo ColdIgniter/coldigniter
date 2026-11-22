@@ -640,7 +640,7 @@
 		--->
 		<cfif StructKeyExists(query, "debugbar")>
 			<cfset output = file_get_contents(this.config.viewsPath & "toolbarloader.js")>
-			<cfset output = Replace(output, "{url}", REReplace(site_url(), "/+$", ""), "all")>
+			<cfset output = Replace(output, "{url}", rtrim_(site_url(), "/"), "all")>
 
 			<cfset request.ColdIgniter.output = output>
 			<cfcontent type="application/javascript">
@@ -652,7 +652,8 @@
 		 Otherwise, if it includes ?debugbar_time, then
 		 we should return the entire debugbar.
 		--->
-		<cfif StructKeyExists(query, "debugbar_time")>
+		<!--- as in the original, an empty value or "0" counts as absent --->
+		<cfif StructKeyExists(query, "debugbar_time") AND (NOT IsSimpleValue(query["debugbar_time"]) OR (Compare(query["debugbar_time"], "") NEQ 0 AND Compare(query["debugbar_time"], "0") NEQ 0))>
 			<cfset helper("security")>
 
 			<!--- Negotiate the content-type to format the output --->

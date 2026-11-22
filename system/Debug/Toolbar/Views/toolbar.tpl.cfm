@@ -20,7 +20,7 @@
 </style>
 
 <script id="toolbar_js">
-    var ciSiteURL = "#REReplace(site_url(), "/+$", "")#"
+    var ciSiteURL = "#rtrim_(site_url(), "/")#"
     #file_get_contents(toolbar.config.viewsPath & "toolbar.js")#
     #file_get_contents(toolbar.config.viewsPath & "toolbarstandalone.js")#
 </script>

@@ -117,6 +117,7 @@
 		<cfset var requiredResult = "">
 		<cfset var filtersClass = "">
 		<cfset var debugBarEnabled = false>
+		<cfset var debugOption = true>
 
 		<cfset this.renderVars["start"] = microtime(true)>
 
@@ -188,7 +189,15 @@
 			<cfset debugBarEnabled = in_array("ColdIgniter\Filters\DebugToolbar", filtersClass["after"])>
 		</cfif>
 
-		<cfif this.debug AND debugBarEnabled AND (is_null(arguments.options) OR NOT array_key_exists("debug", arguments.options) OR arguments.options["debug"] IS true)>
+		<!---
+		 Difference: the original compares with ===, so only the boolean true
+		 counts, not "true" or 1. The class of the value is checked for that.
+		--->
+		<cfif NOT is_null(arguments.options) AND array_key_exists("debug", arguments.options)>
+			<cfset debugOption = IsSimpleValue(arguments.options["debug"]) AND Compare(arguments.options["debug"].getClass().getName(), "java.lang.Boolean") EQ 0 AND arguments.options["debug"]>
+		</cfif>
+
+		<cfif this.debug AND debugBarEnabled AND debugOption>
 			<cfif in_array("ColdIgniter\Debug\Toolbar\Collectors\Views", config("Config\Toolbar").collectors)>
 				<!--- Clean up our path names to make them a little cleaner --->
 				<cfset this.renderVars["file"] = clean_path(this.renderVars["file"])>
