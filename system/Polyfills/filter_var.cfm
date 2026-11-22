@@ -18,6 +18,13 @@
  * Michael Rushton), run by the Java engine. A text of more than 320
  * characters is refused first, as the original does.
  *
+ * Difference: the Java engine has no limit on backtracking, so the parts of
+ * that expression that can be read in many ways are written in a form that
+ * can be read in one way only and accepts the same texts. The labels of the
+ * domain are "(label.)+" (the original has "((label.){1,126}){1,}" and an
+ * optional "xn--" that the label accepts anyway), and the two length checks
+ * at its start are done by filter_email_length_ and not by a lookahead.
+ *
  * The URL check keeps only the parts of the URL parser of the original that
  * the check needs: scheme, user, password, host and port.
 --->
@@ -126,18 +133,78 @@
 	<cfset var word = "(?:" & atom & ")|(?:" & quoted & ")">
 	<cfset var byte = "(?:25[0-5])|(?:2[0-4][0-9])|(?:1[0-9]{2})|(?:[1-9]?[0-9])">
 	<cfset var h = "[a-f0-9]{1,4}">
-	<cfset var domain = "(?:(?!.*[^.]{64,})(?:(?:(?:xn--)?[a-z0-9]+(?:-+[a-z0-9]+)*\.){1,126}){1,}(?:(?:[a-z][a-z0-9]*)|(?:(?:xn--)[a-z0-9]+))(?:-+[a-z0-9]+)*)">
+	<cfset var domain = "(?:(?!.*[^.]{64,})(?:[a-z0-9]+(?:-+[a-z0-9]+)*\.)+(?:(?:[a-z][a-z0-9]*)|(?:(?:xn--)[a-z0-9]+))(?:-+[a-z0-9]+)*)">
 	<cfset var ipv4 = "(?:" & byte & ")(?:\.(?:" & byte & ")){3}">
 	<cfset var ipv6full = "IPv6:(?:(?:" & h & "(?::" & h & "){7})|(?:(?!(?:.*[a-f0-9][:\]]){7,})(?:" & h & "(?::" & h & "){0,5})?::(?:" & h & "(?::" & h & "){0,5})?))">
 	<cfset var ipv6v4 = "(?:IPv6:(?:(?:" & h & "(?::" & h & "){5}:)|(?:(?!(?:.*[a-f0-9]:){5,})(?:" & h & "(?::" & h & "){0,3})?::(?:" & h & "(?::" & h & "){0,3}:)?)))?" & ipv4>
 	<cfset var literal = "(?:\[(?:(?:" & ipv6full & ")|(?:" & ipv6v4 & "))\])">
-	<cfset var regex = "(?i)(?!(?:(?:\x22?\x5C[\x00-\x7E]\x22?)|(?:\x22?[^\x5C\x22]\x22?)){255,})(?!(?:(?:\x22?\x5C[\x00-\x7E]\x22?)|(?:\x22?[^\x5C\x22]\x22?)){65,}@)(?:" & word & ")(?:\.(?:" & word & "))*@(?:" & domain & "|" & literal & ")">
+	<cfset var regex = "(?i)(?:" & word & ")(?:\.(?:" & word & "))*@(?:" & domain & "|" & literal & ")">
 
 	<cfif Len(arguments.value) GT 320>
 		<cfreturn false>
 	</cfif>
 
+	<cfif NOT filter_email_length_(arguments.value)>
+		<cfreturn false>
+	</cfif>
+
 	<cfreturn JavaCast("string", arguments.value).matches(regex)>
+</cffunction>
+
+<!---
+ * The two length checks at the start of the expression of the original:
+ * the text must not start with 255 units, nor with 65 units and then an at
+ * sign. A unit is a character that is not a quote or a backslash, or a
+ * backslash and the character after it (up to 126), with one optional quote
+ * before it and one after it.
+ *
+ * @return false when the text is too long
+--->
+<cffunction name="filter_email_length_" returntype="boolean" output="no" hint="The length checks of an email address">
+	<cfargument name="value" type="string" required="yes">
+	<cfset var length = Len(arguments.value)>
+	<cfset var position = 1>
+	<cfset var units = 0>
+	<cfset var quotes = 0>
+	<cfset var text = "">
+
+	<cfloop condition="position LTE length">
+		<cfset text = Mid(arguments.value, position, 1)>
+
+		<cfif Compare(text, Chr(34)) EQ 0>
+			<cfset quotes = quotes + 1>
+
+			<!--- one quote before the first unit, two between two units --->
+			<cfif units EQ 0 AND quotes GT 1 OR quotes GT 2>
+				<cfreturn true>
+			</cfif>
+
+			<cfset position = position + 1>
+		<cfelse>
+			<cfif Compare(text, "@") EQ 0 AND units GTE 65 AND quotes LTE 1>
+				<cfreturn false>
+			</cfif>
+
+			<cfif Compare(text, "\") EQ 0>
+				<cfif position EQ length OR Asc(Mid(arguments.value, position + 1, 1)) GT 126>
+					<cfreturn true>
+				</cfif>
+
+				<cfset position = position + 2>
+			<cfelse>
+				<cfset position = position + 1>
+			</cfif>
+
+			<cfset units = units + 1>
+			<cfset quotes = 0>
+
+			<cfif units GTE 255>
+				<cfreturn false>
+			</cfif>
+		</cfif>
+	</cfloop>
+
+	<cfreturn true>
 </cffunction>
 
 <!---
