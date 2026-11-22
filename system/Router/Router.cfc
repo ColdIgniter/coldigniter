@@ -304,7 +304,7 @@
 		</cfif>
 
 		<cfif arguments.uri NEQ "/">
-			<cfset arguments.uri = REReplace(arguments.uri, "^[/ ]+|[/ ]+$", "", "all")>
+			<cfset arguments.uri = trim_(arguments.uri, "/ ")>
 		</cfif>
 
 		<!--- Loop through the route array looking for wildcards --->
@@ -326,6 +326,7 @@
 			<!--- Not ported yet: {locale} --->
 
 			<!--- Does the RegEx match? --->
+			<cfset regex_guard_(arguments.uri)>
 			<cfset matcher = CreateObject("java", "java.util.regex.Pattern").compile("^" & routeKey & "$").matcher(arguments.uri)>
 			<cfif matcher.matches()>
 				<!--- Not ported yet: redirect routes, closures --->

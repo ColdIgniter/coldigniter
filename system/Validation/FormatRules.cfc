@@ -138,7 +138,8 @@
 
 		<cfset arguments.str = strval(arguments.str)>
 
-		<cfreturn JavaCast("string", arguments.str).matches("[-+]?[0-9]*\.?[0-9]+")>
+		<!--- Difference: no optional part before the digits, because [0-9]*\.?[0-9]+ is quadratic on a long run of digits. The same strings match. --->
+		<cfreturn JavaCast("string", arguments.str).matches("[-+]?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)")>
 	</cffunction>
 
 	<!---
@@ -207,7 +208,8 @@
 
 		<cfset arguments.str = strval(arguments.str)>
 
-		<cfreturn JavaCast("string", arguments.str).matches("[\-+]?[0-9]*\.?[0-9]+")>
+		<!--- Difference: no optional part before the digits, because [0-9]*\.?[0-9]+ is quadratic on a long run of digits. The same strings match. --->
+		<cfreturn JavaCast("string", arguments.str).matches("[\-+]?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)")>
 	</cffunction>
 
 	<!---
@@ -308,6 +310,8 @@
 		<cfset body = Replace(body, "[:graph:]", "\x21-\x7E", "all")>
 
 		<cftry>
+			<!--- a subject that is too long throws and is caught below, so the rule fails --->
+			<cfset regex_guard_(arguments.str)>
 			<cfset matcher = CreateObject("java", "java.util.regex.Pattern").compile(JavaCast("string", prefix & body)).matcher(JavaCast("string", arguments.str))>
 
 			<cfreturn matcher.find()>
