@@ -204,6 +204,18 @@
 	<!---
 	 * Attempts to detect if the current connection is secure through
 	 * a few different methods.
+	 *
+	 * Difference: a request header can supply the HTTPS variable on the
+	 * server (verified: "HTTPS: on" made the original check true), and the
+	 * servlet request and SERVER_PORT_SECURE can be changed the same way,
+	 * so no value of the server is safe on its own. The server value is
+	 * read through server_value() (see Common.cfm), which returns nothing
+	 * when the request has a header of that name, so a forged request is
+	 * not secure.
+	 *
+	 * X-Forwarded-Proto and Front-End-Https are request headers by nature.
+	 * As in the original they count only when the request comes from a
+	 * trusted proxy (App::proxyIPs), which is not changed.
 	--->
 	<cffunction name="isSecure" access="public" returntype="boolean" output="no">
 		<cfset var https = service("superglobals").server("HTTPS")>
