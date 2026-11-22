@@ -9,15 +9,14 @@
  * and whenNot(), this builder and the condition) and has to return a value,
  * which is ignored.
  *
- * Difference: the methods that have the name of a built-in function or the
- * name of a property have a trailing underscore: db_(), insert_() and
- * replace_(), and the properties db_ and testMode_.
+ * Difference: the methods that have the name of a built-in function have a
+ * trailing underscore: insert_() and replace_(). The properties that have the
+ * name of a method do too: db_ and testMode_.
  *
  * Difference: a null is an empty string and a boolean is the text "true" or
  * "false", so an argument that is "?bool $escape = null" is an empty string
- * for null. A value that is omitted is the null of where(), orWhere(),
- * having() and orHaving(): where("name") is "name IS NULL", and a value that
- * is an empty string is a string. A limit and an offset have to be numbers
+ * for null. A value that is omitted or an empty string is the null of where(),
+ * orWhere(), having() and orHaving(): where("name") is "name IS NULL". A limit and an offset have to be numbers
  * (they are written as numbers, never quoted), and QBLimit and QBOffset are
  * the text "false" when they are not set.
  *
@@ -364,7 +363,7 @@
 	 *
 	 * @return BaseConnection
 	--->
-	<cffunction name="db_" access="public" returntype="any" output="no">
+	<cffunction name="db" access="public" returntype="any" output="no">
 
 		<cfreturn this.db_>
 	</cffunction>
@@ -853,6 +852,7 @@
 		<cfargument name="valueGiven" type="boolean" required="no" default="true">
 		<cfset var rawSqlOnly = "false">
 		<cfset var isNullValue = "false">
+		<cfset var isNullEntry = "false">
 		<cfset var keyValue = array_()>
 		<cfset var escape_ = resolveEscape_(arguments.escape)>
 		<cfset var prefix = "">
@@ -896,10 +896,13 @@
 			<cfset k = keys[i]>
 			<cfset v = keyValue[k]>
 
+			<!--- an empty string is the null, as well as an omitted value --->
+			<cfset isNullEntry = isNullValue OR isNullArg_(v)>
+
 			<cfif rawSqlOnly>
 				<cfset k = "">
 				<cfset op = "">
-			<cfelseif NOT isNullValue>
+			<cfelseif NOT isNullEntry>
 				<cfset ops = getOperatorFromWhereKey(k)>
 
 				<cfif ArrayLen(ops) GT 0>
