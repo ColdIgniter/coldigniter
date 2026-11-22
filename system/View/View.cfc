@@ -130,8 +130,16 @@
 
 		<!--- Not ported yet: Was it cached? --->
 
-		<!--- Not ported yet: namespaced views and the overrides folder --->
+		<!--- Not ported yet: the overrides folder --->
 		<cfset this.renderVars["file"] = this.viewPath & this.renderVars["view"]>
+
+		<!---
+		 Difference: a namespaced view (with a backslash) is found through the namespaces
+		 of the autoloader, instead of service("locator").locateFile().
+		--->
+		<cfif Find("\", this.renderVars["view"]) GT 0>
+			<cfset this.renderVars["file"] = locateNamespacedView(this.renderVars["view"])>
+		</cfif>
 
 		<!--- Not ported yet: the file locator --->
 		<cfif NOT is_file(this.renderVars["file"])>
@@ -153,6 +161,43 @@
 		<cfset this.tempData = "">
 
 		<cfreturn output>
+	</cffunction>
+
+	<!---
+	 * Finds the file of a namespaced view, like
+	 * "ColdIgniter\Validation\Views\list.cfm": the longest namespace of the
+	 * autoloader that starts the name gives the folder, and the rest is the
+	 * path below it.
+	 *
+	 * @return The full path of the file, or an empty string if there is none
+	--->
+	<cffunction name="locateNamespacedView" access="private" returntype="string" output="no">
+		<cfargument name="view" type="string" required="yes">
+		<cfset var prefixes = request.ColdIgniter.autoloader.prefixes>
+		<cfset var best = "">
+		<cfset var prefix = "">
+		<cfset var file = "">
+		<cfset var i = 0>
+
+		<cfloop collection="#prefixes#" item="prefix">
+			<cfif Len(prefix) GT Len(best) AND Left(arguments.view, Len(prefix) + 1) EQ prefix & "\">
+				<cfset best = prefix>
+			</cfif>
+		</cfloop>
+
+		<cfif best EQ "">
+			<cfreturn "">
+		</cfif>
+
+		<cfloop from="1" to="#ArrayLen(prefixes[best])#" index="i">
+			<cfset file = prefixes[best][i] & Replace(Mid(arguments.view, Len(best) + 2, Len(arguments.view)), "\", request.DIRECTORY_SEPARATOR, "all")>
+
+			<cfif is_file(file)>
+				<cfreturn file>
+			</cfif>
+		</cfloop>
+
+		<cfreturn "">
 	</cffunction>
 
 	<!---
