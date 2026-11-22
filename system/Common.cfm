@@ -479,11 +479,14 @@
  * request, "Remote-Addr: 192.0.2.9" changes the client address and
  * "Request-Method: POST" the method, and the servlet request has no value
  * that a header cannot reach. What a client cannot change is the list of
- * the header names it sent (the engine gives every name in upper case with
- * dashes, so "Server_Port" and "Server-Port" are the same). So the CGI
+ * the header names it sent (the engine gives every name in upper case, and
+ * "Server_Port" and "Server-Port" are one name; dots stay as they are). The
+ * names are compared with everything but letters and digits removed, on both
+ * sides, so no spelling of a variable's name can get past. So the CGI
  * scope is read for a name only if
  *  - it starts with "HTTP_" (a request header, as in the original), or
- *  - it is in the fixed list below and no request header has that name.
+ *  - it is in the fixed list below and no request header has that name
+ *    (in the stripped form).
  * A server variable that a header has supplied reads as empty (a client
  * that forges one gets no value, for HTTPS that means "not secure"). Any
  * other name is not read: a header can supply any name.
@@ -519,11 +522,12 @@
 		<cfset request.ColdIgniter.headerNames = StructNew()>
 
 		<cfloop collection="#headers#" item="name">
-			<cfset request.ColdIgniter.headerNames[UCase(Replace(name, "-", "_", "all"))] = true>
+			<cfset request.ColdIgniter.headerNames[REReplace(UCase(name), "[^A-Z0-9]", "", "all")] = true>
 		</cfloop>
 	</cfif>
 
-	<cfif StructKeyExists(request.ColdIgniter.headerNames, UCase(arguments.key))>
+	<!--- Difference: names are compared with everything but letters and digits removed, so a header spelled with dashes, dots or doubled separators still counts as the variable --->
+	<cfif StructKeyExists(request.ColdIgniter.headerNames, REReplace(UCase(arguments.key), "[^A-Z0-9]", "", "all"))>
 		<cfreturn "">
 	</cfif>
 

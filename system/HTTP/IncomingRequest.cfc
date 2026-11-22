@@ -213,6 +213,11 @@
 	 * when the request has a header of that name, so a forged request is
 	 * not secure.
 	 *
+	 * A front end that itself sets a header named HTTPS on real https
+	 * requests makes the variable read as empty, so the request counts as
+	 * not secure (and ForceHTTPS would redirect forever). Such a set-up has
+	 * to be configured as a trusted proxy with X-Forwarded-Proto instead.
+	 *
 	 * X-Forwarded-Proto and Front-End-Https are request headers by nature.
 	 * As in the original they count only when the request comes from a
 	 * trusted proxy (App::proxyIPs), which is not changed.

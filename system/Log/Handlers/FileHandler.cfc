@@ -17,10 +17,13 @@
  * (the extensions cfm, cfml and cfc, in any case) cannot be protected by
  * a header, so handle() returns false for them and writes nothing.
  *
- * Difference: the extension is used as it is in the original. Here an
- * extension that holds a slash, a backslash, a colon or two dots in a row
- * is refused the same way (handle() returns false), so the file cannot be
- * written outside of the log folder.
+ * Difference: the extension is used as it is in the original. Here only an
+ * extension of letters and digits (the whole text) is accepted, and the
+ * names the server runs or treats as special (cfm, cfml, cfc, jsp, asp, exe,
+ * bat, and so on, in any case) are refused. Anything else makes handle()
+ * return false and write nothing, so the file cannot leave the log folder
+ * or change name on the way to the file system. An empty extension is the
+ * default "log", as in the original.
  *
  * Not ported yet: the file permissions (chmod) of a new file.
 --->
@@ -96,13 +99,14 @@
 		<cfset var written = true>
 		<cfset var extension = LCase(this.fileExtension)>
 
-		<!--- Files that the server runs cannot be protected with a header (see above) --->
-		<cfif ListFindNoCase("cfm,cfml,cfc", extension) GT 0>
+		<!--- An extension is letters and digits only; it must not leave the log folder or change on the way to the file system --->
+		<!--- Difference: a Java match of the whole text (a newline cannot fool it); the original has no such check --->
+		<cfif NOT CreateObject("java", "java.lang.String").init(this.fileExtension).matches("[A-Za-z0-9]+")>
 			<cfreturn false>
 		</cfif>
 
-		<!--- An extension must not leave the log folder --->
-		<cfif REFind("[/\\:]", extension) GT 0 OR Find("..", extension) GT 0>
+		<!--- Files that the server runs cannot be protected with a header (see above), and some names are special to the server or the system --->
+		<cfif ListFindNoCase("cfm,cfml,cfc,jsp,jws,asp,asa,cer,cdx,shtml,shtm,stm,idc,htr,htw,ida,idq,printer,exe,dll,bat,cmd,com,pl", extension) GT 0>
 			<cfreturn false>
 		</cfif>
 
