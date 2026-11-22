@@ -244,3 +244,59 @@ Scratch layout on the server: the page in `public\_t\`, an app tree in `_tapp\de
 - Timing on this box: 200 creations with copying took 187 ms, 200 plain creations 141 ms.
 - The real bootstrap files (`public/index.cfm`, `app/Config/Paths.cfm`, `system/Boot.cfm`, `system/Boot.cfc`), run from the scratch layout with only the `appDirectory` line changed: 503 with "The WRITEPATH is not set correctly." when the writable folder was missing, and 200 with all six path values once it existed.
 
+## Running a request end to end: verified behaviour (third session, 2026-11-22)
+
+Found while getting the router, a controller and a view to run on the server.
+
+Names:
+
+- A function cannot have the name of a built-in function, and this is true for component methods too. `initialize`, `setLocale` and `getLocale` were refused at compile time with "The names of user defined functions cannot be the same as built-in ColdFusion functions".
+- These method names are allowed: `get post put delete options head patch add run send render handle header __construct`.
+- An argument named `request` hides the Request scope inside that function.
+- An argument or a `var` with the name of a function hides the function; `variables.name(...)` still reaches the function.
+- A method named `request` or `server` has to be called through `this.` from inside the component.
+- `this.config` as data and a function named `config` can exist together when the function is not public. A public method lives in `this`, so a `this` value with the same name would take its place.
+- Defining the same function twice in one page or component fails.
+
+Components:
+
+- The Variables scope of a component holds its own functions only, not the inherited ones, and it has a `THIS` key. `Evaluate(name)` inside the object does return an inherited private function.
+- A function copied out of one object and stored in another runs against the new object, and `super.method()` still works inside it.
+- A struct of functions taken from another object can be called as `parent.method()`; the function runs against the calling object.
+- A custom attribute on `cfcomponent` (for example `parent="..."`) shows up in `GetMetaData(obj)`.
+- `GetMetaData(obj).functions` is an array of structs with `name` and `access`.
+- `this.privateMethod()` fails; a private method is called without a scope.
+- A function that returns nothing leaves the variable it was assigned to undefined.
+- `ArrayLen(arguments)` counts the declared arguments, also those not passed.
+- `Evaluate("obj.#method#(a, b)")` works for calling a method by name with positional arguments.
+- `extends` and `CreateObject` take no file path, only a dotted name.
+
+Output:
+
+- No output leaves a chain of `output="no"` calls. The body has to be handed back and written by the requested page.
+- `cfheader` and `cfcontent type` do work inside an `output="no"` method.
+- A view renders inside an `output="no"` method with `cfsavecontent`, then `cfsetting enablecfoutputonly="no"`, then `cfinclude`. The included file reads and writes the arguments and `var` locals of that method.
+
+Functions and Java:
+
+- `RemoveChars` fails on an empty string (the start has to be inside the string).
+- `REFind(re, string, 1, true)` returns `pos` and `len` arrays.
+- `java.util.regex.Pattern` works. `java.lang.String.split` cannot be called on a CFML string.
+- `java.util.LinkedHashMap` passes `IsStruct`, keeps the order of its keys, is case-sensitive, and is read with brackets only. `StructIsEmpty` fails on it; `StructCount` works.
+- `cfthrow type="A.B.C"` with `errorcode` works, and `cfcatch type="A.B"` catches it.
+- Arrays are copied on assignment.
+- `GetHttpRequestData()` has the keys `protocol`, `content`, `method`, `headers`.
+- `CGI[key]` works with the name in a variable.
+- More `../` than there are folders in a `cfinclude` path stops at the drive root.
+
+Request values on this site (IIS 4 with the rewrite rules in `public/.htaccess`):
+
+- `/`: `SCRIPT_NAME`, `PATH_INFO` and `REQUEST_URI` are all `/index.cfm`.
+- `/foo/bar?x=1` (rewritten): `PATH_INFO` and `REQUEST_URI` are `/index.cfm/foo/bar`, `QUERY_STRING` is `x=1`.
+- `/index.cfm?/foo/bar`: `QUERY_STRING` is `/foo/bar`.
+- `SERVER_PROTOCOL` is `HTTP/1.1`, `HTTPS` is `off`, `SERVER_PORT` is `80`.
+- A `.htaccess` file in a subfolder is not used.
+
+### Cached metadata of a child component
+
+- `GetMetaData()` of a component keeps the metadata of its `extends` chain from the time the child was compiled. After the `parent` attribute of `app/Controllers/BaseController.cfc` was changed and uploaded, `Home.cfc` (which extends it and was not changed) still reported the old value, and the request failed with "Class not found" for the old name. Uploading `Home.cfc` again, unchanged, made the server compile it again and fixed it. So: when an attribute of a base component changes, upload its children again too.
