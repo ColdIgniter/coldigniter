@@ -221,6 +221,15 @@
 	 * the features that only the original has (named groups with ?P, \h, \R,
 	 * \x{...}), which fail to compile and are not a match.
 	 *
+	 * Difference: with the modifier x the Java engine also ignores a space
+	 * inside a character class, and the original keeps it there ("/[ ]/x"
+	 * matches a space in the original and nothing here).
+	 *
+	 * Difference: the Java engine has no limit on backtracking. A pattern
+	 * that the original gives up on (and so does not match) can keep the
+	 * request busy here; the pattern is written by the developer, never by
+	 * the client.
+	 *
 	 * @param str string|null
 	 * @param pattern string
 	--->
@@ -526,6 +535,10 @@
 
 	<!---
 	 * Checks a URL to ensure it's formed correctly.
+	 *
+	 * Difference: an empty list of schemes ("valid_url_strict[]") cannot be
+	 * told apart from no list, so it means "http,https" here. In the
+	 * original it allows no scheme at all and no URL passes.
 	 *
 	 * @param str string|null
 	 * @param validSchemes string|null comma separated list of allowed schemes

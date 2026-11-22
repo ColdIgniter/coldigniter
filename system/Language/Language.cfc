@@ -11,7 +11,7 @@
  * folder "Language/{locale}" of every namespace the autoloader knows
  * (system first, then the application), see requireFile.
  *
- * Difference: a language file is not a PHP file that returns an array. It is
+ * Difference: a language file is not a script that returns an array. It is
  * a .cfm file that sets the variable "lines" to a map (see array_()), and
  * it is included by Language/Closure.cfc.
  *
@@ -246,7 +246,8 @@
 	 * Difference: only {name} (a key of a map of arguments) and {0} (the
 	 * position in a list of arguments, counted from zero) are replaced, in
 	 * one pass, so a value that has braces in it is not replaced again. A
-	 * brace that names no argument stays as it is.
+	 * brace that names no argument stays as it is. The quoting of ICU is not
+	 * known: "'{0}'" stays as it is in the original and is replaced here.
 	 *
 	 * @param message A string, or a list of strings
 	 * @param args    A map, a list, or an empty string for none
