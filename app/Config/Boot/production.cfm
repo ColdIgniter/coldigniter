@@ -5,8 +5,9 @@
  | Don't show ANY in production environments. Instead, let the system catch
  | it and display a generic error message.
  |
- | Nothing is set here yet: the error handler is not ported.
+ | Not ported yet: error_reporting, CFML has no error levels.
 --->
+<cfset ini_set("display_errors", "0")>
 
 <!---
  |--------------------------------------------------------------------------

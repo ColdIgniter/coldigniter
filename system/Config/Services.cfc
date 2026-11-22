@@ -42,6 +42,24 @@
 	</cffunction>
 
 	<!---
+	 * The Exceptions class holds the Exception handler.
+	--->
+	<cffunction name="exceptions" access="public" returntype="any" output="no">
+		<cfargument name="config" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("exceptions", arguments.config)>
+		</cfif>
+
+		<cfif is_null(arguments.config)>
+			<cfset arguments.config = variables.config("Config\Exceptions")>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\Debug\Exceptions", arguments.config)>
+	</cffunction>
+
+	<!---
 	 * The Renderer class is the class that actually displays a file to the user.
 	 * The default View class within ColdIgniter is intentionally simple, but this
 	 * service could easily be replaced by a template engine if the user needed to.
