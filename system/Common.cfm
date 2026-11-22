@@ -132,6 +132,63 @@
 </cffunction>
 
 <!---
+ * Used to force a page to be accessed in via HTTPS.
+ * Uses a standard redirect, plus will set the HSTS header
+ * for modern browsers that support, which gives best
+ * protection against man-in-the-middle attacks.
+ *
+ * @see https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security
+ *
+ * @param duration How long should the SSL header be set for? (in seconds)
+ *                 Defaults to 1 year.
+ * @param request_ An empty string for the shared request
+ * @param response An empty string for the shared response
+ *
+ * The response is changed to the redirect, and then
+ * ColdIgniter.HTTP.Exceptions.RedirectException is thrown (see
+ * RedirectException): the caller takes the redirect from the response it
+ * passed in.
+ *
+ * Not ported yet: is_cli(), the session ID regeneration, the testing
+ * environment, withScheme() (the scheme is replaced in the string of the
+ * URI) and clearing the cookies of the response (there is no cookie store).
+--->
+<cffunction name="force_https" returntype="void" output="no" hint="Used to force a page to be accessed in via HTTPS">
+	<cfargument name="duration" type="numeric" required="no" default="31536000">
+	<cfargument name="request_" type="any" required="no" default="">
+	<cfargument name="response" type="any" required="no" default="">
+	<cfset var uri = "">
+	<cfset var scheme = "">
+
+	<cfif is_null(arguments.request_)>
+		<cfset arguments.request_ = service("request")>
+	</cfif>
+
+	<cfif NOT instanceof_(arguments.request_, "ColdIgniter\HTTP\IncomingRequest")>
+		<cfreturn>
+	</cfif>
+
+	<cfif is_null(arguments.response)>
+		<cfset arguments.response = service("response")>
+	</cfif>
+
+	<cfif arguments.request_.isSecure() OR Compare(arguments.request_.getServer("HTTPS"), "test") EQ 0>
+		<cfreturn>
+	</cfif>
+
+	<cfset scheme = arguments.request_.getUri().getScheme()>
+	<cfset uri = "https" & Mid(arguments.request_.getUri().__toString(), Len(scheme) + 1, Len(arguments.request_.getUri().__toString()))>
+
+	<!--- Set an HSTS header --->
+	<cfset arguments.response.setHeader("Strict-Transport-Security", "max-age=" & arguments.duration)>
+	<cfset arguments.response.redirect(uri)>
+	<cfset arguments.response.setStatusCode(307)>
+	<cfset arguments.response.setBody("")>
+
+	<cfset static_("ColdIgniter\HTTP\Exceptions\RedirectException").forResponse()>
+</cffunction>
+
+<!---
  * Loads a helper file into memory. Supports namespaced helpers,
  * both in and out of the 'Helpers' directory of a namespaced directory.
  *

@@ -2,7 +2,7 @@
  * Class RouteCollection
  *
  * Not ported yet: route groups, resource and presenter routes, match,
- * map, redirects, named routes and reverse routing, filters, priority,
+ * map, redirects, named routes and reverse routing, group filters, priority,
  * hostname and subdomain limits, the offset option, closures as
  * handlers, route discovery in modules, and environment().
 --->
@@ -583,6 +583,55 @@
 		<cfset create("OPTIONS", arguments.from, arguments.to, arguments.options)>
 
 		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Returns true if the route has a filter option set (the "filter"
+	 * option of the route).
+	 *
+	 * @param search The route key, as it is in the routes
+	 * @param verb   HTTP verb like `GET`,`POST` or `*` or `CLI`; empty for the current one
+	--->
+	<cffunction name="isFiltered" access="public" returntype="boolean" output="no">
+		<cfargument name="search" type="string" required="yes">
+		<cfargument name="verb" type="string" required="no" default="">
+		<cfset var options = loadRoutesOptions(arguments.verb)>
+
+		<cfreturn StructKeyExists(options, arguments.search) AND IsStruct(options[arguments.search]) AND StructKeyExists(options[arguments.search], "filter")>
+	</cffunction>
+
+	<!---
+	 * Returns the filters that should be applied for a single route, along
+	 * with any parameters it might have. Parameters are found by splitting
+	 * the parameter name on a colon to separate the filter name from the parameter list,
+	 * and the splitting the result on commas. So:
+	 *
+	 *    "role:admin,manager"
+	 *
+	 * has a filter of "role", with parameters of ["admin", "manager"].
+	 *
+	 * @param search The route key, as it is in the routes
+	 * @param verb   HTTP verb like `GET`,`POST` or `*` or `CLI`; empty for the current one
+	 *
+	 * @return A list of filter names (with their parameters).
+	--->
+	<cffunction name="getFiltersForRoute" access="public" returntype="array" output="no">
+		<cfargument name="search" type="string" required="yes">
+		<cfargument name="verb" type="string" required="no" default="">
+		<cfset var options = loadRoutesOptions(arguments.verb)>
+		<cfset var result = ArrayNew(1)>
+
+		<cfif NOT StructKeyExists(options, arguments.search) OR NOT IsStruct(options[arguments.search]) OR NOT StructKeyExists(options[arguments.search], "filter")>
+			<cfreturn result>
+		</cfif>
+
+		<cfif IsSimpleValue(options[arguments.search]["filter"])>
+			<cfset ArrayAppend(result, options[arguments.search]["filter"])>
+
+			<cfreturn result>
+		</cfif>
+
+		<cfreturn options[arguments.search]["filter"]>
 	</cffunction>
 
 	<!---

@@ -7,6 +7,8 @@
 <cfinclude template="array_key_exists.cfm">
 <cfinclude template="array_merge.cfm">
 <cfinclude template="array_replace_recursive.cfm">
+<cfinclude template="array_reverse.cfm">
+<cfinclude template="array_unique.cfm">
 <cfinclude template="class_exists.cfm">
 <cfinclude template="define.cfm">
 <cfinclude template="defined.cfm">
@@ -16,6 +18,7 @@
 <cfinclude template="includePath.cfm">
 <cfinclude template="ini_get.cfm">
 <cfinclude template="ini_set.cfm">
+<cfinclude template="instanceof_.cfm">
 <cfinclude template="is_array.cfm">
 <cfinclude template="is_file.cfm">
 <cfinclude template="is_null.cfm">

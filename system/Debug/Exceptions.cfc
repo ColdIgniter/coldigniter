@@ -150,7 +150,7 @@
 		 instanceof HTTPExceptionInterface: the exceptions of the port
 		 that implement it, with the status code in the error code.
 		--->
-		<cfif ListFindNoCase("ColdIgniter.Exceptions.PageNotFoundException,ColdIgniter.HTTP.Exceptions.BadRequestException", arguments.exception.type) GT 0
+		<cfif ListFindNoCase("ColdIgniter.Exceptions.PageNotFoundException,ColdIgniter.HTTP.Exceptions.BadRequestException,ColdIgniter.Security.Exceptions.SecurityException", arguments.exception.type) GT 0
 				AND IsNumeric(arguments.exception.errorcode)>
 			<cfset statusCode = arguments.exception.errorcode>
 		</cfif>
