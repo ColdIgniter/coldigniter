@@ -10,25 +10,26 @@
 
 <!---
  *---------------------------------------------------------------
- * LOAD OUR PATHS CONFIG FILE
+ * BOOTSTRAP THE APPLICATION
  *---------------------------------------------------------------
- * No ColdFusion mapping is needed: the folders are found by plain
- * relative paths.
+ * This process sets up the path constants, loads and registers
+ * our autoloader, loads our constants and fires up an
+ * environment-specific bootstrapping.
 --->
 
+<!--- LOAD OUR PATHS CONFIG FILE --->
 <!--- This is the line that might need to be changed, depending on your folder structure. --->
-<cfset appDirectory = "../app">
+<cfinclude template="../app/Config/Paths.cfm">
 <!--- ^^^ Change this line if you move your application folder --->
 
-<cfinclude template="#appDirectory#/Config/Paths.cfm">
-<cfset systemDirectory = "#appDirectory#/Config/#paths.systemDirectory#">
+<!--- cfinclude only takes a relative path, so the system folder is reached from the top of the drive. --->
+<cfset rootDirectory = RepeatString("../", ListLen(REReplace(request.FCPATH, "^[A-Za-z]:", ""), "\/"))>
+<cfset systemDirectory = rootDirectory & REReplace(Replace(paths.systemDirectory, "\", "/", "all"), "^([A-Za-z]:)?/", "")>
 
 <!---
  *---------------------------------------------------------------
  * CHECK CFML VERSION
  *---------------------------------------------------------------
- * This comes after the paths, because version_compare() is not
- * built in and has to be loaded from the system folder.
 --->
 <cfinclude template="#systemDirectory#/Polyfills/version_compare.cfm">
 
@@ -43,13 +44,17 @@
 	<cfabort>
 </cfif>
 
-<!---
- *---------------------------------------------------------------
- * BOOTSTRAP THE APPLICATION
- *---------------------------------------------------------------
- * This process sets up the path values and hands over to the
- * framework.
---->
-
 <!--- LOAD THE FRAMEWORK BOOTSTRAP FILE --->
 <cfinclude template="#systemDirectory#/Boot.cfm">
+
+<cfset Boot.bootWeb(paths)>
+
+<!--- TEMPORARY: shows that the boot ran. Goes away when the rest of bootWeb() is ported. --->
+<cfcontent type="text/plain">
+<cfoutput>ColdIgniter boot ok#Chr(10)#</cfoutput>
+<cfoutput>FCPATH     #request.FCPATH##Chr(10)#</cfoutput>
+<cfoutput>APPPATH    #request.APPPATH##Chr(10)#</cfoutput>
+<cfoutput>ROOTPATH   #request.ROOTPATH##Chr(10)#</cfoutput>
+<cfoutput>SYSTEMPATH #request.SYSTEMPATH##Chr(10)#</cfoutput>
+<cfoutput>WRITEPATH  #request.WRITEPATH##Chr(10)#</cfoutput>
+<cfoutput>TESTPATH   #request.TESTPATH##Chr(10)#</cfoutput>
