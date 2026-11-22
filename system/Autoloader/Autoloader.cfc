@@ -34,7 +34,7 @@
  * the object itself; new_() and static_() call instantiate().
  *
  * Not ported yet: classmap loading, sanitizeFilename, loadComposerAutoloader,
- * loadHelpers, unregister.
+ * unregister.
 --->
 <cfcomponent output="no" hint="An autoloader that uses both PSR4 autoloading, and traditional classmaps">
 
@@ -254,6 +254,13 @@
 		<cfargument name="class" type="string" required="yes">
 
 		<cfreturn loadInNamespace(REReplace(arguments.class, "^\\+", "")) NEQ "">
+	</cffunction>
+
+	<!---
+	 * Loads helpers
+	--->
+	<cffunction name="loadHelpers" access="public" returntype="void" output="no">
+		<cfset helper(this.helpers)>
 	</cffunction>
 
 	<!---
