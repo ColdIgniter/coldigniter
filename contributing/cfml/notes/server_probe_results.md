@@ -344,3 +344,15 @@ Request values on this site (IIS 4 with the rewrite rules in `public/.htaccess`)
 - `java.lang.StringBuffer.append()` was wrapped in `JavaCast("string", ...)` so a numeric-looking piece (`0012`) is not given to a numeric overload; `x=%410012` gives `A0012`, `x=0012` stays `0012`.
 - A number key is only a canonical decimal integer (`^(0|[1-9][0-9]{0,17})$`): `f[007]=a&f[]=b` gives keys `007` and `0`; a 20-digit key is kept as it is and the next is `0`. The next free number is kept in a `java.math.BigInteger` because `ToString(Int(1E+018))` prints in E notation (`f[999999999999999999]=a&f[]=b` gives `1000000000000000000`).
 - A cookie name is checked for a repeat after it is normalised like `parse_str` does: `a.b=1; a_b=2` gives `a_b` = 1 and `%61=1; a=2` gives `a` = 1.
+
+## Filters and events (verified on the server)
+
+- A component method named `log` fails to compile ("names of user defined functions cannot be the same as built-in ColdFusion functions"); other built-in names such as `search` are listed in the same error. Use a trailing underscore.
+- A component-body default cannot call a user function such as `array_()`; `CreateObject("java","java.util.LinkedHashMap").init()` works there and keeps insertion order (read and write with brackets, `cfloop collection`; `IsStruct` is true, `IsArray` false).
+- `Evaluate("target.method(args)")` calls a method on an object or a component name, which is the callable form of events and filters.
+- A Request returned by a before filter replaces the request; a Response stops the controller (403 from a filter, controller not run).
+- `cfthrow` with a dotted type and `errorcode` is shown as a 500 unless the type is in the status-code list of `Debug/Exceptions` (`SecurityException` was added: InvalidChars answers 400 for `%01` and for `%FF`).
+- `ForceHTTPS` on IIS answers 307 with `Refresh: 0;url=https://...` and `Strict-Transport-Security: max-age=31536000`, also for a 404 route.
+- `<cfreturn false>` from a method arrives as the string `"false"` (`java.lang.String`, `Compare(r, "false")` is 0); `<cfreturn 0>` and `"no"` are strings too. Only `JavaCast("boolean", false)` is a `java.lang.Boolean` (`Compare` against `"false"` is not 0, it reads as `NO`). An event listener returning `false` or `"false"` stops the chain; `0`, `"0"`, `"no"` and nothing do not. A before filter returning true, false or 0 lets the next filter run, any other non-empty string stops the filters.
+- `URLDecode` of a path with a lone or bad `%` is guarded in `Filters.initialize_` (`parse_str_decode`). A bad escape in the request query (`?/a/%zz`, also `?/a?x=%zz`) is answered by the engine itself with a bare "JRun Servlet Error 500 null" before the framework runs; the filter code is not involved.
+- InvalidChars (query `?/flt/plain?ft=2&x=...`): `%01`, `%7F` and `%C2%85` (U+0085) answer 400; `%0A`, `%09`, `%0D`, `%C3%A9` and plain text pass. U+0085 is refused by the original too: `[:^cntrl:]` with the u modifier runs in Unicode property mode, where it is the Cc category (checked with pcre2test: refused with UCP, accepted without).

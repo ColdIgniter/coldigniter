@@ -4,7 +4,7 @@
  * Of course, there are variations to that flow, but this is the
  * objective.
  *
- * Not ported yet: the benchmark, events, filters, the page cache,
+ * Not ported yet: the benchmark, the page cache,
  * Kint, forceSecureAccess, method spoofing, the previous URL, the
  * controller attributes, closures as controllers and _remap.
 --->
@@ -123,6 +123,8 @@
 		<cfargument name="routes" type="any" required="no" default="">
 		<cfargument name="returnResponse" type="boolean" required="no" default="false">
 		<cfset var e = "">
+		<cfset var filters = "">
+		<cfset var possibleResponse = "">
 
 		<cfif is_null(this.context)>
 			<cfthrow type="ColdIgniter.Exceptions.LogicException" message="Context must be set before run() is called.">
@@ -133,27 +135,46 @@
 		<cfset getRequestObject()>
 		<cfset getResponseObject()>
 
-		<!--- Not ported yet: the pre_system event and the required before filters --->
+		<cfset static_("ColdIgniter\Events\Events").trigger("pre_system")>
 
-		<cftry>
-			<cfset this.response = handleRequest(arguments.routes, "", arguments.returnResponse)>
+		<!--- Start up the filters --->
+		<cfset filters = static_("Config\Services").filters()>
 
-			<cfcatch type="ColdIgniter.Exceptions.PageNotFoundException">
-				<cfset e = StructNew()>
-				<cfset e.message = cfcatch.message>
-				<cfset e.code = 404>
-				<cfset this.response = display404errors(e)>
-			</cfcatch>
-		</cftry>
+		<!--- Run required before filters --->
+		<cfset possibleResponse = runRequiredBeforeFilters(filters)>
+
+		<!--- If a ResponseInterface instance is returned then send it back to the client and stop --->
+		<cfif instanceof_(possibleResponse, "ColdIgniter\HTTP\ResponseInterface")>
+			<cfset this.response = possibleResponse>
+		<cfelse>
+			<!--- Not ported yet: ResponsableInterface --->
+			<cftry>
+				<cfset this.response = handleRequest(arguments.routes, "", arguments.returnResponse)>
+
+				<cfcatch type="ColdIgniter.Exceptions.PageNotFoundException">
+					<cfset e = StructNew()>
+					<cfset e.message = cfcatch.message>
+					<cfset e.code = 404>
+					<cfset this.response = display404errors(e)>
+				</cfcatch>
+			</cftry>
+		</cfif>
+
+		<cfset runRequiredAfterFilters(filters)>
 
 		<!---
-		 Not ported yet: the required after filters and the post_system event.
-		 The "performance" filter is one of them, so its work is done here.
+		 Upstream the required after filter "performance" does this, in
+		 runRequiredAfterFilters, so it comes before the post-system event.
+		 The filter is not ported (there is no benchmark service), so its
+		 work is done here.
 		--->
 		<cfset this.totalTime = (GetTickCount() - this.startTime) / 1000>
 		<cfif IsSimpleValue(this.response.getBody())>
 			<cfset this.response.setBody(displayPerformanceMetrics(this.response.getBody()))>
 		</cfif>
+
+		<!--- Is there a post-system event? --->
+		<cfset static_("ColdIgniter\Events\Events").trigger("post_system")>
 
 		<cfif arguments.returnResponse>
 			<cfreturn this.response>
@@ -180,10 +201,51 @@
 	</cffunction>
 
 	<!---
+	 * Run required before filters.
+	 *
+	 * @return The response a filter returned, or an empty string.
+	--->
+	<cffunction name="runRequiredBeforeFilters" access="private" returntype="any" output="no">
+		<cfargument name="filters" type="any" required="yes">
+		<cfset var possibleResponse = arguments.filters.runRequired("before")>
+
+		<!--- If a ResponseInterface instance is returned then send it back to the client and stop --->
+		<cfif instanceof_(possibleResponse, "ColdIgniter\HTTP\ResponseInterface")>
+			<cfreturn possibleResponse>
+		</cfif>
+
+		<cfreturn "">
+	</cffunction>
+
+	<!---
+	 * Run required after filters.
+	--->
+	<cffunction name="runRequiredAfterFilters" access="private" returntype="void" output="no">
+		<cfargument name="filters" type="any" required="yes">
+		<cfset var response = "">
+
+		<cfset arguments.filters.setResponse(this.response)>
+
+		<!--- Run required after filters --->
+		<cfset response = arguments.filters.runRequired("after")>
+
+		<cfif instanceof_(response, "ColdIgniter\HTTP\ResponseInterface")>
+			<cfset this.response = response>
+		</cfif>
+	</cffunction>
+
+	<!---
 	 * Web access?
 	--->
 	<cffunction name="isWeb" access="private" returntype="boolean" output="no">
 		<cfreturn this.context EQ "web">
+	</cffunction>
+
+	<!---
+	 * Disables Controller Filters.
+	--->
+	<cffunction name="disableFilters" access="public" returntype="void" output="no">
+		<cfset this.enableFilters = false>
 	</cffunction>
 
 	<!---
@@ -197,6 +259,9 @@
 		<cfset var uri = "">
 		<cfset var returned = "">
 		<cfset var controller = "">
+		<cfset var filters = "">
+		<cfset var possibleResponse = "">
+		<cfset var response = "">
 
 		<cfif this.request_.getMethod() EQ "CLI">
 			<cfreturn this.response.setStatusCode(405).setBody("Method Not Allowed")>
@@ -207,7 +272,35 @@
 		<!--- uri is URL-encoded. --->
 		<cfset uri = this.request_.getPath()>
 
-		<!--- Not ported yet: the "before" filters --->
+		<cfif this.enableFilters>
+			<cfset filters = service("filters")>
+
+			<!---
+			 If any filters were specified within the routes file,
+			 we need to ensure it's active for the current request
+			--->
+			<cfif IsArray(routeFilters)>
+				<cfset filters.enableFilters(routeFilters, "before")>
+
+				<!--- Not ported yet: Feature oldFilterOrder, the new order is always used. --->
+				<cfset routeFilters = array_reverse(routeFilters)>
+
+				<cfset filters.enableFilters(routeFilters, "after")>
+			</cfif>
+
+			<!--- Run "before" filters --->
+			<cfset possibleResponse = filters.run(uri, "before")>
+
+			<!--- If a ResponseInterface instance is returned then send it back to the client and stop --->
+			<cfif instanceof_(possibleResponse, "ColdIgniter\HTTP\ResponseInterface")>
+				<!--- Not ported yet: outputBufferingEnd --->
+				<cfreturn possibleResponse>
+			</cfif>
+
+			<cfif instanceof_(possibleResponse, "ColdIgniter\HTTP\IncomingRequest")>
+				<cfset this.request_ = possibleResponse>
+			</cfif>
+		</cfif>
 
 		<cfset returned = startController()>
 
@@ -217,7 +310,8 @@
 			<cfset static_("ColdIgniter\Exceptions\PageNotFoundException").forMethodNotFound(this.method)>
 		</cfif>
 
-		<!--- Not ported yet: the "post_controller_constructor" event --->
+		<!--- Is there a "post_controller_constructor" event? --->
+		<cfset static_("ColdIgniter\Events\Events").trigger("post_controller_constructor")>
 
 		<cfset returned = runController(controller)>
 
@@ -228,7 +322,19 @@
 		--->
 		<cfset gatherOutput(arguments.cacheConfig, returned)>
 
-		<!--- Not ported yet: the "after" filters, the controller attributes and the previous URL --->
+		<cfif this.enableFilters>
+			<cfset filters = service("filters")>
+			<cfset filters.setResponse(this.response)>
+
+			<!--- Run "after" filters --->
+			<cfset response = filters.run(uri, "after")>
+
+			<cfif instanceof_(response, "ColdIgniter\HTTP\ResponseInterface")>
+				<cfset this.response = response>
+			</cfif>
+		</cfif>
+
+		<!--- Not ported yet: the controller attributes and the previous URL --->
 
 		<cfreturn this.response>
 	</cffunction>
