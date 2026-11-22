@@ -4,8 +4,8 @@
  * If there are any methods that should be provided, make them
  * public APIs via helper functions.
  *
- * Not ported yet: dotKeyExists, groupBy, recursiveDiff, recursiveCount
- * and sortValuesByNatural.
+ * Not ported yet: groupBy, recursiveDiff, recursiveCount and
+ * sortValuesByNatural.
 --->
 <cfcomponent output="no" hint="Internal implementation of the array helper">
 
@@ -25,6 +25,89 @@
 		<cfargument name="array" type="any" required="yes">
 
 		<cfreturn arraySearchDot(convertToArray(arguments.index), arguments.array)>
+	</cffunction>
+
+	<!---
+	 * array_key_exists() with dot array syntax.
+	 *
+	 * If wildcard `*` is used, all items for the key after it must have the key.
+	 *
+	 * Difference: where the original would stop with a type error because a
+	 * value is not an array, this returns false. As in the original, an index
+	 * segment that is "0" ends the check (it is false in a loop condition), so
+	 * the rest of the path is not looked at.
+	 *
+	 * @param index
+	 * @param array
+	--->
+	<cffunction name="dotKeyExists" access="public" returntype="boolean" output="no">
+		<cfargument name="index" type="string" required="yes">
+		<cfargument name="array" type="any" required="yes">
+		<cfset var indexes = "">
+		<cfset var currentArray = arguments.array>
+		<cfset var currentIndex = "">
+		<cfset var key = "">
+		<cfset var i = 0>
+
+		<cfif Right(arguments.index, 1) EQ "*" OR Find("*.*", arguments.index) GT 0>
+			<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="You must set key right after ""*"". Invalid index: ""#arguments.index#""">
+		</cfif>
+
+		<cfset indexes = convertToArray(arguments.index)>
+
+		<!--- If indexes is empty, returns false. --->
+		<cfif ArrayLen(indexes) EQ 0>
+			<cfreturn false>
+		</cfif>
+
+		<!--- Grab the current index --->
+		<cfloop condition="ArrayLen(indexes) GT 0">
+			<cfset currentIndex = indexes[1]>
+			<cfset ArrayDeleteAt(indexes, 1)>
+
+			<!--- "while ($currentIndex = array_shift($indexes))" ends on an empty string and on "0". --->
+			<cfif currentIndex EQ "" OR Compare(currentIndex, "0") EQ 0>
+				<cfbreak>
+			</cfif>
+
+			<cfif Compare(currentIndex, "*") EQ 0>
+				<cfset currentIndex = indexes[1]>
+				<cfset ArrayDeleteAt(indexes, 1)>
+
+				<cfif IsArray(currentArray)>
+					<cfloop from="1" to="#ArrayLen(currentArray)#" index="i">
+						<cfif NOT is_array(currentArray[i]) OR NOT array_key_exists(currentIndex, currentArray[i])>
+							<cfreturn false>
+						</cfif>
+					</cfloop>
+				<cfelse>
+					<cfloop collection="#currentArray#" item="key">
+						<cfif NOT is_array(currentArray[key]) OR NOT array_key_exists(currentIndex, currentArray[key])>
+							<cfreturn false>
+						</cfif>
+					</cfloop>
+				</cfif>
+
+				<!--- If indexes is empty, all elements are checked. --->
+				<cfif ArrayLen(indexes) EQ 0>
+					<cfreturn true>
+				</cfif>
+
+				<cfset currentArray = dotSearch("*." & currentIndex, currentArray)>
+			<cfelse>
+				<cfif NOT is_array(currentArray) OR NOT array_key_exists(currentIndex, currentArray)>
+					<cfreturn false>
+				</cfif>
+
+				<cfif IsArray(currentArray)>
+					<cfset currentArray = currentArray[Val(currentIndex) + 1]>
+				<cfelse>
+					<cfset currentArray = currentArray[currentIndex]>
+				</cfif>
+			</cfif>
+		</cfloop>
+
+		<cfreturn true>
 	</cffunction>
 
 	<!---
