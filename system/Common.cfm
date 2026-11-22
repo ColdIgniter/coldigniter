@@ -124,6 +124,29 @@
 </cffunction>
 
 <!---
+ * Grabs the current database connection instance, or creates it.
+ *
+ * Difference: the original calls Config\Database::connect(), a static
+ * method. The one object of static_() stands in for that class, and it is
+ * ColdIgniter\Database\Config, which Config\Database extends in the
+ * original.
+ *
+ * Difference: an empty string (null) is the default group, and a map of
+ * settings is made with array_().
+ *
+ * @param db       A group name, a map of settings, a connection, or an empty string
+ * @param getShared Whether to return a shared instance of the connection
+ *
+ * @return BaseConnection
+--->
+<cffunction name="db_connect" returntype="any" output="no" hint="Grabs the current database connection instance, or creates it">
+	<cfargument name="db" type="any" required="no" default="">
+	<cfargument name="getShared" type="boolean" required="no" default="true">
+
+	<cfreturn static_("ColdIgniter\Database\Config").connect(arguments.db, arguments.getShared)>
+</cffunction>
+
+<!---
  * Allows user to retrieve values from the environment
  * variables that have been set. Especially useful for
  * retrieving values set from the .env file for

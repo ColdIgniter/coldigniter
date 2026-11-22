@@ -14,6 +14,7 @@
 <cfinclude template="bin2hex.cfm">
 <cfinclude template="bitxor_.cfm">
 <cfinclude template="class_exists.cfm">
+<cfinclude template="ctype_digit.cfm">
 <cfinclude template="date.cfm">
 <cfinclude template="define.cfm">
 <cfinclude template="defined.cfm">
@@ -42,6 +43,7 @@
 <cfinclude template="json_encode.cfm">
 <cfinclude template="ltrim_.cfm">
 <cfinclude template="mb_strlen.cfm">
+<cfinclude template="md5.cfm">
 <cfinclude template="method_exists.cfm">
 <cfinclude template="microtime.cfm">
 <cfinclude template="new_.cfm">
@@ -54,6 +56,7 @@
 <cfinclude template="preg_replace.cfm">
 <cfinclude template="print_r.cfm">
 <cfinclude template="random_bytes.cfm">
+<cfinclude template="rawurldecode.cfm">
 <cfinclude template="rawurlencode.cfm">
 <cfinclude template="realpath.cfm">
 <cfinclude template="regex_guard_.cfm">
@@ -71,8 +74,13 @@
 <cfinclude template="spaceship_.cfm">
 <cfinclude template="static_.cfm">
 <cfinclude template="str_replace.cfm">
+<cfinclude template="str_starts_with.cfm">
+<cfinclude template="strcspn.cfm">
 <cfinclude template="strip_tags.cfm">
 <cfinclude template="strpbrk.cfm">
+<cfinclude template="strpos.cfm">
+<cfinclude template="strripos.cfm">
+<cfinclude template="strrpos.cfm">
 <cfinclude template="strtr.cfm">
 <cfinclude template="strval.cfm">
 <cfinclude template="substr.cfm">
