@@ -91,24 +91,40 @@
  * the code 1, as the backslash-one is read there) is written [^\x01], as
  * the regular expressions of Java do not take [^\1].
  *
- * Difference: the lazy parts that the original writes .*? are written
- * [^<]*? here, and the quoted value [^\x01]+? is written [^<]+?, so that a
- * match never runs into the next tag. The Java engine has no backtrack
- * limit, and input such as <img src='a' repeated took time that grew about
- * with the cube of its length. A look-ahead (?=[^<]*>) right after <img makes
- * a start that has no > before the next < fail at once, which also cuts off
- * a single <img followed by many src parts and no >. A > inside a tag, as in
- * <img src="a>b" onerror=x>, is still matched as in the original. What the
- * original matches across a < is not matched here: a tag with a < in its text
- * (as in <img alt="<" src=x>) is left as it is, and a match that the original
- * spreads over several tags is made one tag at a time.
+ * Difference: the original runs both patterns over the whole text, where
+ * .*? and [^\x01]+? can run on to the end of it. The Java engine has no
+ * backtrack limit, and input such as <img src='a' repeated took time that
+ * grew about with the cube of its length. Here the text is cut into heads
+ * first: a head is an <img that is followed by a space or a /, then all the
+ * text up to the last > before the next <. Both patterns run on one head at
+ * a time, with the lazy parts written [^<]*? and the quoted value [^<]+?
+ * (a head holds no <, and it ends in a > that every part can reach), so a
+ * match never leaves its head and a failing start costs one pass over its
+ * head. For a normal tag the result is the same, with these differences:
+ * what the original matches across a < is not matched (a tag with a < in its
+ * text, as in <img alt="<" src=x>, is left as it is, and a match that the
+ * original spreads over several tags is made one tag at a time), and a tag
+ * may run over a line break, which the . of the original does not cross.
 --->
 <cffunction name="strip_image_tags" returntype="string" output="no" hint="Strip Image Tags">
 	<cfargument name="str" type="string" required="yes">
-	<cfset var patterns = ArrayNew(1)>
+	<cfset var pattern = CreateObject("java", "java.util.regex.Pattern")>
+	<cfset var heads = pattern.compile(JavaCast("string", "<img[\s/][^<]*>"), JavaCast("int", 2)).matcher(JavaCast("string", arguments.str))>
+	<cfset var quoted = pattern.compile(JavaCast("string", "<img[\s/]+[^<]*?src\s*=\s*([""'])([^<]+?)\1[^<]*?>"), JavaCast("int", 2))>
+	<cfset var bare = pattern.compile(JavaCast("string", "<img[\s/]+[^<]*?src\s*=\s*?(([^\s""'=<>`]+))[^<]*?>"), JavaCast("int", 2))>
+	<cfset var buffer = CreateObject("java", "java.lang.StringBuffer").init()>
+	<cfset var head = "">
+	<cfset var last = 0>
 
-	<cfset ArrayAppend(patterns, "##<img(?=[^<]*>)[\s/]+[^<]*?src\s*=\s*([""'])([^<]+?)\1[^<]*?\>##i")>
-	<cfset ArrayAppend(patterns, "##<img(?=[^<]*>)[\s/]+[^<]*?src\s*=\s*?(([^\s""'=<>`]+))[^<]*?\>##i")>
+	<!--- the two patterns of the original, in order, on one head at a time; \2 is $2 for Java --->
+	<cfloop condition="heads.find()">
+		<cfset buffer.append(JavaCast("string", Mid(arguments.str, last + 1, heads.start() - last)))>
+		<cfset head = quoted.matcher(heads.group()).replaceAll(JavaCast("string", "$2"))>
+		<cfset buffer.append(bare.matcher(JavaCast("string", head)).replaceAll(JavaCast("string", "$2")))>
+		<cfset last = heads.end()>
+	</cfloop>
 
-	<cfreturn preg_replace(patterns, "\2", arguments.str)>
+	<cfset buffer.append(JavaCast("string", Mid(arguments.str, last + 1, Len(arguments.str) - last)))>
+
+	<cfreturn buffer.toString()>
 </cffunction>
