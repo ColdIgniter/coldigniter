@@ -176,6 +176,13 @@
 		<!--- Is there a post-system event? --->
 		<cfset static_("ColdIgniter\Events\Events").trigger("post_system")>
 
+		<!---
+		 * Difference: the session is written and closed here, where the
+		 * engine of the original does it when the script ends. It only
+		 * does something when the request has started the session.
+		--->
+		<cfset session_write_close()>
+
 		<cfif arguments.returnResponse>
 			<cfreturn this.response>
 		</cfif>

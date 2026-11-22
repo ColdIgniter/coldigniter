@@ -253,6 +253,65 @@
 	</cffunction>
 
 	<!---
+	 * Return the session manager.
+	 *
+	 * The session is started the first time it is asked for, so a request
+	 * that never asks for it has no session, sends no session cookie and
+	 * writes no file.
+	 *
+	 * Not ported yet: the DatabaseHandler, the MemcachedHandler and the
+	 * RedisHandler, and the check that the driver is a session handler (any
+	 * component that can be created is used; a handler is checked by the
+	 * name of its base only).
+	 *
+	 * Difference: the Cache-Control header of the response is kept, as no
+	 * engine sets one of its own for the session.
+	--->
+	<cffunction name="session" access="public" returntype="any" output="no">
+		<cfargument name="config" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+		<cfset var logger = "">
+		<cfset var driverName = "">
+		<cfset var driver = "">
+		<cfset var session_ = "">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("session", arguments.config)>
+		</cfif>
+
+		<cfif is_null(arguments.config)>
+			<cfset arguments.config = variables.config("Config\Session")>
+		</cfif>
+
+		<cfset logger = static_("Config\Services").get("logger")>
+
+		<cfset driverName = arguments.config.driver>
+
+		<!--- Not ported yet: DatabaseHandler (and its MySQLi and Postgre variants) --->
+
+		<cfif NOT class_exists(driverName)>
+			<cfthrow type="ColdIgniter.InvalidArgumentException" errorcode="500" message="Invalid session handler ""#driverName#"" provided.">
+		</cfif>
+
+		<cfset driver = new_(driverName, arguments.config, static_("Config\Services").get("request").getIPAddress())>
+
+		<cfif NOT instanceof_(driver, "ColdIgniter\Session\Handlers\BaseHandler")>
+			<cfthrow type="ColdIgniter.InvalidArgumentException" errorcode="500" message="Invalid session handler ""#driverName#"" provided.">
+		</cfif>
+
+		<cfset driver.setLogger(logger)>
+
+		<cfset session_ = new_("ColdIgniter\Session\Session", driver, arguments.config)>
+		<cfset session_.setLogger(logger)>
+
+		<cfif Compare(session_status(), "none") EQ 0>
+			<cfset session_.start()>
+		</cfif>
+
+		<cfreturn session_>
+	</cffunction>
+
+	<!---
 	 * The Factory for SiteURI.
 	--->
 	<cffunction name="siteurifactory" access="public" returntype="any" output="no">
