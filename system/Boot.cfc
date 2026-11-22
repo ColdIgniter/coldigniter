@@ -3,13 +3,22 @@
 --->
 <cfcomponent output="no" hint="Bootstrap for the application">
 
-	<cfinclude template="Polyfills/define.cfm">
-	<cfinclude template="Polyfills/defined.cfm">
-	<cfinclude template="Polyfills/is_file.cfm">
-	<cfinclude template="Polyfills/realpath.cfm">
+	<cfinclude template="Polyfills/Polyfills.cfm">
 
-	<cfset __DIR__ = GetDirectoryFromPath(GetCurrentTemplatePath())>
-	<cfset DIRECTORY_SEPARATOR = Right(__DIR__, 1)>
+	<!---
+	 * Not in the original. What the runtime keeps for one request: the
+	 * global functions, the autoloader, the objects that stand in for
+	 * static classes, the files that require_once() has loaded, and the
+	 * body that the response leaves for the front controller to print.
+	--->
+	<cfset request.CodeIgniter = StructNew()>
+	<cfset request.CodeIgniter.functions = CreateObject("component", "Polyfills.Functions")>
+	<cfset request.CodeIgniter.autoloader = "">
+	<cfset request.CodeIgniter.statics = StructNew()>
+	<cfset request.CodeIgniter.included = StructNew()>
+	<cfset request.CodeIgniter.output = "">
+
+	<cfset define("DIRECTORY_SEPARATOR", Right(GetDirectoryFromPath(GetCurrentTemplatePath()), 1))>
 
 	<!---
 	 * Used by `public/index.cfm`
@@ -21,6 +30,7 @@
 	--->
 	<cffunction name="bootWeb" access="public" returntype="numeric" output="no">
 		<cfargument name="paths" type="any" required="yes">
+		<cfset var app = "">
 
 		<cfset definePathConstants(arguments.paths)>
 		<cfif NOT defined("APP_NAMESPACE")>
@@ -32,11 +42,12 @@
 		<cfset defineEnvironment()>
 		<cfset loadEnvironmentBootstrap(arguments.paths)>
 
-		<!---
-		 Not ported yet, in the original order: loadCommonFunctions,
-		 loadAutoloader, setExceptionHandler, initializeKint,
-		 autoloadHelpers, initializeCodeIgniter, runCodeIgniter.
-		--->
+		<cfset loadCommonFunctions()>
+		<cfset loadAutoloader()>
+		<!--- Not ported yet: setExceptionHandler, initializeKint, autoloadHelpers --->
+
+		<cfset app = initializeCodeIgniter()>
+		<cfset runCodeIgniter(app)>
 
 		<!---
 		 Exits the application, setting the exit code for CLI-based
@@ -88,17 +99,17 @@
 
 		<!--- The path to the application directory. --->
 		<cfif NOT defined("APPPATH")>
-			<cfset define("APPPATH", realpath(REReplace(arguments.paths.appDirectory, "[\\/ ]+$", "")) & DIRECTORY_SEPARATOR)>
+			<cfset define("APPPATH", realpath(REReplace(arguments.paths.appDirectory, "[\\/ ]+$", "")) & request.DIRECTORY_SEPARATOR)>
 		</cfif>
 
 		<!--- The path to the project root directory. Just above APPPATH. --->
 		<cfif NOT defined("ROOTPATH")>
-			<cfset define("ROOTPATH", realpath(request.APPPATH & "../") & DIRECTORY_SEPARATOR)>
+			<cfset define("ROOTPATH", realpath(request.APPPATH & "../") & request.DIRECTORY_SEPARATOR)>
 		</cfif>
 
 		<!--- The path to the system directory. --->
 		<cfif NOT defined("SYSTEMPATH")>
-			<cfset define("SYSTEMPATH", realpath(REReplace(arguments.paths.systemDirectory, "[\\/ ]+$", "")) & DIRECTORY_SEPARATOR)>
+			<cfset define("SYSTEMPATH", realpath(REReplace(arguments.paths.systemDirectory, "[\\/ ]+$", "")) & request.DIRECTORY_SEPARATOR)>
 		</cfif>
 
 		<!--- The path to the writable directory. --->
@@ -112,12 +123,12 @@
 				<!--- EXIT_ERROR is not yet defined --->
 				<cfabort>
 			</cfif>
-			<cfset define("WRITEPATH", writePath & DIRECTORY_SEPARATOR)>
+			<cfset define("WRITEPATH", writePath & request.DIRECTORY_SEPARATOR)>
 		</cfif>
 
 		<!--- The path to the tests directory --->
 		<cfif NOT defined("TESTPATH")>
-			<cfset define("TESTPATH", realpath(REReplace(arguments.paths.testsDirectory, "[\\/ ]+$", "")) & DIRECTORY_SEPARATOR)>
+			<cfset define("TESTPATH", realpath(REReplace(arguments.paths.testsDirectory, "[\\/ ]+$", "")) & request.DIRECTORY_SEPARATOR)>
 		</cfif>
 	</cffunction>
 
@@ -125,15 +136,75 @@
 		<cfinclude template="#includePath(request.APPPATH & "Config/Constants.cfm")#">
 	</cffunction>
 
-	<!---
-	 * Not in the original. cfinclude only takes a path relative to this
-	 * file, so a full path is reached by climbing to the top of the drive.
-	 * The file has to be on the same drive as this one.
-	--->
-	<cffunction name="includePath" access="private" returntype="string" output="no">
-		<cfargument name="path" type="string" required="yes">
+	<cffunction name="loadCommonFunctions" access="private" returntype="void" output="no">
+		<!--- Require app/Common.cfm file if exists. --->
+		<cfif is_file(request.APPPATH & "Common.cfm")>
+			<cfset require_once(request.APPPATH & "Common.cfm")>
+		</cfif>
 
-		<cfreturn RepeatString("../", ListLen(REReplace(__DIR__, "^[A-Za-z]:", ""), "\/")) & REReplace(Replace(arguments.path, "\", "/", "all"), "^([A-Za-z]:)?/", "")>
+		<!--- Require system/Common.cfm --->
+		<cfset require_once(request.SYSTEMPATH & "Common.cfm")>
+	</cffunction>
+
+	<!---
+	 * The autoloader allows all of the pieces to work together in the
+	 * framework. We have to load it here, though, so that the config
+	 * files can use the path constants.
+	--->
+	<cffunction name="loadAutoloader" access="private" returntype="void" output="no">
+		<!---
+		 A class file is not loaded ahead of time: the autoloader finds it
+		 when an object is created. So where the original requires the
+		 class files, a first autoloader is made here by hand, which only
+		 knows the two namespaces that are needed to create the real one.
+		--->
+		<cfset var loader = request.CodeIgniter.functions.__inject(CreateObject("component", "Autoloader.Autoloader"))>
+
+		<cfset loader.addNamespace("CodeIgniter", request.SYSTEMPATH)>
+		<cfset loader.addNamespace("Config", request.APPPATH & "Config")>
+		<cfset loader.register()>
+
+		<!--- Initialize and register the loader with the SPL autoloader stack. --->
+		<cfset static_("Config\Services").autoloader().initialize_(new_("Config\Autoload"), new_("Config\Modules")).register()>
+	</cffunction>
+
+	<cffunction name="initializeCodeIgniter" access="private" returntype="any" output="no">
+		<cfset var app = static_("Config\Services").codeigniter()>
+		<cfset app.initialize_()>
+
+		<cfreturn app>
+	</cffunction>
+
+	<!---
+	 * Now that everything is set up, it's time to actually fire
+	 * up the engines and make this app do its thang.
+	--->
+	<cffunction name="runCodeIgniter" access="private" returntype="void" output="no">
+		<cfargument name="app" type="any" required="yes">
+
+		<!--- Not ported yet: is_cli(), so the context is always "web" --->
+		<cfset arguments.app.setContext("web")>
+
+		<!---
+		 Stand-in until the exception handler is ported: a page that is
+		 not found is answered here with a plain 404, and a bad request
+		 with a plain 400.
+		--->
+		<cftry>
+			<cfset arguments.app.run()>
+
+			<cfcatch type="CodeIgniter.HTTP.Exceptions.BadRequestException">
+				<cfheader statuscode="400" statustext="Bad Request">
+				<cfcontent type="text/html; charset=UTF-8">
+				<cfset request.CodeIgniter.output = "<h1>400 - Bad Request</h1><p>" & HTMLEditFormat(cfcatch.message) & "</p>">
+			</cfcatch>
+
+			<cfcatch type="CodeIgniter.Exceptions.PageNotFoundException">
+				<cfheader statuscode="404" statustext="Not Found">
+				<cfcontent type="text/html; charset=UTF-8">
+				<cfset request.CodeIgniter.output = "<h1>404 - File Not Found</h1><p>" & HTMLEditFormat(cfcatch.message) & "</p>">
+			</cfcatch>
+		</cftry>
 	</cffunction>
 
 </cfcomponent>
