@@ -61,8 +61,10 @@
 	 * The session cookie instance.
 	 *
 	 * @var Cookie
+	 *
+	 * Named with an underscore, because cookie is also a scope.
 	--->
-	<cfset this.cookie = "">
+	<cfset this.cookie_ = "">
 
 	<!---
 	 * Session ID regex expression.
@@ -93,7 +95,7 @@
 		<cfset options = array_("expires", expires, "path", cookieConfig.path, "domain", cookieConfig.domain, "secure", cookieConfig.secure, "httponly", true, "samesite", cookieConfig.samesite, "raw", cookieConfig.raw)>
 
 		<!--- httponly is always true, for security --->
-		<cfset this.cookie = new_("ColdIgniter\Cookie\Cookie", arguments.config.cookieName, "", options).withPrefix("")> <!--- Cookie prefix should be ignored. --->
+		<cfset this.cookie_ = new_("ColdIgniter\Cookie\Cookie", arguments.config.cookieName, "", options).withPrefix("")> <!--- Cookie prefix should be ignored. --->
 
 		<!--- Not ported yet: helper('array') --->
 
@@ -183,12 +185,12 @@
 	 * Handle input binds and configuration defaults.
 	--->
 	<cffunction name="configure" access="private" returntype="void" output="no">
-		<cfset var sameSite = this.cookie.getSameSite()>
+		<cfset var sameSite = this.cookie_.getSameSite()>
 
 		<cfset ini_set("session.name", this.config.cookieName)>
 
 		<cfif Compare(sameSite, "") EQ 0>
-			<cfset sameSite = ucfirst(this.cookie.SAMESITE_LAX)>
+			<cfset sameSite = ucfirst(this.cookie_.SAMESITE_LAX)>
 		</cfif>
 
 		<!--- HTTP only; Yes, this is intentional and not configurable for security reasons. --->
@@ -932,9 +934,9 @@
 			<cfset expiration = time() + this.config.expiration>
 		</cfif>
 
-		<cfset this.cookie = this.cookie.withValue(session_id()).withExpires(expiration)>
+		<cfset this.cookie_ = this.cookie_.withValue(session_id()).withExpires(expiration)>
 
-		<cfset response.setCookie(this.cookie)>
+		<cfset response.setCookie(this.cookie_)>
 	</cffunction>
 
 	<!---

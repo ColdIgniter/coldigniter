@@ -139,7 +139,7 @@
 	<cffunction name="destroyCookie" access="private" returntype="boolean" output="no">
 		<cfset var cookie_ = "">
 
-		<!--- Difference: the cookie goes to the response, as no engine function sets one; the prefix is forced empty, as the prefix of Config\Cookie is ignored here --->
+		<!--- Difference: the cookie goes to the response, as no engine function sets one; the prefix is forced empty, as the prefix of Config\Cookie is ignored here; the line also carries the SameSite of the Cookie defaults, which the original does not send --->
 		<cfset cookie_ = new_("ColdIgniter\Cookie\Cookie", this.cookieName, "", array_("prefix", "", "path", this.cookiePath, "domain", this.cookieDomain, "secure", this.cookieSecure, "httponly", true)).withExpired()>
 
 		<cfset service("response").setCookie(cookie_)>
