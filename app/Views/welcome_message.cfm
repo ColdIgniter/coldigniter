@@ -207,7 +207,7 @@
         <ul>
             <li class="logo">
                 <a href="#">
-                    <svg role="img" aria-label="ColdIgniter" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 120" height="44"><path fill="#3366cc" d="M52 4C58 28 88 46 88 78A36 36 0 0 1 16 78C16 60 26 49 33 36C36 47 41 52 46 53C42 35 45 19 52 4Z"/><path fill="#fff" d="M52 104C41 104 34 96 34 87C34 75 46 69 50 54C59 67 70 75 70 87C70 96 63 104 52 104Z"/><text x="112" y="84" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="68" fill="#3366cc"><tspan font-weight="700">Cold</tspan><tspan font-weight="300">Igniter</tspan></text></svg>
+                    <svg role="img" aria-label="ColdIgniter" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 120" height="44"><path fill="none" stroke="#3366cc" stroke-width="6" stroke-linecap="round" d="M52 60L52 13M52 32.7L40.2 23.5M52 32.7L63.8 23.5M52 45.9L44.9 40.4M52 45.9L59.1 40.4M52 60L92.7 36.5M75.6 46.4L77.7 31.5M75.6 46.4L89.5 52M64.2 52.9L65.5 44M64.2 52.9L72.6 56.3M52 60L92.7 83.5M75.6 73.6L89.5 68M75.6 73.6L77.7 88.5M64.2 67L72.6 63.7M64.2 67L65.5 76M52 60L52 107M52 87.3L63.8 96.5M52 87.3L40.2 96.5M52 74.1L59.1 79.6M52 74.1L44.9 79.6M52 60L11.3 83.5M28.4 73.6L26.3 88.5M28.4 73.6L14.5 68M39.8 67.1L38.5 76M39.8 67.1L31.4 63.7M52 60L11.3 36.5M28.4 46.4L14.5 52M28.4 46.4L26.3 31.5M39.8 52.9L31.4 56.3M39.8 52.9L38.5 44"/><text x="112" y="84" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="68" fill="#3366cc"><tspan font-weight="700">Cold</tspan><tspan font-weight="300">Igniter</tspan></text></svg>
                 </a>
             </li>
             <li class="menu-toggle">
