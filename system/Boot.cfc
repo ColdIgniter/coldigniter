@@ -8,14 +8,16 @@
 	<!---
 	 * Not in the original. What the runtime keeps for one request: the
 	 * global functions, the autoloader, the objects that stand in for
-	 * static classes, the files that require_once() has loaded, and the
-	 * body that the response leaves for the front controller to print.
+	 * static classes, the files that require_once() has loaded, the options
+	 * that ini_set() keeps, and the body that the response leaves for the
+	 * front controller to print.
 	--->
 	<cfset request.ColdIgniter = StructNew()>
 	<cfset request.ColdIgniter.functions = CreateObject("component", "Polyfills.Functions")>
 	<cfset request.ColdIgniter.autoloader = "">
 	<cfset request.ColdIgniter.statics = StructNew()>
 	<cfset request.ColdIgniter.included = StructNew()>
+	<cfset request.ColdIgniter.ini = StructNew()>
 	<cfset request.ColdIgniter.output = "">
 
 	<cfset define("DIRECTORY_SEPARATOR", Right(GetDirectoryFromPath(GetCurrentTemplatePath()), 1))>
@@ -44,7 +46,8 @@
 
 		<cfset loadCommonFunctions()>
 		<cfset loadAutoloader()>
-		<!--- Not ported yet: setExceptionHandler, initializeKint, autoloadHelpers --->
+		<cfset setExceptionHandler()>
+		<!--- Not ported yet: initializeKint, autoloadHelpers --->
 
 		<cfset app = initializeColdIgniter()>
 		<cfset runColdIgniter(app)>
@@ -175,6 +178,10 @@
 		<cfreturn app>
 	</cffunction>
 
+	<cffunction name="setExceptionHandler" access="private" returntype="void" output="no">
+		<cfset static_("Config\Services").exceptions().initialize_()>
+	</cffunction>
+
 	<!---
 	 * Now that everything is set up, it's time to actually fire
 	 * up the engines and make this app do its thang.
@@ -186,23 +193,15 @@
 		<cfset arguments.app.setContext("web")>
 
 		<!---
-		 Stand-in until the exception handler is ported: a page that is
-		 not found is answered here with a plain 404, and a bad request
-		 with a plain 400.
+		 There is no set_exception_handler, so the error that the
+		 request ends with is caught here and passed to the handler
+		 that setExceptionHandler() would have registered.
 		--->
 		<cftry>
 			<cfset arguments.app.run()>
 
-			<cfcatch type="ColdIgniter.HTTP.Exceptions.BadRequestException">
-				<cfheader statuscode="400" statustext="Bad Request">
-				<cfcontent type="text/html; charset=UTF-8">
-				<cfset request.ColdIgniter.output = "<h1>400 - Bad Request</h1><p>" & HTMLEditFormat(cfcatch.message) & "</p>">
-			</cfcatch>
-
-			<cfcatch type="ColdIgniter.Exceptions.PageNotFoundException">
-				<cfheader statuscode="404" statustext="Not Found">
-				<cfcontent type="text/html; charset=UTF-8">
-				<cfset request.ColdIgniter.output = "<h1>404 - File Not Found</h1><p>" & HTMLEditFormat(cfcatch.message) & "</p>">
+			<cfcatch type="any">
+				<cfset static_("Config\Services").exceptions().exceptionHandler(cfcatch)>
 			</cfcatch>
 		</cftry>
 	</cffunction>
