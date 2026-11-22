@@ -16,7 +16,7 @@
  * miss (its JSON does not parse).
  *
  * Difference: a key that the file system could not take as a file name
- * (a character of * ? " < > | or below a space, a name of "." or "..", a
+ * (a character of * ? " < > | / \ : or below a space, a name of "." or "..", a
  * trailing period or space, or a device name such as CON or NUL) is stored
  * under the md5 of the prefixed key, as a key that is too long is.
  *
@@ -201,7 +201,11 @@
 		<cfset value = tmp["data"]>
 		<cfset ttl = tmp["ttl"]>
 
-		<!--- if (! is_int($value)) --->
+		<!---
+		 if (! is_int($value))
+		 Difference: the stored JSON does not keep the type, so a string of
+		 digits such as "5" counts as an integer here.
+		--->
 		<cfif NOT IsSimpleValue(value) OR NOT CreateObject("java", "java.lang.String").init(value).matches("-?[0-9]+")>
 			<cfreturn false>
 		</cfif>
@@ -290,7 +294,7 @@
 			<cfloop index="i" from="1" to="#Len(name)#">
 				<cfset code = Asc(Mid(name, i, 1))>
 
-				<cfif code LT 32 OR code EQ 127 OR Find(Mid(name, i, 1), "*?""<>|") GT 0>
+				<cfif code LT 32 OR code EQ 127 OR Find(Mid(name, i, 1), "*?""<>|/\:") GT 0>
 					<cfset bad = true>
 					<cfbreak>
 				</cfif>
@@ -307,9 +311,9 @@
 
 		<!--- a device name, also with an extension --->
 		<cfif NOT bad>
-			<cfset base = UCase(ListFirst(Replace(name, ".", Chr(1), "all"), Chr(1)))>
+			<cfset base = UCase(RTrim(ListFirst(Replace(name, ".", Chr(1), "all"), Chr(1))))>
 
-			<cfif CreateObject("java", "java.lang.String").init(base).matches("CON|PRN|AUX|NUL|CLOCK\$|COM[1-9]|LPT[1-9]")>
+			<cfif CreateObject("java", "java.lang.String").init(base).matches("CON|PRN|AUX|NUL|CLOCK\$|CONIN\$|CONOUT\$|COM[1-9]|LPT[1-9]")>
 				<cfset bad = true>
 			</cfif>
 		</cfif>
@@ -450,7 +454,8 @@
 
 			<cfif entry.isDirectory() AND Compare(Left(filename, 1), ".") NEQ 0>
 				<cfset deleteFiles(dirPath & "/" & filename, arguments.delDir, arguments.htdocs, arguments.level_ + 1)>
-			<cfelseif NOT arguments.htdocs OR NOT CreateObject("java", "java.lang.String").init(LCase(filename)).matches("\.htaccess|index\.(html|htm)|web\.config")>
+			<cfelseif entry.isFile() AND (NOT arguments.htdocs OR NOT CreateObject("java", "java.lang.String").init(LCase(filename)).matches("\.htaccess|index\.(html|htm)|web\.config"))>
+				<!--- a folder is left, as unlink() of the original fails on one --->
 				<cflock name="ColdIgniterCache#md5(dirPath & '/' & filename)#" type="exclusive" timeout="10">
 					<cfset entry.delete()>
 				</cflock>

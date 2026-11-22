@@ -59,10 +59,11 @@
 	<!---
 	 * Generates the cache key to use from the current request.
 	 *
-	 * Difference: the query is taken from the raw query string and not
-	 * parsed and built again, so its encoding is kept as it came. When the
-	 * option is a list, the pairs are kept in the order of the list, and the
-	 * last pair of a name is the one that counts.
+	 * Difference: the URI of the port keeps the query as text, so it is
+	 * parsed here with parse_str() and built again with http_build_query(),
+	 * as getQuery() of the original does, with the option only when
+	 * cacheQueryString is a list. The names are compared after decoding,
+	 * as the controller reads them.
 	 *
 	 * @internal for testing purposes only
 	--->
@@ -70,31 +71,28 @@
 		<cfargument name="request_" type="any" required="yes">
 		<cfset var uri = arguments.request_.getUri()>
 		<cfset var query = "">
-		<cfset var pairs = "">
+		<cfset var vars = "">
+		<cfset var temp = "">
 		<cfset var i = 0>
-		<cfset var j = 0>
-		<cfset var found = "">
 
-		<cfif IsArray(this.cacheQueryString)>
-			<cfif ArrayLen(this.cacheQueryString) GT 0>
-				<cfset pairs = ListToArray(uri.getQuery(), "&")>
+		<cfif IsArray(this.cacheQueryString) OR Compare(this.cacheQueryString, "true") EQ 0>
+			<cfset vars = parse_str(uri.getQuery())>
+
+			<cfif IsArray(this.cacheQueryString)>
+				<cfset temp = CreateObject("java", "java.util.LinkedHashMap").init()>
 
 				<cfloop index="i" from="1" to="#ArrayLen(this.cacheQueryString)#">
-					<cfset found = "">
-
-					<cfloop index="j" from="1" to="#ArrayLen(pairs)#">
-						<cfif Compare(ListFirst(pairs[j], "="), this.cacheQueryString[i]) EQ 0>
-							<cfset found = pairs[j]>
-						</cfif>
-					</cfloop>
-
-					<cfif Compare(found, "") NEQ 0>
-						<cfset query = ListAppend(query, found, "&")>
+					<cfif vars.containsKey(this.cacheQueryString[i])>
+						<cfset temp.put(this.cacheQueryString[i], vars.get(this.cacheQueryString[i]))>
 					</cfif>
 				</cfloop>
+
+				<cfset vars = temp>
 			</cfif>
-		<cfelseif Compare(this.cacheQueryString, "true") EQ 0>
-			<cfset query = uri.getQuery()>
+
+			<cfif NOT vars.isEmpty()>
+				<cfset query = http_build_query(vars)>
+			</cfif>
 		</cfif>
 
 		<cfreturn md5(arguments.request_.getMethod() & ":" & uri.createURIString(uri.getScheme(), uri.getAuthority(), uri.getPath(), query, ""))>
