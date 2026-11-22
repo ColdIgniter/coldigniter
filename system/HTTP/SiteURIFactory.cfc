@@ -80,6 +80,8 @@
 		<cfset var keep = "">
 		<cfset var script = "">
 		<cfset var remainingPath = "">
+		<cfset var previousRequestData = "">
+		<cfset var get = "">
 		<cfset var i = 0>
 
 		<cfif is_null(this.superglobals.server("REQUEST_URI")) OR is_null(this.superglobals.server("SCRIPT_NAME"))>
@@ -147,7 +149,11 @@
 			<cfset this.superglobals.setServer("QUERY_STRING", query)>
 		</cfif>
 
-		<!--- Not ported yet: the refresh of the GET values --->
+		<!--- Refresh only the request values derived from superglobals after GET changes. --->
+		<cfset previousRequestData = this.superglobals.getRequestData()>
+		<cfset get = parse_str(this.superglobals.server("QUERY_STRING"))>
+		<cfset this.superglobals.setGetArray(get)>
+		<cfset refreshRequestAfterGetChange(previousRequestData)>
 
 		<cfreturn static_("ColdIgniter\HTTP\URI").removeDotSegments(path)>
 	</cffunction>
@@ -163,6 +169,8 @@
 		<cfset var query = this.superglobals.server("QUERY_STRING")>
 		<cfset var parts = "">
 		<cfset var path = "">
+		<cfset var previousRequestData = "">
+		<cfset var get = "">
 
 		<cfif REReplace(query, "^/+|/+$", "", "all") EQ "">
 			<cfreturn "/">
@@ -180,7 +188,11 @@
 			<cfset path = query>
 		</cfif>
 
-		<!--- Not ported yet: the refresh of the GET values --->
+		<!--- Refresh only the request values derived from superglobals after GET changes. --->
+		<cfset previousRequestData = this.superglobals.getRequestData()>
+		<cfset get = parse_str(this.superglobals.server("QUERY_STRING"))>
+		<cfset this.superglobals.setGetArray(get)>
+		<cfset refreshRequestAfterGetChange(previousRequestData)>
 
 		<cfreturn static_("ColdIgniter\HTTP\URI").removeDotSegments(path)>
 	</cffunction>
@@ -200,6 +212,45 @@
 		</cfif>
 
 		<cfreturn new_("ColdIgniter\HTTP\SiteURI", this.appConfig, relativePath, getHost())>
+	</cffunction>
+
+	<!---
+	 * Update REQUEST once during URI parsing, leaving application-defined values alone.
+	 *
+	 * @param previousRequestData
+	--->
+	<cffunction name="refreshRequestAfterGetChange" access="private" returntype="void" output="no">
+		<cfargument name="previousRequestData" type="any" required="yes">
+		<cfset var requestData = this.superglobals.getRequestArray()>
+		<cfset var currentData = this.superglobals.getRequestData()>
+		<cfset var key = "">
+		<cfset var value = "">
+		<cfset var same = false>
+
+		<cfloop collection="#arguments.previousRequestData#" item="key">
+			<!--- A different value was supplied directly in REQUEST; preserve it. --->
+			<cfset same = false>
+			<cfif array_key_exists(key, requestData)>
+				<cfset value = requestData[key]>
+				<cfset same = value.equals(arguments.previousRequestData[key])>
+			</cfif>
+
+			<cfif same>
+				<cfif array_key_exists(key, currentData)>
+					<cfset requestData[key] = currentData[key]>
+				<cfelse>
+					<cfset requestData.remove(key)>
+				</cfif>
+			</cfif>
+		</cfloop>
+
+		<cfloop collection="#currentData#" item="key">
+			<cfif NOT array_key_exists(key, arguments.previousRequestData) AND NOT array_key_exists(key, requestData)>
+				<cfset requestData[key] = currentData[key]>
+			</cfif>
+		</cfloop>
+
+		<cfset this.superglobals.setRequestArray(requestData)>
 	</cffunction>
 
 	<!---
