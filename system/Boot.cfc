@@ -5,9 +5,11 @@
 
 	<cfinclude template="Polyfills/define.cfm">
 	<cfinclude template="Polyfills/defined.cfm">
+	<cfinclude template="Polyfills/is_file.cfm">
 	<cfinclude template="Polyfills/realpath.cfm">
 
-	<cfset DIRECTORY_SEPARATOR = Right(GetDirectoryFromPath(GetCurrentTemplatePath()), 1)>
+	<cfset __DIR__ = GetDirectoryFromPath(GetCurrentTemplatePath())>
+	<cfset DIRECTORY_SEPARATOR = Right(__DIR__, 1)>
 
 	<!---
 	 * Used by `public/index.cfm`
@@ -21,20 +23,58 @@
 		<cfargument name="paths" type="any" required="yes">
 
 		<cfset definePathConstants(arguments.paths)>
+		<cfif NOT defined("APP_NAMESPACE")>
+			<cfset loadConstants()>
+		</cfif>
+		<!--- Not ported yet: checkMissingExtensions --->
+
+		<!--- Not ported yet: loadDotEnv --->
+		<cfset defineEnvironment()>
+		<cfset loadEnvironmentBootstrap(arguments.paths)>
 
 		<!---
-		 Not ported yet, in the original order: loadConstants,
-		 checkMissingExtensions, loadDotEnv, defineEnvironment,
-		 loadEnvironmentBootstrap, loadCommonFunctions, loadAutoloader,
-		 setExceptionHandler, initializeKint, autoloadHelpers,
-		 initializeCodeIgniter, runCodeIgniter.
+		 Not ported yet, in the original order: loadCommonFunctions,
+		 loadAutoloader, setExceptionHandler, initializeKint,
+		 autoloadHelpers, initializeCodeIgniter, runCodeIgniter.
 		--->
 
 		<!---
 		 Exits the application, setting the exit code for CLI-based
 		 applications that might be watching.
 		--->
-		<cfreturn 0>
+		<cfreturn request.EXIT_SUCCESS>
+	</cffunction>
+
+	<cffunction name="defineEnvironment" access="private" returntype="void" output="no">
+		<cfset var env = "">
+
+		<cfif NOT defined("ENVIRONMENT")>
+			<cfset env = CGI.CI_ENVIRONMENT>
+			<cfif env EQ "">
+				<cfset env = "production">
+			</cfif>
+
+			<cfset define("ENVIRONMENT", env)>
+		</cfif>
+	</cffunction>
+
+	<cffunction name="loadEnvironmentBootstrap" access="private" returntype="void" output="no">
+		<cfargument name="paths" type="any" required="yes">
+		<cfargument name="exit" type="boolean" required="no" default="true">
+
+		<cfif is_file(arguments.paths.appDirectory & "/Config/Boot/" & request.ENVIRONMENT & ".cfm")>
+			<cfinclude template="#includePath(arguments.paths.appDirectory & "/Config/Boot/" & request.ENVIRONMENT & ".cfm")#">
+
+			<cfreturn>
+		</cfif>
+
+		<cfif arguments.exit>
+			<cfheader statuscode="503" statustext="Service Unavailable">
+			<cfset WriteOutput("The application environment is not set correctly.")>
+
+			<!--- exit(EXIT_ERROR): a request has no exit code --->
+			<cfabort>
+		</cfif>
 	</cffunction>
 
 	<!---
@@ -79,6 +119,21 @@
 		<cfif NOT defined("TESTPATH")>
 			<cfset define("TESTPATH", realpath(REReplace(arguments.paths.testsDirectory, "[\\/ ]+$", "")) & DIRECTORY_SEPARATOR)>
 		</cfif>
+	</cffunction>
+
+	<cffunction name="loadConstants" access="private" returntype="void" output="no">
+		<cfinclude template="#includePath(request.APPPATH & "Config/Constants.cfm")#">
+	</cffunction>
+
+	<!---
+	 * Not in the original. cfinclude only takes a path relative to this
+	 * file, so a full path is reached by climbing to the top of the drive.
+	 * The file has to be on the same drive as this one.
+	--->
+	<cffunction name="includePath" access="private" returntype="string" output="no">
+		<cfargument name="path" type="string" required="yes">
+
+		<cfreturn RepeatString("../", ListLen(REReplace(__DIR__, "^[A-Za-z]:", ""), "\/")) & REReplace(Replace(arguments.path, "\", "/", "all"), "^([A-Za-z]:)?/", "")>
 	</cffunction>
 
 </cfcomponent>
