@@ -22,7 +22,7 @@
 		</cfif>
 
 		<cfif is_null(this.uri)>
-			<cfset this.uri = new_("CodeIgniter\HTTP\URI")>
+			<cfset this.uri = new_("ColdIgniter\HTTP\URI")>
 		</cfif>
 
 		<cfreturn this>

@@ -184,7 +184,7 @@
 		<cfset arguments.version = Trim(arguments.version)>
 
 		<cfif ListFind(this.validProtocolVersions, arguments.version) EQ 0>
-			<cfthrow type="CodeIgniter.HTTP.Exceptions.HTTPException" message="Invalid HTTP Protocol Version. Must be one of: #this.validProtocolVersions#">
+			<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Invalid HTTP Protocol Version. Must be one of: #this.validProtocolVersions#">
 		</cfif>
 
 		<cfset this.protocolVersion = arguments.version>

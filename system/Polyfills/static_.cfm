@@ -9,9 +9,9 @@
 	<cfargument name="class" type="string" required="yes">
 	<cfset var key = REReplace(arguments.class, "^\\+", "")>
 
-	<cfif NOT StructKeyExists(request.CodeIgniter.statics, key)>
-		<cfset request.CodeIgniter.statics[key] = request.CodeIgniter.autoloader.instantiate(key)>
+	<cfif NOT StructKeyExists(request.ColdIgniter.statics, key)>
+		<cfset request.ColdIgniter.statics[key] = request.ColdIgniter.autoloader.instantiate(key)>
 	</cfif>
 
-	<cfreturn request.CodeIgniter.statics[key]>
+	<cfreturn request.ColdIgniter.statics[key]>
 </cffunction>

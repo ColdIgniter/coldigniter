@@ -645,7 +645,7 @@
 
 			<!---
 			 Always ensure that we escape our namespace so we're not pointing to
-			 \CodeIgniter\Routes\Controller::method.
+			 \ColdIgniter\Routes\Controller::method.
 			--->
 			<cfset arguments.to = "\" & REReplace(arguments.to, "^\\+", "")>
 		</cfif>

@@ -181,7 +181,7 @@
 			<cfset parts = parse_url(arguments.uri)>
 
 			<cfif StructCount(parts) EQ 0>
-				<cfthrow type="CodeIgniter.HTTP.Exceptions.HTTPException" message="Unable to parse URI: ""#arguments.uri#""">
+				<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Unable to parse URI: ""#arguments.uri#""">
 			</cfif>
 
 			<cfset applyParts(parts)>
@@ -295,11 +295,11 @@
 		<cfargument name="default" type="string" required="no" default="">
 
 		<cfif arguments.number LT 1>
-			<cfthrow type="CodeIgniter.HTTP.Exceptions.HTTPException" message="Request URI segment is out of range: #arguments.number#">
+			<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Request URI segment is out of range: #arguments.number#">
 		</cfif>
 
 		<cfif arguments.number GT ArrayLen(this.segments) + 1>
-			<cfthrow type="CodeIgniter.HTTP.Exceptions.HTTPException" message="Request URI segment is out of range: #arguments.number#">
+			<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Request URI segment is out of range: #arguments.number#">
 		</cfif>
 
 		<cfif arguments.number GT ArrayLen(this.segments)>
@@ -388,7 +388,7 @@
 			<cfreturn this>
 		</cfif>
 
-		<cfthrow type="CodeIgniter.HTTP.Exceptions.HTTPException" message="Invalid port given: #arguments.port#">
+		<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Invalid port given: #arguments.port#">
 	</cffunction>
 
 	<!---
@@ -419,7 +419,7 @@
 		<cfargument name="query" type="string" required="yes">
 
 		<cfif Find("##", arguments.query) GT 0>
-			<cfthrow type="CodeIgniter.HTTP.Exceptions.HTTPException" message="Query strings may not include URI fragments.">
+			<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Query strings may not include URI fragments.">
 		</cfif>
 
 		<!--- Can't have leading ? --->

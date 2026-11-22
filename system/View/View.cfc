@@ -131,7 +131,7 @@
 
 		<!--- Not ported yet: the file locator --->
 		<cfif NOT is_file(this.renderVars["file"])>
-			<cfthrow type="CodeIgniter.View.Exceptions.ViewException" message="Invalid file: ""#this.renderVars["view"]#""">
+			<cfthrow type="ColdIgniter.View.Exceptions.ViewException" message="Invalid file: ""#this.renderVars["view"]#""">
 		</cfif>
 
 		<!--- Make our view data available to the view. --->
@@ -142,7 +142,7 @@
 		 away after the render: an include inside a method copies the
 		 variables of that method into the object.
 		--->
-		<cfset output = new_("CodeIgniter\View\Closure").call(this.renderVars["file"], this.tempData)>
+		<cfset output = new_("ColdIgniter\View\Closure").call(this.renderVars["file"], this.tempData)>
 
 		<!--- Not ported yet: layouts, decorators, performance data, debug toolbar, cache --->
 

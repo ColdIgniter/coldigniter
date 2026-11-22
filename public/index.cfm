@@ -50,4 +50,4 @@
 <cfset Boot.bootWeb(paths)>
 
 <!--- No output can leave a method, so the response leaves the body here to be written. --->
-<cfoutput>#request.CodeIgniter.output#</cfoutput>
+<cfoutput>#request.ColdIgniter.output#</cfoutput>

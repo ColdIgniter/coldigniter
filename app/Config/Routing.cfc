@@ -10,7 +10,7 @@
 
 
 <!--- Routing configuration --->
-<cfcomponent output="no" parent="CodeIgniter\Config\Routing">
+<cfcomponent output="no" parent="ColdIgniter\Config\Routing">
 
 	<!---
 	 * For Defined Routes.

@@ -141,11 +141,11 @@
 		 want this, like in the case of API's.
 		--->
 		<cfif NOT this.collection.shouldAutoRoute()>
-			<cfthrow type="CodeIgniter.Exceptions.PageNotFoundException" errorcode="404" message="Can't find a route for '#this.collection.getHTTPVerb()#: #arguments.uri#'.">
+			<cfthrow type="ColdIgniter.Exceptions.PageNotFoundException" errorcode="404" message="Can't find a route for '#this.collection.getHTTPVerb()#: #arguments.uri#'.">
 		</cfif>
 
 		<!--- Not ported yet: auto routes --->
-		<cfthrow type="CodeIgniter.Exceptions.PageNotFoundException" errorcode="404" message="Can't find a route for '#this.collection.getHTTPVerb()#: #arguments.uri#'.">
+		<cfthrow type="ColdIgniter.Exceptions.PageNotFoundException" errorcode="404" message="Can't find a route for '#this.collection.getHTTPVerb()#: #arguments.uri#'.">
 	</cffunction>
 
 	<!---
@@ -337,13 +337,13 @@
 
 				<!--- Checks `/` in controller name --->
 				<cfif Find("/", controller) GT 0>
-					<cfthrow type="CodeIgniter.Router.Exceptions.RouterException" message="The namespace delimiter is a backslash (\), not a slash (/). Route handler: ""#handler#""">
+					<cfthrow type="ColdIgniter.Router.Exceptions.RouterException" message="The namespace delimiter is a backslash (\), not a slash (/). Route handler: ""#handler#""">
 				</cfif>
 
 				<cfif Find("$", handler) GT 0 AND Find("(", routeKey) GT 0>
 					<!--- Checks dynamic controller --->
 					<cfif Find("$", controller) GT 0>
-						<cfthrow type="CodeIgniter.Router.Exceptions.RouterException" message="A dynamic controller is not allowed for security reasons. Route handler: ""#handler#""">
+						<cfthrow type="ColdIgniter.Router.Exceptions.RouterException" message="A dynamic controller is not allowed for security reasons. Route handler: ""#handler#""">
 					</cfif>
 
 					<!--- Not ported yet: multipleSegmentsOneParam --->
@@ -429,7 +429,7 @@
 		<cfloop from="1" to="#ArrayLen(segments)#" index="i">
 			<cfif segments[i] NEQ "" AND this.permittedURIChars NEQ ""
 				AND NOT CreateObject("java", "java.util.regex.Pattern").matches("(?i)\A[" & this.permittedURIChars & "]+\z", segments[i])>
-				<cfthrow type="CodeIgniter.HTTP.Exceptions.BadRequestException" errorcode="400" message="The URI you submitted has disallowed characters: ""#segments[i]#""">
+				<cfthrow type="ColdIgniter.HTTP.Exceptions.BadRequestException" errorcode="400" message="The URI you submitted has disallowed characters: ""#segments[i]#""">
 			</cfif>
 		</cfloop>
 	</cffunction>

@@ -6,7 +6,7 @@
 --->
 <cffunction name="new_" returntype="any" output="no" hint="Creates an object: new_(class, argument, argument, ...)">
 	<cfargument name="class" type="string" required="yes">
-	<cfset var object = request.CodeIgniter.autoloader.instantiate(arguments.class)>
+	<cfset var object = request.ColdIgniter.autoloader.instantiate(arguments.class)>
 	<cfset var call = "">
 	<cfset var i = 0>
 

@@ -2,13 +2,13 @@
  * Services Configuration file.
  *
  * Services are simply other classes/libraries that the system uses
- * to do its job. This is used by CodeIgniter to allow the core of the
+ * to do its job. This is used by ColdIgniter to allow the core of the
  * framework to be swapped out easily without affecting the usage within
  * the rest of your application.
  *
  * This is used in place of a Dependency Injection container primarily
  * due to its simplicity, which allows a better long-term maintenance
- * of the applications built on top of CodeIgniter. A bonus side-effect
+ * of the applications built on top of ColdIgniter. A bonus side-effect
  * is that IDEs are able to determine what class you are calling
  * whereas with DI Containers there usually isn't a way for them to do this.
  *
@@ -95,13 +95,13 @@
 
 		<cfif arguments.getShared>
 			<cfif NOT StructKeyExists(this.instances, "autoloader")>
-				<cfset this.instances["autoloader"] = new_("CodeIgniter\Autoloader\Autoloader")>
+				<cfset this.instances["autoloader"] = new_("ColdIgniter\Autoloader\Autoloader")>
 			</cfif>
 
 			<cfreturn this.instances["autoloader"]>
 		</cfif>
 
-		<cfreturn new_("CodeIgniter\Autoloader\Autoloader")>
+		<cfreturn new_("ColdIgniter\Autoloader\Autoloader")>
 	</cffunction>
 
 	<!---

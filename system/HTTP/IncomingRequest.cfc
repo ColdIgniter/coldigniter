@@ -80,7 +80,7 @@
 		<cfargument name="userAgent" type="any" required="no" default="">
 
 		<cfif is_null(arguments.uri)>
-			<cfthrow type="CodeIgniter.Exceptions.InvalidArgumentException" message="You must supply the parameters: uri, userAgent.">
+			<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="You must supply the parameters: uri, userAgent.">
 		</cfif>
 
 		<cfset populateHeaders()>

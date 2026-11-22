@@ -14,7 +14,7 @@
             transition: background-color 300ms ease, color 300ms ease;
         }
         *:focus {
-            background-color: rgba(221, 72, 20, .2);
+            background-color: rgba(204, 153, 51, .2);
             outline: none;
         }
         html, body {
@@ -62,8 +62,8 @@
         }
         header li.menu-item a:hover,
         header li.menu-item a:focus {
-            background-color: rgba(221, 72, 20, .2);
-            color: rgba(221, 72, 20, 1);
+            background-color: rgba(204, 153, 51, .2);
+            color: rgba(204, 153, 51, 1);
         }
         header .logo {
             float: left;
@@ -77,7 +77,7 @@
             font-weight: bold;
         }
         header .menu-toggle button {
-            background-color: rgba(221, 72, 20, .6);
+            background-color: rgba(204, 153, 51, .6);
             border: none;
             border-radius: 3px;
             color: rgba(255, 255, 255, 1);
@@ -92,7 +92,7 @@
         }
         header .menu-toggle button:hover,
         header .menu-toggle button:focus {
-            background-color: rgba(221, 72, 20, .8);
+            background-color: rgba(204, 153, 51, .8);
             color: rgba(255, 255, 255, .8);
         }
         header .heroe {
@@ -135,7 +135,7 @@
             display: block;
         }
         section a {
-            color: rgba(221, 72, 20, 1);
+            color: rgba(204, 153, 51, 1);
         }
         section svg {
             margin-bottom: -5px;
@@ -156,7 +156,7 @@
             stroke-width: 32px;
         }
         footer {
-            background-color: rgba(221, 72, 20, .8);
+            background-color: rgba(204, 153, 51, .8);
             text-align: center;
         }
         footer .environment {
@@ -188,11 +188,11 @@
                 display: none;
             }
             header li.menu-item a {
-                background-color: rgba(221, 72, 20, .1);
+                background-color: rgba(204, 153, 51, .1);
             }
             header li.menu-item a:hover,
             header li.menu-item a:focus {
-                background-color: rgba(221, 72, 20, .7);
+                background-color: rgba(204, 153, 51, .7);
                 color: rgba(255, 255, 255, .8);
             }
         }
@@ -207,7 +207,7 @@
         <ul>
             <li class="logo">
                 <a href="#">
-                    <svg role="img" aria-label="ColdIgniter" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2100 500" height="44"><g fill="none" stroke="#3366cc" stroke-linecap="round" stroke-linejoin="round"><path stroke-width="30" d="M190 40C230 110 320 170 320 290A130 130 0 0 1 60 290C60 230 95 190 120 150C135 190 150 200 165 205C150 140 165 90 190 40Z"/><path stroke-width="22" d="M190 230V370M129.4 265 250.6 335M129.4 335 250.6 265"/></g><text x="410" y="352" font-size="270" font-weight="600" fill="#3366cc">ColdIgniter</text></svg>
+                    <svg role="img" aria-label="ColdIgniter" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 120" height="44"><path fill="#3366cc" d="M52 4C58 28 88 46 88 78A36 36 0 0 1 16 78C16 60 26 49 33 36C36 47 41 52 46 53C42 35 45 19 52 4Z"/><path fill="#fff" d="M52 104C41 104 34 96 34 87C34 75 46 69 50 54C59 67 70 75 70 87C70 96 63 104 52 104Z"/><text x="112" y="84" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="68" fill="#3366cc"><tspan font-weight="700">Cold</tspan><tspan font-weight="300">Igniter</tspan></text></svg>
                 </a>
             </li>
             <li class="menu-toggle">
@@ -225,7 +225,7 @@
 
     <div class="heroe">
 
-        <h1>Welcome to ColdIgniter <cfoutput>#static_("CodeIgniter\CodeIgniter").CI_VERSION#</cfoutput></h1>
+        <h1>Welcome to ColdIgniter <cfoutput>#static_("ColdIgniter\ColdIgniter").CI_VERSION#</cfoutput></h1>
 
         <h2>The small framework with powerful features</h2>
 

@@ -4,7 +4,7 @@
  * NOTE: This class is required prior to Autoloader instantiation,
  *       and does not extend BaseConfig.
 --->
-<cfcomponent output="no" parent="CodeIgniter\Modules\Modules">
+<cfcomponent output="no" parent="ColdIgniter\Modules\Modules">
 
 	<!---
 	 * --------------------------------------------------------------------------

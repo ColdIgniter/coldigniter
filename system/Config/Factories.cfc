@@ -7,7 +7,7 @@
  * instantiation checks.
  *
  * The class is static in the original. Here it is used through
- * static_("CodeIgniter\Config\Factories").
+ * static_("ColdIgniter\Config\Factories").
  *
  * Not ported yet: options, the locator search for a class by its short
  * name in every namespace, injectMock, reset, and the factories cache.

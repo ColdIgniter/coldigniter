@@ -8,7 +8,7 @@
  *
  * For security, be sure to declare any new methods as private.
 --->
-<cfcomponent output="no" parent="CodeIgniter\Controller">
+<cfcomponent output="no" parent="ColdIgniter\Controller">
 
 	<!---
 	 * Be sure to declare properties for any property fetch you initialized.

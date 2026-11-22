@@ -24,7 +24,7 @@
  *
  * Example:
  *
- *      <cfset loader = new_("\CodeIgniter\Autoloader\Autoloader")>
+ *      <cfset loader = new_("\ColdIgniter\Autoloader\Autoloader")>
  *
  *      // register the autoloader
  *      <cfset loader.register()>
@@ -108,7 +108,7 @@
 	<cffunction name="register" access="public" returntype="void" output="no">
 		<cfset var i = 0>
 
-		<cfset request.CodeIgniter.autoloader = this>
+		<cfset request.ColdIgniter.autoloader = this>
 
 		<!--- Load our non-class files --->
 		<cfloop from="1" to="#ArrayLen(this.files)#" index="i">
@@ -271,11 +271,11 @@
 		<cfset var parentClass = "">
 
 		<cfif filePath EQ "">
-			<cfthrow type="CodeIgniter.Autoloader.ClassNotFoundException" message="Class ""#name#"" not found">
+			<cfthrow type="ColdIgniter.Autoloader.ClassNotFoundException" message="Class ""#name#"" not found">
 		</cfif>
 
 		<cfset object = createComponent(filePath)>
-		<cfset object.__variables = request.CodeIgniter.functions.__variables>
+		<cfset object.__variables = request.ColdIgniter.functions.__variables>
 
 		<!--- A class in another folder tree cannot be named in "extends", so it is named in "parent". --->
 		<cfset meta = GetMetaData(object)>
@@ -293,7 +293,7 @@
 			<cfset extend(object, instantiate(parentClass))>
 		</cfif>
 
-		<cfset request.CodeIgniter.functions.__inject(object)>
+		<cfset request.ColdIgniter.functions.__inject(object)>
 
 		<cfreturn object>
 	</cffunction>
@@ -310,7 +310,7 @@
 
 		<cfloop condition="NOT is_file(directory & '/autoload.cfm')">
 			<cfif ListLen(directory, "/") LTE 1>
-				<cfthrow type="CodeIgniter.Autoloader.ClassNotFoundException" message="No autoload.cfm at or above ""#arguments.filePath#""">
+				<cfthrow type="ColdIgniter.Autoloader.ClassNotFoundException" message="No autoload.cfm at or above ""#arguments.filePath#""">
 			</cfif>
 
 			<cfset name = ListLast(directory, "/") & "." & name>
