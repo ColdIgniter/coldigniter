@@ -11,7 +11,7 @@
 		<cfreturn StructKeyExists(arguments.array, arguments.key)>
 	</cfif>
 
-	<cfif IsArray(arguments.array) AND REFind("^[0-9]+$", arguments.key) GT 0>
+	<cfif IsArray(arguments.array) AND REFind("^(0|[1-9][0-9]*)$", arguments.key) GT 0>
 		<cfreturn Val(arguments.key) LT ArrayLen(arguments.array)>
 	</cfif>
 
