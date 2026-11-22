@@ -49,13 +49,5 @@
 
 <cfset Boot.bootWeb(paths)>
 
-<!--- TEMPORARY: shows that the boot ran. Goes away when the rest of bootWeb() is ported. --->
-<cfcontent type="text/plain">
-<cfoutput>ColdIgniter boot ok#Chr(10)#</cfoutput>
-<cfoutput>FCPATH     #request.FCPATH##Chr(10)#</cfoutput>
-<cfoutput>APPPATH    #request.APPPATH##Chr(10)#</cfoutput>
-<cfoutput>ROOTPATH   #request.ROOTPATH##Chr(10)#</cfoutput>
-<cfoutput>SYSTEMPATH #request.SYSTEMPATH##Chr(10)#</cfoutput>
-<cfoutput>WRITEPATH  #request.WRITEPATH##Chr(10)#</cfoutput>
-<cfoutput>TESTPATH   #request.TESTPATH##Chr(10)#</cfoutput>
-<cfoutput>ENVIRONMENT #request.ENVIRONMENT#, CI_DEBUG #request.CI_DEBUG#, APP_NAMESPACE #request.APP_NAMESPACE#, DAY #request.DAY#, EXIT__AUTO_MAX #request.EXIT__AUTO_MAX##Chr(10)#</cfoutput>
+<!--- No output can leave a method, so the response leaves the body here to be written. --->
+<cfoutput>#request.CodeIgniter.output#</cfoutput>
