@@ -247,6 +247,9 @@
 		<cfset arguments.data = HTMLEditFormat(arguments.data)>
 		<cfif arguments.context EQ "attr">
 			<cfset arguments.data = Replace(arguments.data, "'", "&##39;", "all")>
+		<cfelseif arguments.context EQ "html">
+			<!--- The original escapes the single quote too (ENT_QUOTES) --->
+			<cfset arguments.data = Replace(arguments.data, "'", "&##039;", "all")>
 		</cfif>
 	</cfif>
 
