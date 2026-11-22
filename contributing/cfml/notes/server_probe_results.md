@@ -307,3 +307,16 @@ Request values on this site (IIS 4 with the rewrite rules in `public/.htaccess`)
 - A `var` named like a function hides that function for the rest of the method (`var realpath` hid `realpath()`).
 - `cfcatch.tagContext` is an array of structs with `template` and `line`; `cfcatch.type` and `cfcatch.message` are usable as the exception.
 - Output written with `cfoutput` inside a `savecontent` view is lost when the view errors; debug with `cfthrow message=`.
+
+## Request input port (verified on the server)
+
+- `a[b].method()` does not compile ("Invalid CFML construct"); put `a[b]` in a `var` first.
+- `server` is a scope name: inside a component call `this.server(...)`, an unscoped `server(...)` fails with a 500.
+- There is no `cfcontinue`; use nested `cfif`.
+- `java.util.LinkedHashMap` works as an ordered, case-sensitive map: bracket read, `.remove(key)`, `.equals(...)` and `StructCount` all work, and it passes `IsStruct`.
+- Java regex with lookbehind works through `CreateObject("java", "java.util.regex.Pattern")`.
+- `CGI.QUERY_STRING`, `CGI.HTTP_COOKIE` and `CGI.CONTENT_TYPE` are available. A cookie `Enc=x%20y` is decoded by `URLDecode`; `Plus=a+b` stays `a+b` in `CGI.HTTP_COOKIE`.
+- `GetHttpRequestData().content` is a string for a urlencoded body (POST and PUT) and a JSON body; the body of PUT and POST is not in the `form` scope for PUT.
+- Multipart POST: the `form` scope has upper-cased names (`a` becomes `A`, `n[k]` becomes `N` with `K`), plus `FIELDNAMES`; original case cannot be recovered there.
+- `index.cfm?/route?a=1&b=2` passes variables with a route (the factory splits on `?`, as upstream). `index.cfm?/route&a=1` gives 400 because the route becomes `route&a=1`.
+- `X-Requested-With: XMLHttpRequest` is read as a header; `isSecure` stays false behind `X-Forwarded-Proto: https` unless the proxy is trusted (as upstream).
