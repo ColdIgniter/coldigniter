@@ -8,7 +8,8 @@
 	<!---
 	 * Not in the original. What the runtime keeps for one request: the
 	 * global functions, the autoloader, the objects that stand in for
-	 * static classes, the files that require_once() has loaded, the options
+	 * static classes, the files that require_once() has loaded, the helpers
+	 * that helper() has loaded (a static variable in the original), the options
 	 * that ini_set() keeps, and the body that the response leaves for the
 	 * front controller to print.
 	--->
@@ -17,6 +18,7 @@
 	<cfset request.ColdIgniter.autoloader = "">
 	<cfset request.ColdIgniter.statics = StructNew()>
 	<cfset request.ColdIgniter.included = StructNew()>
+	<cfset request.ColdIgniter.helpers = StructNew()>
 	<cfset request.ColdIgniter.ini = StructNew()>
 	<cfset request.ColdIgniter.output = "">
 
@@ -47,7 +49,8 @@
 		<cfset loadCommonFunctions()>
 		<cfset loadAutoloader()>
 		<cfset setExceptionHandler()>
-		<!--- Not ported yet: initializeKint, autoloadHelpers --->
+		<!--- Not ported yet: initializeKint --->
+		<cfset autoloadHelpers()>
 
 		<!---
 		 There is no set_exception_handler, so the error that the
@@ -191,6 +194,10 @@
 
 		<!--- Initialize and register the loader with the SPL autoloader stack. --->
 		<cfset static_("Config\Services").autoloader().initialize_(new_("Config\Autoload"), new_("Config\Modules")).register()>
+	</cffunction>
+
+	<cffunction name="autoloadHelpers" access="private" returntype="void" output="no">
+		<cfset service("autoloader").loadHelpers()>
 	</cffunction>
 
 	<cffunction name="initializeColdIgniter" access="private" returntype="any" output="no">
