@@ -13,7 +13,7 @@
  * method, so send() leaves the body in request.ColdIgniter.output and
  * the front controller writes it.
  *
- * Not ported yet: the Content Security Policy, cookies, redirect,
+ * Not ported yet: the Content Security Policy, cookies,
  * download, setJSON, setXML, setDate, setLastModified and setCache.
 --->
 <cfcomponent output="no" extends="Message" hint="Representation of an outgoing, server-side response">
@@ -322,6 +322,69 @@
 	--->
 	<cffunction name="sendBody" access="public" returntype="any" output="no">
 		<cfset request.ColdIgniter.output = request.ColdIgniter.output & this.body>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Perform a redirect to a new URL, in two flavors: header or location.
+	 *
+	 * @param uri    The URI to redirect to
+	 * @param method The flavor, 'auto', 'location' or 'refresh'
+	 * @param code   The type of redirection, defaults to 302 (an empty
+	 *               string stands for null)
+	 *
+	 * @return this
+	 *
+	 * @throws HTTPException For invalid status code.
+	--->
+	<cffunction name="redirect" access="public" returntype="any" output="no">
+		<cfargument name="uri" type="string" required="yes">
+		<cfargument name="method" type="string" required="no" default="auto">
+		<cfargument name="code" type="any" required="no" default="">
+		<cfset var superglobals = "">
+		<cfset var serverSoftware = "">
+		<cfset var serverProtocol = "">
+		<cfset var requestMethod = "">
+
+		<!--- IIS environment likely? Use 'refresh' for better compatibility --->
+		<cfset superglobals = service("superglobals")>
+		<cfset serverSoftware = superglobals.server("SERVER_SOFTWARE")>
+		<cfif arguments.method EQ "auto"
+			AND NOT is_null(serverSoftware)
+			AND Find("Microsoft-IIS", serverSoftware) GT 0>
+			<cfset arguments.method = "refresh">
+		<cfelseif arguments.method NEQ "refresh" AND is_null(arguments.code)>
+			<!--- override status code for HTTP/1.1 & higher --->
+			<cfset serverProtocol = superglobals.server("SERVER_PROTOCOL")>
+			<cfset requestMethod = superglobals.server("REQUEST_METHOD")>
+			<cfif NOT is_null(serverProtocol)
+				AND NOT is_null(requestMethod)
+				AND getProtocolVersion() GTE 1.1>
+				<cfif Compare(requestMethod, static_("ColdIgniter\HTTP\Method").GET) EQ 0>
+					<cfset arguments.code = 302>
+				<cfelseif Compare(requestMethod, static_("ColdIgniter\HTTP\Method").POST) EQ 0
+					OR Compare(requestMethod, static_("ColdIgniter\HTTP\Method").PUT) EQ 0
+					OR Compare(requestMethod, static_("ColdIgniter\HTTP\Method").DELETE) EQ 0>
+					<!--- reference: https://en.wikipedia.org/wiki/Post/Redirect/Get --->
+					<cfset arguments.code = 303>
+				<cfelse>
+					<cfset arguments.code = 307>
+				</cfif>
+			</cfif>
+		</cfif>
+
+		<cfif is_null(arguments.code)>
+			<cfset arguments.code = 302>
+		</cfif>
+
+		<cfif arguments.method EQ "refresh">
+			<cfset setHeader("Refresh", "0;url=" & arguments.uri)>
+		<cfelse>
+			<cfset setHeader("Location", arguments.uri)>
+		</cfif>
+
+		<cfset setStatusCode(arguments.code)>
 
 		<cfreturn this>
 	</cffunction>

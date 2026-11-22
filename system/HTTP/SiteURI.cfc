@@ -1,7 +1,5 @@
 <!---
  * URI for the application site
- *
- * Not ported yet: baseUrl() and siteUrl().
 --->
 <cfcomponent output="no" extends="URI" hint="URI for the application site">
 
@@ -255,6 +253,114 @@
 		</cfif>
 
 		<cfreturn explode("/", tempPath)>
+	</cffunction>
+
+	<!---
+	 * For base_url() helper.
+	 * Named baseUrl_ because the baseURL property has the same name in CFML.
+	 *
+	 *
+	 * Not in the original: with no scheme argument the scheme is null, so
+	 * the argument is left out; an empty string asks for a
+	 * protocol-relative link.
+	 *
+	 * @param relativePath URI string or array of URI segments.
+	 * @param scheme       URI scheme. E.g., http, ftp. If empty
+	 *                     string '' is set, a protocol-relative
+	 *                     link is returned.
+	--->
+	<cffunction name="baseUrl_" access="public" returntype="string" output="no">
+		<cfargument name="relativePath" type="any" required="no" default="">
+		<cfargument name="scheme" type="string" required="no">
+		<cfset var shared = config("Config\App")>
+		<cfset var config_ = config("Config\App", false)>
+		<cfset var key = "">
+		<cfset var host = "">
+		<cfset var scheme_ = "">
+		<cfset var uri = "">
+
+		<cfset arguments.relativePath = stringifyRelativePath(arguments.relativePath)>
+
+		<!--- clone config_ of the shared config: a copy of its values --->
+		<cfloop collection="#shared#" item="key">
+			<cfif NOT IsCustomFunction(shared[key])>
+				<cfset config_[key] = shared[key]>
+			</cfif>
+		</cfloop>
+		<cfset config_.indexPage = "">
+
+		<cfset host = getHost()>
+
+		<cfif IsDefined("arguments.scheme")>
+			<cfset scheme_ = arguments.scheme>
+		</cfif>
+
+		<cfset uri = new_("ColdIgniter\HTTP\SiteURI", config_, arguments.relativePath, host, scheme_)>
+
+		<!--- Support protocol-relative links --->
+		<cfif IsDefined("arguments.scheme") AND arguments.scheme EQ "">
+			<cfreturn substr(uri.__toString(), Len(uri.getScheme()) + 1)>
+		</cfif>
+
+		<cfreturn uri.__toString()>
+	</cffunction>
+
+	<!---
+	 * @param relativePath URI string or array of URI segments
+	--->
+	<cffunction name="stringifyRelativePath" access="private" returntype="string" output="no">
+		<cfargument name="relativePath" type="any" required="yes">
+
+		<cfif IsArray(arguments.relativePath)>
+			<cfreturn implode("/", arguments.relativePath)>
+		</cfif>
+
+		<cfreturn arguments.relativePath>
+	</cffunction>
+
+	<!---
+	 * For site_url() helper.
+	 *
+	 * Not in the original: with no scheme or config argument the value is
+	 * null, so the argument is left out (see baseUrl_).
+	 *
+	 * @param relativePath URI string or array of URI segments.
+	 * @param scheme       URI scheme. E.g., http, ftp. If empty
+	 *                     string '' is set, a protocol-relative
+	 *                     link is returned.
+	 * @param config       Alternate configuration to use.
+	--->
+	<cffunction name="siteUrl" access="public" returntype="string" output="no">
+		<cfargument name="relativePath" type="any" required="no" default="">
+		<cfargument name="scheme" type="string" required="no">
+		<cfargument name="config_" type="any" required="no">
+		<cfset var host = "">
+		<cfset var appConfig = "">
+		<cfset var scheme_ = "">
+		<cfset var uri = "">
+
+		<cfset arguments.relativePath = stringifyRelativePath(arguments.relativePath)>
+
+		<!--- Check current host. --->
+		<cfif NOT IsDefined("arguments.config_")>
+			<cfset host = getHost()>
+			<cfset appConfig = config("Config\App")>
+		<cfelse>
+			<cfset appConfig = arguments.config_>
+		</cfif>
+
+		<cfif IsDefined("arguments.scheme")>
+			<cfset scheme_ = arguments.scheme>
+		</cfif>
+
+		<cfset uri = new_("ColdIgniter\HTTP\SiteURI", appConfig, arguments.relativePath, host, scheme_)>
+
+		<!--- Support protocol-relative links --->
+		<cfif IsDefined("arguments.scheme") AND arguments.scheme EQ "">
+			<cfreturn substr(uri.__toString(), Len(uri.getScheme()) + 1)>
+		</cfif>
+
+		<cfreturn uri.__toString()>
 	</cffunction>
 
 </cfcomponent>
