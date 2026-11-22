@@ -62,6 +62,58 @@
 </cffunction>
 
 <!---
+ * Allows user to retrieve values from the environment
+ * variables that have been set. Especially useful for
+ * retrieving values set from the .env file for
+ * use in config files.
+ *
+ * Difference: the values are in request.ColdIgniter.env (see
+ * Config/DotEnv.cfc), then the CGI variables of the server stand in for
+ * $_SERVER. The name is not case-sensitive in the first place. There is no
+ * null, so "null" gives an empty string, and so does a variable that is
+ * not found and has no default. Not ported yet: getenv().
+ *
+ * @param key     The name
+ * @param default The value when it is not found
+ *
+ * @return The value: true, false or an empty string for the words "true",
+ *         "false", "empty" and "null" in any case, else the string
+--->
+<cffunction name="env" returntype="any" output="no" hint="Allows user to retrieve values from the environment variables that have been set">
+	<cfargument name="key" type="string" required="yes">
+	<cfargument name="default" type="any" required="no" default="">
+	<cfset var value = "">
+	<cfset var found = false>
+
+	<cfif StructKeyExists(request.ColdIgniter.env, arguments.key)>
+		<cfset value = request.ColdIgniter.env[arguments.key]>
+		<cfset found = true>
+	<cfelseif StructKeyExists(CGI, arguments.key) AND CGI[arguments.key] NEQ "">
+		<cfset value = CGI[arguments.key]>
+		<cfset found = true>
+	</cfif>
+
+	<!--- Not found? Return the default value --->
+	<cfif NOT found>
+		<cfreturn arguments.default>
+	</cfif>
+
+	<!--- Handle any boolean values --->
+	<!--- Difference: Compare() is used, since CFML equality treats "yes" as true and "no" as false --->
+	<cfif Compare(LCase(value), "true") EQ 0>
+		<cfreturn true>
+	<cfelseif Compare(LCase(value), "false") EQ 0>
+		<cfreturn false>
+	<cfelseif Compare(LCase(value), "empty") EQ 0>
+		<cfreturn "">
+	<cfelseif Compare(LCase(value), "null") EQ 0>
+		<cfreturn "">
+	</cfif>
+
+	<cfreturn value>
+</cffunction>
+
+<!---
  * Performs simple auto-escaping of data for security reasons.
  * Might consider making this more complex at a later date.
  *
@@ -286,6 +338,36 @@
 </cffunction>
 
 <!---
+ * A convenience/compatibility method for logging events through
+ * the Log system.
+ *
+ * Allowed log levels are:
+ *  - emergency
+ *  - alert
+ *  - critical
+ *  - error
+ *  - warning
+ *  - notice
+ *  - info
+ *  - debug
+ *
+ * Not ported yet: the TestLogger of the "testing" environment.
+ *
+ * @param level   The level
+ * @param message The message
+ * @param context A map (see array_())
+--->
+<cffunction name="log_message" returntype="void" output="no" hint="A convenience/compatibility method for logging events through the Log system">
+	<cfargument name="level" type="string" required="yes">
+	<cfargument name="message" type="string" required="yes">
+	<cfargument name="context" type="any" required="no" default="">
+
+	<!--- Not ported yet: when running tests, the TestLogger is used --->
+
+	<cfset service("logger").log_(arguments.level, arguments.message, arguments.context)>
+</cffunction>
+
+<!---
  * Convenience method that works with the current global request and
  * router instances to redirect using named/reverse-routed routes
  * to determine the URL to go to.
@@ -303,6 +385,45 @@
 	</cfif>
 
 	<cfreturn response>
+</cffunction>
+
+<!---
+ * Renders a backtrace.
+ *
+ * Difference: the rows are the ones of the tagContext of a caught error
+ * (template, line and id). The id is the name of a function when the engine
+ * knows it, else "??". The rows have no class, type or arguments.
+ *
+ * @param backtrace A list of rows (structs)
+--->
+<cffunction name="render_backtrace" returntype="string" output="no" hint="Renders a backtrace">
+	<cfargument name="backtrace" type="array" required="yes">
+	<cfset var backtraces = ArrayNew(1)>
+	<cfset var frame = "">
+	<cfset var file = "">
+	<cfset var idx = "">
+	<cfset var functionName = "">
+	<cfset var index = 0>
+
+	<cfloop from="1" to="#ArrayLen(arguments.backtrace)#" index="index">
+		<cfset frame = arguments.backtrace[index]>
+
+		<cfset file = "[internal function]">
+		<cfif StructKeyExists(frame, "template")>
+			<cfset file = frame.template & "(" & frame.line & ")">
+		</cfif>
+
+		<cfset functionName = "">
+		<cfif StructKeyExists(frame, "id")>
+			<cfset functionName = frame.id>
+		</cfif>
+
+		<cfset idx = RJustify(index, 2)>
+
+		<cfset ArrayAppend(backtraces, idx & " " & clean_path(file) & ": " & functionName & "()")>
+	</cfloop>
+
+	<cfreturn implode(Chr(10), backtraces)>
 </cffunction>
 
 <!---

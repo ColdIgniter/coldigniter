@@ -61,9 +61,13 @@
 
 		<cfset this.config = arguments.config>
 		<cfset this.viewPath = REReplace(arguments.viewPath, "[\\/ ]+$", "") & request.DIRECTORY_SEPARATOR>
-		<!--- Not ported yet: service("locator") and service("logger") --->
+		<!--- Not ported yet: service("locator") --->
 		<cfset this.loader = arguments.loader>
-		<cfset this.logger = arguments.logger>
+		<cfif is_null(arguments.logger)>
+			<cfset this.logger = service("logger")>
+		<cfelse>
+			<cfset this.logger = arguments.logger>
+		</cfif>
 		<cfif is_null(arguments.debug)>
 			<cfset this.debug = request.CI_DEBUG>
 		<cfelse>

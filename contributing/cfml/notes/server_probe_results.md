@@ -356,3 +356,17 @@ Request values on this site (IIS 4 with the rewrite rules in `public/.htaccess`)
 - `<cfreturn false>` from a method arrives as the string `"false"` (`java.lang.String`, `Compare(r, "false")` is 0); `<cfreturn 0>` and `"no"` are strings too. Only `JavaCast("boolean", false)` is a `java.lang.Boolean` (`Compare` against `"false"` is not 0, it reads as `NO`). An event listener returning `false` or `"false"` stops the chain; `0`, `"0"`, `"no"` and nothing do not. A before filter returning true, false or 0 lets the next filter run, any other non-empty string stops the filters.
 - `URLDecode` of a path with a lone or bad `%` is guarded in `Filters.initialize_` (`parse_str_decode`). A bad escape in the request query (`?/a/%zz`, also `?/a?x=%zz`) is answered by the engine itself with a bare "JRun Servlet Error 500 null" before the framework runs; the filter code is not involved.
 - InvalidChars (query `?/flt/plain?ft=2&x=...`): `%01`, `%7F` and `%C2%85` (U+0085) answer 400; `%0A`, `%09`, `%0D`, `%C3%A9` and plain text pass. U+0085 is refused by the original too: `[:^cntrl:]` with the u modifier runs in Unicode property mode, where it is the Cc category (checked with pcre2test: refused with UCP, accepted without).
+
+## .env and the logger (verified on the server)
+
+- `access="protected"` on a `cffunction` does not compile; the valid values are `private`, `package`, `public` and `remote`. `package` is used where the original has `protected`.
+- A function named `setVariable` (and `date` inside a component, which then shadows the polyfill) clashes with a built-in; use a trailing underscore.
+- `<cfcontinue>` is not supported; use `cfif` or `cfbreak`.
+- `cfswitch`/`cfcase` is case-insensitive at compile time (`D` and `d` as two cases is a compile error), and it compares with CFML equality: `yes` matches the case `true`. `EQ` does the same, so `Compare()` is used where the exact text matters (`env()` turns `true`, `false`, `empty` and `null` only; `yes` stays `yes`).
+- `collection="#this#"` lists the keys in upper case; `IsCustomFunction(this[key])` tells functions from properties.
+- `GetMetaData(component).name` of a class loaded through the nearest `autoload.cfm` is only the name relative to that folder (`Logger`, not `Config\Logger`), so `Autoloader.instantiate` stores the requested class name in `__class`.
+- `cffile action="append"` needs `charset="utf-8"` and `addnewline="no"` to write exact bytes; to a directory that does not exist it throws type `Application` ("An error occurred when performing a file operation append"), which a `cftry` catches, so a bad log path does not break a request (the line is lost and `log_()` returns false).
+- 8 parallel requests with 60 appends each wrote intact lines, with or without a named `cflock`.
+- `cflog file="x" application="no"` writes CSV to `C:\CFusionMX\logs\x.log` and flattens line breaks; the engine's own log directory is not writable through FTP, so a probe file there cannot be removed.
+- `DateFormat`, `TimeFormat` and `TimeFormat(t, "l")` (milliseconds) work; `tagContext` rows of a caught exception have `TYPE`, `TEMPLATE`, `COLUMN`, `RAW_TRACE`, `ID` (`??`) and `LINE`.
+- A `.env` at the application root is not reachable by URL when the tree is outside the web root; inside a served folder IIS answers 404 for `.env` here.

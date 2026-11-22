@@ -10,7 +10,8 @@
 	 * global functions, the autoloader, the objects that stand in for
 	 * static classes, the files that require_once() has loaded, the helpers
 	 * that helper() has loaded (a static variable in the original), the options
-	 * that ini_set() keeps, and the body that the response leaves for the
+	 * that ini_set() keeps, the environment values (what $_ENV, $_SERVER and
+	 * getenv() hold), and the body that the response leaves for the
 	 * front controller to print.
 	--->
 	<cfset request.ColdIgniter = StructNew()>
@@ -20,6 +21,7 @@
 	<cfset request.ColdIgniter.included = StructNew()>
 	<cfset request.ColdIgniter.helpers = StructNew()>
 	<cfset request.ColdIgniter.ini = StructNew()>
+	<cfset request.ColdIgniter.env = StructNew()>
 	<cfset request.ColdIgniter.output = "">
 
 	<cfset define("DIRECTORY_SEPARATOR", Right(GetDirectoryFromPath(GetCurrentTemplatePath()), 1))>
@@ -42,7 +44,7 @@
 		</cfif>
 		<!--- Not ported yet: checkMissingExtensions --->
 
-		<!--- Not ported yet: loadDotEnv --->
+		<cfset loadDotEnv(arguments.paths)>
 		<cfset defineEnvironment()>
 		<cfset loadEnvironmentBootstrap(arguments.paths)>
 
@@ -84,11 +86,33 @@
 		<cfreturn request.EXIT_SUCCESS>
 	</cffunction>
 
+	<!---
+	 * Load environment settings from .env files into the environment values
+	 * (request.ColdIgniter.env, see Config/DotEnv.cfc)
+	--->
+	<cffunction name="loadDotEnv" access="private" returntype="void" output="no">
+		<cfargument name="paths" type="any" required="yes">
+		<cfset var dotEnv = request.ColdIgniter.functions.__inject(CreateObject("component", "Config.DotEnv"))>
+
+		<!--- There is no require_once: the autoloader does not exist yet, so the file is created by hand. --->
+		<cfset dotEnv.__construct(arguments.paths.envDirectory)>
+		<cfset dotEnv.load()>
+	</cffunction>
+
+	<!---
+	 * Difference: the order of the original is $_ENV, $_SERVER, getenv(),
+	 * here the values from the .env file, then the CGI variable of the server.
+	--->
 	<cffunction name="defineEnvironment" access="private" returntype="void" output="no">
 		<cfset var env = "">
 
 		<cfif NOT defined("ENVIRONMENT")>
-			<cfset env = CGI.CI_ENVIRONMENT>
+			<cfif StructKeyExists(request.ColdIgniter.env, "CI_ENVIRONMENT")>
+				<cfset env = request.ColdIgniter.env["CI_ENVIRONMENT"]>
+			</cfif>
+			<cfif env EQ "">
+				<cfset env = CGI.CI_ENVIRONMENT>
+			</cfif>
 			<cfif env EQ "">
 				<cfset env = "production">
 			</cfif>
