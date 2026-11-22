@@ -246,7 +246,7 @@
 	--->
 	<cffunction name="convertToSegments" access="private" returntype="array" output="no">
 		<cfargument name="path" type="string" required="yes">
-		<cfset var tempPath = REReplace(arguments.path, "^/+|/+$", "", "all")>
+		<cfset var tempPath = trim_(arguments.path, "/")>
 
 		<cfif tempPath EQ "">
 			<cfreturn ArrayNew(1)>

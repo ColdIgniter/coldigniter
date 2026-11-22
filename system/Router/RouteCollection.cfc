@@ -270,7 +270,7 @@
 	<cffunction name="setDefaultNamespace" access="public" returntype="any" output="no">
 		<cfargument name="value" type="string" required="yes">
 
-		<cfset this.defaultNamespace = HTMLEditFormat(REReplace(arguments.value, "<[^>]*>", "", "all"))>
+		<cfset this.defaultNamespace = HTMLEditFormat(strip_tags(arguments.value))>
 		<cfset this.defaultNamespace = REReplace(this.defaultNamespace, "\\+$", "") & "\">
 
 		<cfreturn this>
@@ -283,7 +283,7 @@
 	<cffunction name="setDefaultController" access="public" returntype="any" output="no">
 		<cfargument name="value" type="string" required="yes">
 
-		<cfset this.defaultController = HTMLEditFormat(REReplace(arguments.value, "<[^>]*>", "", "all"))>
+		<cfset this.defaultController = HTMLEditFormat(strip_tags(arguments.value))>
 
 		<cfreturn this>
 	</cffunction>
@@ -295,7 +295,7 @@
 	<cffunction name="setDefaultMethod" access="public" returntype="any" output="no">
 		<cfargument name="value" type="string" required="yes">
 
-		<cfset this.defaultMethod = HTMLEditFormat(REReplace(arguments.value, "<[^>]*>", "", "all"))>
+		<cfset this.defaultMethod = HTMLEditFormat(strip_tags(arguments.value))>
 
 		<cfreturn this>
 	</cffunction>
@@ -655,14 +655,14 @@
 
 		<!--- Not ported yet: the group prefix --->
 
-		<cfset arguments.from = HTMLEditFormat(REReplace(prefix & arguments.from, "<[^>]*>", "", "all"))>
+		<cfset arguments.from = HTMLEditFormat(strip_tags(prefix & arguments.from))>
 
 		<!---
 		 While we want to add a route within a group of '/',
 		 it doesn't work with matching, so remove them...
 		--->
 		<cfif arguments.from NEQ "/">
-			<cfset arguments.from = REReplace(arguments.from, "^/+|/+$", "", "all")>
+			<cfset arguments.from = trim_(arguments.from, "/")>
 		</cfif>
 
 		<cfif is_null(arguments.options)>
