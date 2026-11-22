@@ -4,15 +4,14 @@
  * CHECK COLDFUSION VERSION
  *---------------------------------------------------------------
 --->
-<cfset productVersion = Server.ColdFusion.ProductVersion>
-<cfset majorVersion = Val(ListFirst(productVersion))>
-<cfset minorVersion = 0>
-<cfif ListLen(productVersion) GTE 2>
-	<cfset minorVersion = Val(ListGetAt(productVersion, 2))>
-</cfif>
-<cfif majorVersion LT 6 OR (majorVersion EQ 6 AND minorVersion LT 1)>
+<cfset minCfVersion = "6.1">
+<cfset cfVersion = Replace(Server.ColdFusion.ProductVersion, ",", ".", "all")>
+<cfif Val(cfVersion) LT Val(minCfVersion)>
+	<cfset message = "Your ColdFusion version must be #minCfVersion# or higher to run ColdIgniter. Current version: #cfVersion#">
+
 	<cfheader statuscode="503" statustext="Service Unavailable">
-	<cfoutput>Your ColdFusion version must be 6.1 or higher to run ColdIgniter. Current version: #productVersion#</cfoutput>
+	<cfoutput>#message#</cfoutput>
+
 	<cfabort>
 </cfif>
 
