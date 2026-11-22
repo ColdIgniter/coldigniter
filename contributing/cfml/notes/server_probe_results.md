@@ -307,3 +307,26 @@ Request values on this site (IIS 4 with the rewrite rules in `public/.htaccess`)
 - A `var` named like a function hides that function for the rest of the method (`var realpath` hid `realpath()`).
 - `cfcatch.tagContext` is an array of structs with `template` and `line`; `cfcatch.type` and `cfcatch.message` are usable as the exception.
 - Output written with `cfoutput` inside a `savecontent` view is lost when the view errors; debug with `cfthrow message=`.
+
+## Request input port (verified on the server)
+
+- `a[b].method()` does not compile ("Invalid CFML construct"); put `a[b]` in a `var` first.
+- `server` is a scope name: inside a component call `this.server(...)`, an unscoped `server(...)` fails with a 500.
+- There is no `cfcontinue`; use nested `cfif`.
+- `java.util.LinkedHashMap` works as an ordered, case-sensitive map: bracket read, `.remove(key)`, `.equals(...)` and `StructCount` all work, and it passes `IsStruct`.
+- Java regex with lookbehind works through `CreateObject("java", "java.util.regex.Pattern")`.
+- `CGI.QUERY_STRING`, `CGI.HTTP_COOKIE` and `CGI.CONTENT_TYPE` are available. A cookie `Enc=x%20y` is decoded by `URLDecode`; `Plus=a+b` stays `a+b` in `CGI.HTTP_COOKIE`.
+- `GetHttpRequestData().content` is a string for a urlencoded body (POST and PUT) and a JSON body; the body of PUT and POST is not in the `form` scope for PUT.
+- Multipart POST: the `form` scope has upper-cased names (`a` becomes `A`, `n[k]` becomes `N` with `K`), plus `FIELDNAMES`; original case cannot be recovered there.
+- `index.cfm?/route?a=1&b=2` passes variables with a route (the factory splits on `?`, as upstream). `index.cfm?/route&a=1` gives 400 because the route becomes `route&a=1`.
+- `X-Requested-With: XMLHttpRequest` is read as a header; `isSecure` stays false behind `X-Forwarded-Proto: https` unless the proxy is trusted (as upstream).
+- The loop over the `CGI` scope lists only `HTTP_COOKIE`, `HTTP_CONNECTION`, `HTTP_REFERER`, `HTTP_USER_AGENT`, `HTTP_ACCEPT_ENCODING`, `HTTP_ACCEPT_LANGUAGE`, `HTTP_ACCEPT` and `HTTP_HOST` of the request headers. A custom header such as `X-Test-Hdr` is missing from the loop, but `CGI.HTTP_X_TEST_HDR` reads it by name; `getServer("HTTP_X_FORWARDED_FOR")` therefore falls back to a read by name.
+- `URLDecode` throws (a 500 without a catch) for a percent sign that is not followed by two hexadecimal digits (`a+b%`, `%zz`, `%4`, `%41%`); a well-formed `%20` and `%C3%A9` decode and a plus becomes a space. `parse_str` writes such a lone sign as `%25` first, so it stays as it is.
+- `Chr(0)` is an empty string in a literal, `Find(Chr(0), s)` returns 1 for any string; `URLDecode("ab%00cd")` does hold a real NUL character (length 5). `parse_str` cuts a name at the text `%00` before decoding.
+- The engine's own form parser (`FormScope`) throws `IllegalArgumentException` for a POST body with a malformed percent sign in the middle (`p=%zz+%4`), before any CFML runs; a trailing one (`q=a+b%`) is fine. A malformed percent sign in the query string of a GET (`?q=a+b%`, `?q=%zz`, `?/hello/world?q=a+b%`) gives a JRun 500 (`String index out of range`, or `null`) also for a page that only prints `CGI.QUERY_STRING`, so the engine fails before any CFML runs and the framework cannot answer it (a well-formed `%41` is fine).
+- `java.util.IdentityHashMap` works (`put`, `containsKey`, `get` returns a number); `curl` needs `-g` for a URL with `[`.
+- `parse_str` takes at most 1000 pairs and a name with at most 64 pairs of brackets (the defaults of max_input_vars and max_input_nesting_level): 1100 pairs gave 1000 values; a POST of 20000 `a[]=` pairs gave 1000 values in about 2 s.
+- `URLDecode` does not throw for well-formed escapes that are not valid UTF-8: `%FF`, `%C3` and `%80%80` each give U+FFFD per bad byte (`%E9t%E9` gives three characters, 65533 116 65533) and `%C3%A9` gives 233. The same text in a GET query after the route and in a POST body reaches `getGet()` and `getPost()` as U+FFFD; the original byte cannot be kept.
+- `java.lang.StringBuffer.append()` was wrapped in `JavaCast("string", ...)` so a numeric-looking piece (`0012`) is not given to a numeric overload; `x=%410012` gives `A0012`, `x=0012` stays `0012`.
+- A number key is only a canonical decimal integer (`^(0|[1-9][0-9]{0,17})$`): `f[007]=a&f[]=b` gives keys `007` and `0`; a 20-digit key is kept as it is and the next is `0`. The next free number is kept in a `java.math.BigInteger` because `ToString(Int(1E+018))` prints in E notation (`f[999999999999999999]=a&f[]=b` gives `1000000000000000000`).
+- A cookie name is checked for a repeat after it is normalised like `parse_str` does: `a.b=1; a_b=2` gives `a_b` = 1 and `%61=1; a=2` gives `a` = 1.
