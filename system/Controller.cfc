@@ -1,7 +1,7 @@
 <!---
  * Class Controller
  *
- * Not ported yet: forceHTTPS, cachePage.
+ * Not ported yet: forceHTTPS.
 --->
 <cfcomponent output="no" hint="Class Controller">
 
@@ -57,6 +57,19 @@
 
 		<!--- Autoload helper files. --->
 		<cfset helper(this.helpers)>
+	</cffunction>
+
+	<!---
+	 * Provides a simple way to tie into the main ColdIgniter class and
+	 * tell it how long to cache the current page for, if the
+	 * PageCache filter is applied.
+	 *
+	 * @param time Seconds to cache the page for
+	--->
+	<cffunction name="cachePage" access="private" returntype="void" output="no">
+		<cfargument name="time" type="numeric" required="yes">
+
+		<cfset service("responsecache").setTtl(arguments.time)>
 	</cffunction>
 
 	<!---

@@ -4,8 +4,7 @@
  * Of course, there are variations to that flow, but this is the
  * objective.
  *
- * Not ported yet: the page cache,
- * Kint, forceSecureAccess, method spoofing, the previous URL, the
+ * Not ported yet: Kint, forceSecureAccess, method spoofing, the previous URL, the
  * controller attributes, closures as controllers and _remap.
 --->
 <cfcomponent output="no" hint="The core of the framework">
@@ -130,7 +129,9 @@
 			<cfthrow type="ColdIgniter.Exceptions.LogicException" message="Context must be set before run() is called.">
 		</cfif>
 
-		<!--- Not ported yet: the page cache, the output buffer level --->
+		<cfset service("responsecache").setTtl(0)>
+
+		<!--- Not ported yet: the output buffer level --->
 
 		<cfset startBenchmark()>
 

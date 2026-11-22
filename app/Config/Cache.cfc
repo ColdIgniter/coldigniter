@@ -1,0 +1,136 @@
+<!---
+ * Cache configuration.
+ *
+ * Not ported yet: the options memcached and redis, and the option mode of
+ * file (there is no chmod), because the handlers that use them are not
+ * ported.
+--->
+<cfcomponent output="no" parent="ColdIgniter\Config\BaseConfig" hint="Cache configuration">
+
+	<!---
+	 * --------------------------------------------------------------------------
+	 * Primary Handler
+	 * --------------------------------------------------------------------------
+	 *
+	 * The name of the preferred handler that should be used. If for some reason
+	 * it is not available, the $backupHandler will be used in its place.
+	--->
+	<cfset this.handler = "file">
+
+	<!---
+	 * --------------------------------------------------------------------------
+	 * Backup Handler
+	 * --------------------------------------------------------------------------
+	 *
+	 * The name of the handler that will be used in case the first one is
+	 * unreachable. Often, 'file' is used here since the filesystem is
+	 * always available, though that's not always practical for the app.
+	--->
+	<cfset this.backupHandler = "dummy">
+
+	<!---
+	 * --------------------------------------------------------------------------
+	 * Key Prefix
+	 * --------------------------------------------------------------------------
+	 *
+	 * This string is added to all cache item names to help avoid collisions
+	 * if you run multiple applications with the same cache engine.
+	--->
+	<cfset this.prefix = "">
+
+	<!---
+	 * --------------------------------------------------------------------------
+	 * Default TTL
+	 * --------------------------------------------------------------------------
+	 *
+	 * The default number of seconds to save items when none is specified.
+	 *
+	 * WARNING: This is not used by framework handlers where 60 seconds is
+	 * hard-coded, but may be useful to projects and modules. This will replace
+	 * the hard-coded value in a future release.
+	--->
+	<cfset this.ttl = 60>
+
+	<!---
+	 * --------------------------------------------------------------------------
+	 * Reserved Characters
+	 * --------------------------------------------------------------------------
+	 *
+	 * A string of reserved characters that will not be allowed in keys or tags.
+	 * Strings that violate this restriction will cause handlers to throw.
+	 * Default: {}()/\@:
+	 *
+	 * NOTE: The default set is required for PSR-6 compliance.
+	--->
+	<cfset this.reservedCharacters = "{}()/\@:">
+
+	<!---
+	 * --------------------------------------------------------------------------
+	 * File settings
+	 * --------------------------------------------------------------------------
+	 *
+	 * Your file storage preferences can be specified below, if you are using
+	 * the File driver.
+	 *
+	 * Named with an underscore, because "file" is a scope.
+	 *
+	 * @var map {storePath}
+	--->
+	<cfset this.file_ = CreateObject("java", "java.util.LinkedHashMap").init()>
+	<cfset this.file_.put("storePath", request.WRITEPATH & "cache/")>
+
+	<!---
+	 * --------------------------------------------------------------------------
+	 * Available Cache Handlers
+	 * --------------------------------------------------------------------------
+	 *
+	 * This is a map of cache engine alias' and class names. Only engines
+	 * that are listed here are allowed to be used.
+	 *
+	 * Not ported yet: apcu, memcached, predis, redis and wincache.
+	 *
+	 * @var map of name -> class name
+	--->
+	<cfset this.validHandlers = CreateObject("java", "java.util.LinkedHashMap").init()>
+	<cfset this.validHandlers.put("dummy", "ColdIgniter\Cache\Handlers\DummyHandler")>
+	<cfset this.validHandlers.put("file", "ColdIgniter\Cache\Handlers\FileHandler")>
+
+	<!---
+	 * --------------------------------------------------------------------------
+	 * Web Page Caching: Cache Include Query String
+	 * --------------------------------------------------------------------------
+	 *
+	 * Whether to take the URL query string into consideration when generating
+	 * output cache files. Valid options are:
+	 *
+	 *    false = Disabled
+	 *    true  = Enabled, take all query parameters into account.
+	 *            Please be aware that this may result in numerous cache
+	 *            files generated for the same page over and over again.
+	 *    list  = Enabled, but only take into account the specified list
+	 *            of query parameters (an array of names).
+	 *
+	 * @var boolean|array
+	--->
+	<cfset this.cacheQueryString = false>
+
+	<!---
+	 * --------------------------------------------------------------------------
+	 * Web Page Caching: Cache Status Codes
+	 * --------------------------------------------------------------------------
+	 *
+	 * HTTP status codes that are allowed to be cached. Only responses with
+	 * these status codes will be cached by the PageCache filter.
+	 *
+	 * Default: [] - Cache all status codes (backward compatible)
+	 *
+	 * WARNING: Using [] may cache undesired responses (404s, 500s).
+	 * Consider setting an explicit list of status codes.
+	 *
+	 * Recommended: [200] - Only cache successful responses
+	 *
+	 * @var array of status codes
+	--->
+	<cfset this.cacheStatusCodes = ArrayNew(1)>
+
+</cfcomponent>

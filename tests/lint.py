@@ -12,6 +12,7 @@ the rules that are easy to break and that need no server to detect:
   output     every cfcomponent and cffunction has output="no"
   operators  word operators only in cfif, cfelseif, cfset and cfreturn
   var        var lines come first in a function
+  dupvar     a var line does not repeat an argument or another var name
   appcfc     no Application.cfc (it is ignored by the target server)
 
 Exit status 0 when clean, 1 when something was found.
@@ -69,11 +70,23 @@ def check(path, raw):
 
     for function in FUNCTION.finditer(code):
         body_started = False
+        names = set()
         for match in TAG.finditer(function.group(0)):
             name, rest = match.group(2).lower(), match.group(3)
+            if not match.group(1) and name == "cfargument":
+                argument = re.search(r'\bname\s*=\s*"(\w+)"', rest, re.I)
+                if argument:
+                    names.add(argument.group(1).lower())
             if match.group(1) or name in ("cffunction", "cfargument"):
                 continue
             is_var = name == "cfset" and re.match(r"\s+var\s", rest, re.I)
+            if is_var:
+                local = re.match(r"\s+var\s+(\w+)", rest, re.I)
+                if local and local.group(1).lower() in names:
+                    line = line_of(code, function.start() + match.start())
+                    found.append((line, "dupvar", "local variable " + local.group(1) + " declared twice"))
+                if local:
+                    names.add(local.group(1).lower())
             if is_var and body_started:
                 line = line_of(code, function.start() + match.start())
                 found.append((line, "var", "var line after the first statement of the function"))

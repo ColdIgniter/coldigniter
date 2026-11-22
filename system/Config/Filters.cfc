@@ -14,9 +14,9 @@
 	 *
 	 * A map (see array_()) of strings, or of lists of strings.
 	 *
-	 * Not ported yet: honeypot, pagecache and performance.
+	 * Not ported yet: honeypot and performance.
 	 * The performance metrics are done inline in ColdIgniter.cfc and
-	 * the others have no class yet. Cors is not ported yet either.
+	 * honeypot has no class yet. Cors is not ported yet either.
 	--->
 	<cfset this.aliases = CreateObject("java", "java.util.LinkedHashMap").init()>
 	<cfset this.aliases["csrf"] = "ColdIgniter\Filters\CSRF">
@@ -26,7 +26,7 @@
 	<cfset this.aliases["secureheaders"] = "ColdIgniter\Filters\SecureHeaders">
 	<!--- Not ported yet: cors --->
 	<cfset this.aliases["forcehttps"] = "ColdIgniter\Filters\ForceHTTPS">
-	<!--- Not ported yet: pagecache --->
+	<cfset this.aliases["pagecache"] = "ColdIgniter\Filters\PageCache">
 	<!--- Not ported yet: performance --->
 
 	<!---
@@ -43,9 +43,9 @@
 	<cfset this.required = CreateObject("java", "java.util.LinkedHashMap").init()>
 	<cfset this.required["before"] = ArrayNew(1)>
 	<cfset ArrayAppend(this.required["before"], "forcehttps")> <!--- Force Global Secure Requests --->
-	<!--- Not ported yet: pagecache (Web Page Caching) --->
+	<cfset ArrayAppend(this.required["before"], "pagecache")> <!--- Web Page Caching --->
 	<cfset this.required["after"] = ArrayNew(1)>
-	<!--- Not ported yet: pagecache (Web Page Caching) --->
+	<cfset ArrayAppend(this.required["after"], "pagecache")> <!--- Web Page Caching --->
 	<!--- Not ported yet: performance (Performance Metrics) --->
 	<cfset ArrayAppend(this.required["after"], "toolbar")> <!--- DebugToolbar --->
 

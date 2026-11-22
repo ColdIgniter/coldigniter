@@ -7,6 +7,28 @@
 --->
 
 <!---
+ * A convenience method to get the cache service, or an item of it.
+ *
+ * Examples:
+ *    cache("foo")      // Returns the item "foo", or an empty string (null)
+ *    cache()           // Returns the cache service
+ *
+ * Difference: a cached empty string reads as a miss.
+ *
+ * @param key The key of an item, or omitted (null) for the service
+--->
+<cffunction name="cache" returntype="any" output="no" hint="A convenience method that provides access to the cache object">
+	<cfargument name="key" type="string" required="no">
+	<cfset var cache_ = service("cache")>
+
+	<cfif NOT StructKeyExists(arguments, "key")>
+		<cfreturn cache_>
+	</cfif>
+
+	<cfreturn cache_.get(arguments.key)>
+</cffunction>
+
+<!---
  * A convenience method to clean paths for
  * a nicer looking output. Useful for exception
  * handling, error logging, etc.
