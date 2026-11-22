@@ -24,9 +24,6 @@
  * Difference: the JSON body is not decoded and encoded again to remove
  * the token. The member is cut out of the text, with the comma next to it,
  * and the rest of the body is kept as it was written.
- *
- * Not ported yet: the redirect with an error message when redirect is on
- * (see the CSRF filter), as the flash data is not ported.
 --->
 <cfcomponent output="no" extends="SecurityInterface" hint="Provides methods that help protect your site against Cross-Site Request Forgery attacks">
 

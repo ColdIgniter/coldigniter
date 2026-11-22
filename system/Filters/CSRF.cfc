@@ -1,10 +1,5 @@
 <!---
  * CSRF filter
- *
- * Not ported yet: the error message that goes with the redirect on
- * failure. The original calls redirect()->back()->with('error', message),
- * and with() needs the flash data (the session errors), which is not
- * ported. The redirect to the previous page is done without it.
 --->
 <cfcomponent output="no" extends="FilterInterface" hint="CSRF filter">
 
@@ -39,8 +34,7 @@
 
 			<cfcatch type="ColdIgniter.Security.Exceptions.SecurityException">
 				<cfif security.shouldRedirect() AND NOT arguments.request_.isAJAX()>
-					<!--- Not ported yet: ->with('error', the message of the exception) --->
-					<cfreturn redirect().back()>
+					<cfreturn redirect().back().with("error", cfcatch.message)>
 				</cfif>
 
 				<cfrethrow>

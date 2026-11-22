@@ -571,9 +571,51 @@
 	--->
 	<cffunction name="getOldInput" access="public" returntype="any" output="no">
 		<cfargument name="key" type="string" required="yes">
+		<cfset var old = "">
+		<cfset var value = "">
 
-		<!--- Not ported yet: the session. Without one the answer is an empty string (null), as when the session has not been started. --->
+		<!--- If the session hasn't been started, we're done. --->
+		<cfif Compare(session_status(), "active") NEQ 0>
+			<cfreturn "">
+		</cfif>
 
+		<!--- Get previously saved in session --->
+		<cfset old = session_("_ci_old_input")>
+
+		<!--- If no data was previously saved, we're done. --->
+		<cfif is_null(old)>
+			<cfreturn "">
+		</cfif>
+
+		<!--- Check for the value in the POST array first. --->
+		<cfif IsStruct(old) AND StructKeyExists(old, "post") AND IsStruct(old["post"]) AND StructKeyExists(old["post"], arguments.key)>
+			<cfreturn old["post"][arguments.key]>
+		</cfif>
+
+		<!--- Next check in the GET array. --->
+		<cfif IsStruct(old) AND StructKeyExists(old, "get") AND IsStruct(old["get"]) AND StructKeyExists(old["get"], arguments.key)>
+			<cfreturn old["get"][arguments.key]>
+		</cfif>
+
+		<cfset helper("array")>
+
+		<!--- Check for an array value in POST. --->
+		<cfif IsStruct(old) AND StructKeyExists(old, "post")>
+			<cfset value = dot_array_search(arguments.key, old["post"])>
+			<cfif NOT is_null(value)>
+				<cfreturn value>
+			</cfif>
+		</cfif>
+
+		<!--- Check for an array value in GET. --->
+		<cfif IsStruct(old) AND StructKeyExists(old, "get")>
+			<cfset value = dot_array_search(arguments.key, old["get"])>
+			<cfif NOT is_null(value)>
+				<cfreturn value>
+			</cfif>
+		</cfif>
+
+		<!--- requested session key not found --->
 		<cfreturn "">
 	</cffunction>
 
