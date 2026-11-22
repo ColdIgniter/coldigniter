@@ -311,6 +311,7 @@
 		<cfset value = this.globals[arguments.name][arguments.index]>
 	<cfelseif NOT found AND arguments.name EQ "server">
 		<!--- the CGI scope does not list the request headers (HTTP_*), but a read by name finds them --->
+		<!--- this reads the live value, not the saved snapshot of the server globals --->
 		<cfset value = service("superglobals").server(arguments.index)>
 	</cfif>
 
