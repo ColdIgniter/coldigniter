@@ -4,7 +4,8 @@
  * Of course, there are variations to that flow, but this is the
  * objective.
  *
- * Not ported yet: the page cache,
+ * Not ported yet: the reset of the page cache ttl at the start of a request
+ * (the PageCache filter and service("responsecache") are ported),
  * Kint, forceSecureAccess, method spoofing, the previous URL, the
  * controller attributes, closures as controllers and _remap.
 --->
@@ -130,7 +131,7 @@
 			<cfthrow type="ColdIgniter.Exceptions.LogicException" message="Context must be set before run() is called.">
 		</cfif>
 
-		<!--- Not ported yet: the page cache, the output buffer level --->
+		<!--- Not ported yet: the reset of the page cache ttl, the output buffer level --->
 
 		<cfset startBenchmark()>
 
