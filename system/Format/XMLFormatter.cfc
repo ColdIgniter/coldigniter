@@ -42,7 +42,7 @@
 
 		<!--- Not ported yet: the check for the SimpleXML extension (always there) and the options of the original --->
 
-		<cfif IsArray(arguments.data) OR IsStruct(arguments.data)>
+		<cfif IsArray(arguments.data) OR (IsStruct(arguments.data) AND NOT IsObject(arguments.data))>
 			<cfset body = arrayToXML(arguments.data)>
 		<cfelse>
 			<cfset list = ArrayNew(1)>
@@ -100,7 +100,7 @@
 				<cfset value = arguments.data[keys[i]]>
 			</cfif>
 
-			<cfif IsArray(value) OR IsStruct(value)>
+			<cfif IsArray(value) OR (IsStruct(value) AND NOT IsObject(value))>
 				<cfset inner = arrayToXML(value)>
 				<cfif inner EQ "">
 					<cfset buf.append("<" & key & "/>")>
