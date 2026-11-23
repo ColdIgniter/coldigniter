@@ -9,6 +9,10 @@
 <cffunction name="ctype_digit" returntype="boolean" output="no" hint="Checks for numeric characters">
 	<cfargument name="text" type="string" required="yes">
 
-	<!--- one class with one quantifier, so a long string is read once --->
-	<cfreturn Len(arguments.text) GT 0 AND REFind("^[0-9]+$", arguments.text) GT 0>
+	<!---
+	 * the test is for one character that is not a digit, so a long string
+	 * is read once. An anchored "^[0-9]+$" is not used: it also accepts a
+	 * line feed after the digits, and digits of other scripts.
+	--->
+	<cfreturn Len(arguments.text) GT 0 AND REFind("[^0-9]", arguments.text) EQ 0>
 </cffunction>
