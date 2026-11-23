@@ -9,8 +9,7 @@
  * map of settings is made with array_(), and md5() takes the place of the
  * md5() of the original over the json_encode() of the settings.
  *
- * Not ported yet: forge(), utils() and seeder() (Forge, BaseUtils and
- * Seeder).
+ * Not ported yet: utils() and seeder() (BaseUtils and Seeder).
 --->
 <cfcomponent output="no" parent="ColdIgniter\Config\BaseConfig" hint="Database configuration and connection manager">
 
@@ -103,13 +102,12 @@
 	<!---
 	 * Loads and returns an instance of the Forge for the specified
 	 * database group, and loads the group if it hasn't been loaded yet.
-	 *
-	 * Not ported yet: Forge.
 	--->
 	<cffunction name="forge" access="public" returntype="any" output="no">
 		<cfargument name="group" type="any" required="no" default="">
+		<cfset var db = this.connect(arguments.group)>
 
-		<cfthrow type="ColdIgniter.LogicException" message="Not ported yet: Forge.">
+		<cfreturn this.factory.loadForge(db)>
 	</cffunction>
 
 	<!---

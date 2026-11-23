@@ -10,10 +10,9 @@
  * only checks the name of the driver. The CriticalError of the original is
  * not ported.
  *
- * Not ported yet: loadForge() (Forge). A driver name in the original is
- * a folder of connection, forge and utils classes: SQLSRV has its
- * connection, result and utils. A driver that does not exist ends in a
- * class not found error from the autoloader.
+ * A driver name in the original is a folder of connection, forge and utils
+ * classes: SQLSRV has its connection, result, forge and utils. A driver that
+ * does not exist ends in a class not found error from the autoloader.
 --->
 <cfcomponent output="no" hint="Database Connection Factory">
 
@@ -69,14 +68,16 @@
 	<!---
 	 * Creates a Forge instance for the current database type.
 	 *
-	 * Not ported yet: Forge.
-	 *
 	 * @param db BaseConnection
 	--->
 	<cffunction name="loadForge" access="public" returntype="any" output="no">
 		<cfargument name="db" type="any" required="yes">
 
-		<cfthrow type="ColdIgniter.LogicException" message="Not ported yet: Forge.">
+		<cfif identical_(arguments.db.connID, "false")>
+			<cfset arguments.db.initialize_()>
+		</cfif>
+
+		<cfreturn initDriver(arguments.db.DBDriver, "Forge", arguments.db)>
 	</cffunction>
 
 	<!---

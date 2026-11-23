@@ -65,7 +65,7 @@
  * error is kept in properties (lastErrorState, lastErrorCode and
  * lastErrorMessage) and in the log.
  *
- * Not ported yet: the SQLSRV Forge and PreparedQuery.
+ * Not ported yet: the SQLSRV PreparedQuery.
 --->
 <cfcomponent output="no" parent="ColdIgniter\Database\BaseConnection" hint="Connection for SQLSRV">
 
