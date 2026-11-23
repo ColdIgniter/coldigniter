@@ -11,6 +11,9 @@
  * entities, which is not what xml_convert() does. A character that XML
  * does not allow is not removed.
  *
+ * Difference: arrayToXML() and normalizeXMLTag() are private, as there is no
+ * protected access on 6.1; a subclass cannot call or override them.
+ *
  * Difference: the options (formatterOptions, flags of libxml) are not used.
  * A list is the array of the original with the keys 0, 1, 2 ... and a map
  * (see array_()) with its keys; a value that is not an array counts as a
@@ -62,7 +65,7 @@
 	 *
 	 * @return The XML text of the children
 	--->
-	<cffunction name="arrayToXML" access="protected" returntype="string" output="no">
+	<cffunction name="arrayToXML" access="private" returntype="string" output="no">
 		<cfargument name="data" type="any" required="yes">
 		<cfset var buf = CreateObject("java", "java.lang.StringBuffer").init()>
 		<cfset var keys = ArrayNew(1)>
@@ -144,7 +147,7 @@
 	 *
 	 * @param key
 	--->
-	<cffunction name="normalizeXMLTag" access="protected" returntype="string" output="no">
+	<cffunction name="normalizeXMLTag" access="private" returntype="string" output="no">
 		<cfargument name="key" type="any" required="yes">
 		<cfset var text = Trim(arguments.key & "")>
 		<cfset var buf = CreateObject("java", "java.lang.StringBuffer").init()>
