@@ -635,6 +635,7 @@
 		<cfset this.lastErrorState = "">
 		<cfset this.lastErrorCode = "">
 		<cfset this.lastErrorMessage = "">
+		<cfset this.lastAffectedRows = 0>
 
 		<cfif REFindNoCase("^[[:space:]]*(INSERT|UPDATE|DELETE)[[:space:]]", arguments.sql) GT 0>
 			<cfset isChange = "true">
@@ -644,7 +645,6 @@
 			</cfif>
 
 			<cfset batch = "SET NOCOUNT ON" & Chr(10) & guard & REReplace(arguments.sql, "[;[:space:]]+$", "") & Chr(10) & "SELECT @@ROWCOUNT AS ci_affected_rows, SCOPE_IDENTITY() AS ci_insert_id" & Chr(10) & "SET NOCOUNT OFF">
-			<cfset this.lastAffectedRows = 0>
 		</cfif>
 
 		<cftry>
