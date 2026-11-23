@@ -218,14 +218,14 @@
 			<cfset formatter.setMinimumFractionDigits(JavaCast("int", Fix(Val(options_["fraction"]))))>
 			<cfset formatter.setMaximumFractionDigits(JavaCast("int", Fix(Val(options_["fraction"]))))>
 			<cfset formatter.setCurrency(CreateObject("java", "java.util.Currency").getInstance(JavaCast("string", options_["currency"])))>
-			<cfset output = formatter.format(JavaCast("double", arguments.num))>
+			<cfset output = format_number_java_(formatter, arguments.num)>
 		<cfelse>
 			<!--- In order to specify a precision, we'll have to modify --->
 			<!--- the pattern used by NumberFormatter. --->
 			<cfset pattern = "##,##0." & RepeatString("##", arguments.precision)>
 
 			<cfset formatter.applyPattern(JavaCast("string", pattern))>
-			<cfset output = formatter.format(JavaCast("double", arguments.num))>
+			<cfset output = format_number_java_(formatter, arguments.num)>
 		</cfif>
 
 		<cfcatch type="java.lang.Exception">
@@ -246,6 +246,33 @@
 	</cfif>
 
 	<cfreturn output>
+</cffunction>
+
+<!---
+ * Calls format(double) of a java.text.NumberFormat.
+ *
+ * Difference: not in the original. The method format is overloaded
+ * (double, long, Object and the forms with a StringBuffer) and the server
+ * does not choose one for a number, so the method for a double is looked
+ * up by its signature and invoked.
+ *
+ * @param formatter A java.text.NumberFormat
+ * @param num
+--->
+<cffunction name="format_number_java_" returntype="string" output="no" hint="Calls format(double) of a java.text.NumberFormat">
+	<cfargument name="formatter" type="any" required="yes">
+	<cfargument name="num" type="numeric" required="yes">
+	<cfset var classClass = CreateObject("java", "java.lang.Class")>
+	<cfset var reflectArray = CreateObject("java", "java.lang.reflect.Array")>
+	<cfset var types = reflectArray.newInstance(classClass.forName("java.lang.Class"), JavaCast("int", 1))>
+	<cfset var values = reflectArray.newInstance(classClass.forName("java.lang.Object"), JavaCast("int", 1))>
+	<cfset var method = "">
+
+	<cfset reflectArray.set(types, JavaCast("int", 0), CreateObject("java", "java.lang.Double").TYPE)>
+	<cfset reflectArray.set(values, JavaCast("int", 0), CreateObject("java", "java.lang.Double").init(JavaCast("double", arguments.num)))>
+	<cfset method = arguments.formatter.getClass().getMethod("format", types)>
+
+	<cfreturn method.invoke(arguments.formatter, values) & "">
 </cffunction>
 
 <!---
