@@ -33,8 +33,11 @@
 	--->
 	<cffunction name="forInvalidSameSite" access="public" returntype="void" output="no">
 		<cfargument name="samesite" type="string" required="yes">
+		<cfset var parameters = ArrayNew(1)>
 
-		<cfthrow type="ColdIgniter.Security.Exceptions.SecurityException" errorcode="#this.code#" message="#lang('Security.invalidSameSite', array_(arguments.samesite))#">
+		<cfset ArrayAppend(parameters, arguments.samesite)>
+
+		<cfthrow type="ColdIgniter.Security.Exceptions.SecurityException" errorcode="#this.code#" message="#lang('Security.invalidSameSite', parameters)#">
 	</cffunction>
 
 	<!---

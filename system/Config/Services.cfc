@@ -99,6 +99,26 @@
 	</cffunction>
 
 	<!---
+	 * The Format class is a convenient place to create Formatters.
+	 *
+	 * @param config The Config\Format, or an empty string (null)
+	--->
+	<cffunction name="format" access="public" returntype="any" output="no">
+		<cfargument name="config" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("format", arguments.config)>
+		</cfif>
+
+		<cfif is_null(arguments.config)>
+			<cfset arguments.config = variables.config("Config\Format")>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\Format\Format", arguments.config)>
+	</cffunction>
+
+	<!---
 	 * Responsible for loading the language string translations.
 	--->
 	<cffunction name="language" access="public" returntype="any" output="no">
