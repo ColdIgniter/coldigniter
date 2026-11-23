@@ -3,8 +3,6 @@
 --->
 <cfcomponent output="no" hint="Bootstrap for the application">
 
-	<cfinclude template="Polyfills/Polyfills.cfm">
-
 	<!---
 	 * Not in the original. What the runtime keeps for one request: the
 	 * global functions, the autoloader, the objects that stand in for
@@ -16,6 +14,8 @@
 	--->
 	<cfset request.ColdIgniter = StructNew()>
 	<cfset request.ColdIgniter.functions = CreateObject("component", "Polyfills.Functions")>
+	<!--- Difference: the functions of Polyfills.cfm are taken from that object, which has included the file, so the file is read once per request and not twice --->
+	<cfset StructAppend(variables, request.ColdIgniter.functions.__functions(), false)>
 	<cfset request.ColdIgniter.autoloader = "">
 	<cfset request.ColdIgniter.statics = StructNew()>
 	<cfset request.ColdIgniter.included = StructNew()>
