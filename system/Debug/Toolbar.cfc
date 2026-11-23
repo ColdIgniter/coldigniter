@@ -3,18 +3,23 @@
  *
  * Inspiration: http://prophiler.fabfuel.de
  *
- * Difference: the times are seconds (see microtime()), the numbers that
- * are written to the data are strings with a plain decimal form (a Double
- * could be written in the form 1.0E-4), and everything that is read back
- * from the file of a request is text.
+ * Difference: the times are seconds (see microtime()). The start time,
+ * the total time, the memory, the segment values and the start and the
+ * duration of a timeline row are written to the data as strings with a
+ * plain decimal form (a Double could be written in the form 1.0E-4).
  *
- * Difference: the file of a request (WRITEPATH/debugbar/debugbar_<time>.wddx)
+ * Difference: the file of a request (WRITEPATH/debugbar/debugbar_<time>.ser)
  * is not JSON. There are no JSON functions on the server: json_encode()
  * and json_decode() are written in CFML, and took longer for one file
- * than the rest of the request. The file is written with cfwddx, which
- * the server does itself (see encodeData()). It is only read by the
- * toolbar and by the History collector. The JSON format of
- * ?debugbar_time is still made with json_encode().
+ * than the rest of the request. The file is written and read with the
+ * object streams of Java (see writeData() and readData()), which took
+ * about 0.4 ms each way for a file of 28 KB on the server. The file is
+ * binary, and it is only read by the toolbar and by the History
+ * collector. The data must be made of maps, structs, lists, strings,
+ * numbers, Booleans and dates: a component cannot be written. Reading
+ * such a file makes the objects that it names, so nothing else may
+ * write to WRITEPATH/debugbar. The JSON format of ?debugbar_time is
+ * still made with json_encode().
  *
  * Not ported yet: Kint (a value that is not a string is shown with
  * print_r()), the session data (there is no session), the XML format,
@@ -69,9 +74,9 @@
 	 * @param request_  The request
 	 * @param response  The response
 	 *
-	 * @return The encoded data (see encodeData()), JSON in the original
+	 * @return The data, a map (see writeData()); JSON text in the original
 	--->
-	<cffunction name="run" access="public" returntype="string" output="no">
+	<cffunction name="run" access="public" returntype="any" output="no">
 		<cfargument name="startTime" type="numeric" required="yes">
 		<cfargument name="totalTime" type="numeric" required="yes">
 		<cfargument name="request_" type="any" required="yes">
@@ -207,26 +212,26 @@
 
 		<!--- Not ported yet: response.getCSP().addImageSrc("data:") --->
 
-		<cfreturn encodeData(data)>
+		<cfreturn data>
 	</cffunction>
 
 	<!---
 	 * Not in the original, where the data is JSON (see the top of this
-	 * file). The text of the file of a request: the length of the first
-	 * packet, a line feed, and two WDDX packets. The first packet is small
-	 * and has what the History collector shows of a request (the status,
-	 * the method, the URL, isAJAX and the content type), so that the
-	 * collector does not have to read the whole data of every request.
-	 * The second packet is the data (see packData()).
+	 * file). Writes the file of a request: two objects, one after the
+	 * other. The first is small and has what the History collector shows
+	 * of a request (the status, the method, the URL, isAJAX and the
+	 * content type, each as text), so that the collector does not have to
+	 * read the whole data of every request. The second is the data.
 	 *
-	 * @param data The data of run()
+	 * @param filename The path of the file
+	 * @param data     The data of run()
 	--->
-	<cffunction name="encodeData" access="private" returntype="string" output="no">
+	<cffunction name="writeData" access="private" returntype="void" output="no">
+		<cfargument name="filename" type="string" required="yes">
 		<cfargument name="data" type="any" required="yes">
 		<cfset var summary = StructNew()>
-		<cfset var head = "">
-		<cfset var body = "">
-		<cfset var packed = "">
+		<cfset var raw = "">
+		<cfset var out = "">
 
 		<cfset summary["status"] = dataText(arguments.data["vars"]["response"]["statusCode"])>
 		<cfset summary["method"] = dataText(arguments.data["method"])>
@@ -234,160 +239,80 @@
 		<cfset summary["isAJAX"] = dataText(arguments.data["isAJAX"])>
 		<cfset summary["contentType"] = dataText(arguments.data["vars"]["response"]["contentType"])>
 
-		<cfset packed = packData(arguments.data)>
+		<cfset raw = CreateObject("java", "java.io.FileOutputStream").init(arguments.filename)>
 
-		<cfwddx action="cfml2wddx" input="#summary#" output="head">
-		<cfwddx action="cfml2wddx" input="#packed#" output="body">
+		<!--- There is no finally: the file is closed in both ways out. --->
+		<cftry>
+			<cfset out = CreateObject("java", "java.io.ObjectOutputStream").init(
+				CreateObject("java", "java.io.BufferedOutputStream").init(raw)
+			)>
+			<cfset out.writeObject(summary)>
+			<cfset out.writeObject(arguments.data)>
+			<cfset out.close()>
 
-		<cfreturn Len(head) & Chr(10) & head & body>
+			<cfcatch type="any">
+				<!---
+				 A file with a part of the data is of no use. When it cannot
+				 be deleted (another request may have it open), the first
+				 error is still the one that is thrown.
+				--->
+				<cfset raw.close()>
+				<cftry>
+					<cffile action="delete" file="#arguments.filename#">
+					<cfcatch type="any">
+					</cfcatch>
+				</cftry>
+
+				<cfrethrow>
+			</cfcatch>
+		</cftry>
 	</cffunction>
 
 	<!---
-	 * Not in the original. Reads the data back from the text of the file
-	 * of a request, as json_decode() did: maps that keep the order of
-	 * their keys, lists, and text.
+	 * Not in the original. Reads the data back from the file of a request:
+	 * maps that keep the order of their keys, and lists, as json_decode()
+	 * gave them. A value has the type that it was written with.
 	 *
-	 * @param text The text that encodeData() made
+	 * @param filename The path of the file that writeData() made
 	--->
-	<cffunction name="decodeData" access="private" returntype="any" output="no">
-		<cfargument name="text" type="string" required="yes">
-		<cfset var pos = Find(Chr(10), arguments.text)>
-		<cfset var start = 0>
-		<cfset var packed = "">
+	<cffunction name="readData" access="private" returntype="any" output="no">
+		<cfargument name="filename" type="string" required="yes">
+		<cfset var raw = "">
+		<cfset var stream = "">
+		<cfset var data = "">
 
-		<cfif pos LT 2 OR REFind("^[0-9]+$", Left(arguments.text, pos - 1)) EQ 0>
-			<cfthrow type="ColdIgniter.RuntimeException" message="The debug data of the request cannot be read.">
-		</cfif>
+		<!---
+		 There is no finally: the file is closed in both ways out. The
+		 file is opened here too, as the History collector of another
+		 request may have deleted it by now.
+		--->
+		<cftry>
+			<cfset raw = CreateObject("java", "java.io.FileInputStream").init(arguments.filename)>
+			<cfset stream = CreateObject("java", "java.io.ObjectInputStream").init(
+				CreateObject("java", "java.io.BufferedInputStream").init(raw)
+			)>
 
-		<cfset start = pos + 1 + Left(arguments.text, pos - 1)>
-		<cfwddx action="wddx2cfml" input="#Mid(arguments.text, start, Len(arguments.text))#" output="packed">
+			<!--- The first object is for the History collector. --->
+			<cfset stream.readObject()>
+			<cfset data = stream.readObject()>
+			<cfset raw.close()>
 
-		<cfreturn unpackData(packed)>
+			<cfcatch type="any">
+				<cfif NOT IsSimpleValue(raw)>
+					<cfset raw.close()>
+				</cfif>
+
+				<cfthrow type="ColdIgniter.RuntimeException" message="The debug data of the request cannot be read.">
+			</cfcatch>
+		</cftry>
+
+		<cfreturn data>
 	</cffunction>
 
 	<!---
-	 * Not in the original. A WDDX packet does not keep the order of the
-	 * keys of a map, and two keys that differ only in case become one
-	 * (verified on the server). So a map is written as a struct with a
-	 * list of its keys (k) and a list of its values (v): a list keeps its
-	 * order. A list stays a list, and every other value is written as the
-	 * text that json_encode() and json_decode() gave for it.
-	--->
-	<cffunction name="packData" access="private" returntype="any" output="no">
-		<cfargument name="value" type="any" required="yes">
-		<cfset var packed = "">
-		<cfset var names = "">
-		<cfset var values = "">
-		<cfset var keys = "">
-		<cfset var it = "">
-		<cfset var key = "">
-		<cfset var item = "">
-		<cfset var i = 0>
-
-		<cfif IsArray(arguments.value)>
-			<cfset packed = ArrayNew(1)>
-
-			<cfloop from="1" to="#ArrayLen(arguments.value)#" index="i">
-				<cfset item = arguments.value[i]>
-				<cfif IsSimpleValue(item)>
-					<cfset ArrayAppend(packed, dataText(item))>
-				<cfelse>
-					<cfset ArrayAppend(packed, packData(item))>
-				</cfif>
-			</cfloop>
-
-			<cfreturn packed>
-		</cfif>
-
-		<cfif IsStruct(arguments.value)>
-			<cfset names = ArrayNew(1)>
-			<cfset values = ArrayNew(1)>
-
-			<cfif arguments.value.getClass().getName() EQ "java.util.LinkedHashMap">
-				<cfset it = arguments.value.keySet().iterator()>
-				<cfloop condition="it.hasNext()">
-					<cfset key = it.next()>
-					<cfset item = arguments.value.get(key)>
-					<cfset ArrayAppend(names, key & "")>
-					<cfif IsSimpleValue(item)>
-						<cfset ArrayAppend(values, dataText(item))>
-					<cfelse>
-						<cfset ArrayAppend(values, packData(item))>
-					</cfif>
-				</cfloop>
-			<cfelse>
-				<cfset keys = StructKeyArray(arguments.value)>
-				<cfloop from="1" to="#ArrayLen(keys)#" index="i">
-					<cfset item = arguments.value[keys[i]]>
-					<cfset ArrayAppend(names, keys[i])>
-					<cfif IsSimpleValue(item)>
-						<cfset ArrayAppend(values, dataText(item))>
-					<cfelse>
-						<cfset ArrayAppend(values, packData(item))>
-					</cfif>
-				</cfloop>
-			</cfif>
-
-			<cfset packed = StructNew()>
-			<cfset packed["k"] = names>
-			<cfset packed["v"] = values>
-
-			<cfreturn packed>
-		</cfif>
-
-		<cfreturn dataText(arguments.value)>
-	</cffunction>
-
-	<!---
-	 * Not in the original. The other way of packData().
-	--->
-	<cffunction name="unpackData" access="private" returntype="any" output="no">
-		<cfargument name="value" type="any" required="yes">
-		<cfset var result = "">
-		<cfset var names = "">
-		<cfset var values = "">
-		<cfset var item = "">
-		<cfset var i = 0>
-
-		<cfif IsArray(arguments.value)>
-			<cfset result = ArrayNew(1)>
-
-			<cfloop from="1" to="#ArrayLen(arguments.value)#" index="i">
-				<cfset item = arguments.value[i]>
-				<cfif IsSimpleValue(item)>
-					<cfset ArrayAppend(result, item)>
-				<cfelse>
-					<cfset ArrayAppend(result, unpackData(item))>
-				</cfif>
-			</cfloop>
-
-			<cfreturn result>
-		</cfif>
-
-		<cfif IsStruct(arguments.value)>
-			<cfset result = array_()>
-			<cfset names = arguments.value["k"]>
-			<cfset values = arguments.value["v"]>
-
-			<cfloop from="1" to="#ArrayLen(names)#" index="i">
-				<cfset item = values[i]>
-				<cfif IsSimpleValue(item)>
-					<cfset result[names[i]] = item>
-				<cfelse>
-					<cfset result[names[i]] = unpackData(item)>
-				</cfif>
-			</cfloop>
-
-			<cfreturn result>
-		</cfif>
-
-		<cfreturn arguments.value>
-	</cffunction>
-
-	<!---
-	 * Not in the original. The text of a value, as json_encode() wrote it
-	 * and json_decode() read it back: true or false for a Boolean, and a
-	 * number without a group separator.
+	 * Not in the original. The text of a value, as json_encode() writes
+	 * it: true or false for a Boolean, and a number without a group
+	 * separator.
 	--->
 	<cffunction name="dataText" access="private" returntype="string" output="no">
 		<cfargument name="value" type="any" required="yes">
@@ -781,7 +706,7 @@
 			<cfdirectory action="create" directory="#dir#">
 		</cfif>
 
-		<cffile action="write" file="#dir##request.DIRECTORY_SEPARATOR#debugbar_#stamp#.wddx" output="#data#" charset="utf-8" addnewline="no">
+		<cfset writeData(dir & request.DIRECTORY_SEPARATOR & "debugbar_" & stamp & ".ser", data)>
 
 		<cfset kind = arguments.response.getHeaderLine("content-type")>
 		<cfset status = Val(arguments.response.getStatusCode())>
@@ -870,12 +795,21 @@
 				<cfset stamp = "">
 			</cfif>
 
+			<!---
+			 Difference: the file is read with an object stream (see the top
+			 of this file), so only a time in the form of historyTime() is
+			 looked up.
+			--->
+			<cfif REFind("^[0-9]+\.[0-9]+$", stamp) EQ 0>
+				<cfset stamp = "">
+			</cfif>
+
 			<cfset filename = sanitize_filename("debugbar_" & stamp)>
-			<cfset filename = request.WRITEPATH & "debugbar" & request.DIRECTORY_SEPARATOR & filename & ".wddx">
+			<cfset filename = request.WRITEPATH & "debugbar" & request.DIRECTORY_SEPARATOR & filename & ".ser">
 
 			<cfif is_file(filename)>
 				<!--- Show the toolbar if it exists --->
-				<cffile action="read" file="#filename#" variable="data" charset="utf-8">
+				<cfset data = readData(filename)>
 				<cfset request.ColdIgniter.output = format(data, kind, stamp)>
 				<cfif Compare(kind, "json") EQ 0>
 					<cfcontent type="application/json">
@@ -901,15 +835,15 @@
 	 * Difference: the stamp is an argument, as the get values cannot be used
 	 * (see respond()), and the XML format is not ported yet.
 	 *
-	 * @param data   The text of the file of a request (see encodeData()), JSON in the original
+	 * @param data   The data of the file of a request (see readData()), JSON text in the original
 	 * @param format "html" or "json"
 	 * @param stamp  The value of debugbar_time
 	--->
 	<cffunction name="format" access="private" returntype="string" output="no">
-		<cfargument name="data" type="string" required="yes">
+		<cfargument name="data" type="any" required="yes">
 		<cfargument name="format" type="string" required="no" default="html">
 		<cfargument name="stamp" type="string" required="no" default="">
-		<cfset var decoded = decodeData(arguments.data)>
+		<cfset var decoded = arguments.data>
 		<cfset var history = "">
 		<cfset var found = "">
 		<cfset var output = "">
@@ -936,8 +870,8 @@
 			<cfset output = new_("ColdIgniter\View\Closure").call(this.config.viewsPath & "toolbar.tpl.cfm", decoded)>
 		<cfelseif Compare(arguments.format, "json") EQ 0>
 			<!---
-			 Difference: every value of the file of a request is text, so a number or a boolean
-			 is a string in this output.
+			 Difference: a number that run() wrote in a plain decimal form is a string in this
+			 output.
 			 Not ported yet: JSONFormatter and XMLFormatter
 			--->
 			<cfset output = json_encode(decoded)>

@@ -2,8 +2,8 @@
  * History collector
  *
  * Difference: the history files are listed with cfdirectory. A file is
- * not JSON: it starts with a small WDDX packet that has what is shown here
- * (see encodeData() in Debug/Toolbar.cfc), and only that packet is read. A
+ * not JSON: it starts with a small object that has what is shown here
+ * (see writeData() in Debug/Toolbar.cfc), and only that object is read. A
  * file that cannot be read that way is skipped (the original tests
  * json_last_error()).
  * The date is made with java.text.SimpleDateFormat in UTC.
@@ -53,7 +53,6 @@
 		<cfset var files = ArrayNew(1)>
 		<cfset var counter = 0>
 		<cfset var filename = "">
-		<cfset var contents = "">
 		<cfset var decoded = "">
 		<cfset var stamp = "">
 		<cfset var format = "">
@@ -62,10 +61,9 @@
 		<cfset var seconds = "">
 		<cfset var micro = "">
 		<cfset var valid = true>
-		<cfset var pos = 0>
 		<cfset var i = 0>
 
-		<cfdirectory action="list" directory="#request.WRITEPATH#debugbar" name="filenames" filter="debugbar_*.wddx" sort="name asc">
+		<cfdirectory action="list" directory="#request.WRITEPATH#debugbar" name="filenames" filter="debugbar_*.ser" sort="name asc">
 
 		<!--- the original lists the oldest first and walks the list backwards --->
 		<cfloop from="#filenames.RecordCount#" to="1" step="-1" index="i">
@@ -90,10 +88,8 @@
 				<!--- Get the contents of this specific history request --->
 				<cfset valid = true>
 				<cftry>
-					<cffile action="read" file="#filename#" variable="contents" charset="utf-8">
-					<cfset pos = Find(Chr(10), contents)>
-					<cfwddx action="wddx2cfml" input="#Mid(contents, pos + 1, Left(contents, pos - 1))#" output="decoded">
-					<cfset stamp = REReplace(filenames.name[i], "^debugbar_(.*)\.wddx$", "\1")>
+					<cfset decoded = readSummary(filename)>
+					<cfset stamp = REReplace(filenames.name[i], "^debugbar_(.*)\.ser$", "\1")>
 					<cfif NOT REFind("^[0-9]+\.[0-9]+$", stamp)>
 						<cfset stamp = "0.000000">
 					</cfif>
@@ -134,6 +130,38 @@
 		</cfloop>
 
 		<cfset this.files = files>
+	</cffunction>
+
+	<!---
+	 * Not in the original. Reads the first object of the file of a request
+	 * (see writeData() in Debug/Toolbar.cfc).
+	 *
+	 * @param filename The path of the file
+	 *
+	 * @return A struct with the keys status, method, url, isAJAX and contentType
+	--->
+	<cffunction name="readSummary" access="private" returntype="any" output="no">
+		<cfargument name="filename" type="string" required="yes">
+		<cfset var raw = CreateObject("java", "java.io.FileInputStream").init(arguments.filename)>
+		<cfset var stream = "">
+		<cfset var summary = "">
+
+		<!--- There is no finally: the file is closed in both ways out. --->
+		<cftry>
+			<cfset stream = CreateObject("java", "java.io.ObjectInputStream").init(
+				CreateObject("java", "java.io.BufferedInputStream").init(raw, JavaCast("int", 1024))
+			)>
+			<cfset summary = stream.readObject()>
+			<cfset raw.close()>
+
+			<cfcatch type="any">
+				<cfset raw.close()>
+
+				<cfrethrow>
+			</cfcatch>
+		</cftry>
+
+		<cfreturn summary>
 	</cffunction>
 
 	<!---
