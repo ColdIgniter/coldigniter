@@ -17,16 +17,24 @@
  *   right and no ORDER BY is needed. Where the string is not run by get()
  *   (getCompiledSelect(), a subquery, a union) the query is nested: TOP
  *   offset+limit in the ORDER BY of the query, then TOP limit in the
- *   reverse of it, then the original order again. That form needs an
- *   ORDER BY made of plain columns (a DatabaseException is thrown without
- *   one), and when fewer rows than offset+limit match, the last page
+ *   reverse of it, then the original order again. get() uses this form
+ *   too when the query has a union, as the offset is that of the first
+ *   query only. That form needs an ORDER BY made of plain columns (a
+ *   DatabaseException is thrown without one), every column of the ORDER
+ *   BY must be in the select list, and every column of the result needs
+ *   a name of its own (SELECT * over a join of two tables that both have
+ *   "id" fails). When fewer rows than offset+limit match, the last page
  *   holds the wrong rows (it is the last "limit" rows, not the rows after
  *   the offset).
  * - _insertBatch() writes INSERT ... SELECT ... UNION ALL SELECT, as 2000
- *   has no VALUES with several rows.
+ *   has no VALUES with several rows. The type of a column is that of the
+ *   UNION, so a column that has a number in one row and text in another
+ *   is converted to the number type.
  * - _update() and _delete() with a limit write SET ROWCOUNT n before the
  *   statement and SET ROWCOUNT 0 after it, as 2000 has no UPDATE TOP and
- *   no DELETE TOP.
+ *   no DELETE TOP. An error that stops the batch leaves ROWCOUNT (or
+ *   IDENTITY_INSERT) set on the connection, so Connection.execute() sets
+ *   them back (see there).
  * - A batch that does not end with its one INSERT, UPDATE or DELETE (a
  *   limit, IDENTITY_INSERT, an upsert) counts its rows in the variable
  *   @ci_rows, which the connection reads as the affected rows (see
@@ -455,7 +463,7 @@
 		<cfargument name="fullTable" type="string" required="yes">
 		<cfargument name="insert" type="string" required="yes">
 
-		<cfif Find("DECLARE @ci_rows INT", arguments.insert) GT 0>
+		<cfif REFind("^(SET [^#Chr(10)#]*#Chr(10)#){0,2}DECLARE @ci_rows INT#Chr(10)#", arguments.insert) EQ 1>
 			<cfreturn "SET IDENTITY_INSERT " & arguments.fullTable & " ON" & Chr(10) & arguments.insert & Chr(10) & "SET IDENTITY_INSERT " & arguments.fullTable & " OFF">
 		</cfif>
 
@@ -556,7 +564,7 @@
 			</cfif>
 		</cfloop>
 
-		<cfreturn "SELECT * FROM (SELECT TOP " & limit_ & " * FROM (" & innerSql & ") _ci_a ORDER BY " & implode(", ", reversed) & ") _ci_b ORDER BY " & implode(", ", ordered)>
+		<cfreturn "SELECT TOP " & limit_ & " * FROM (SELECT TOP " & limit_ & " * FROM (" & innerSql & ") _ci_a ORDER BY " & implode(", ", reversed) & ") _ci_b ORDER BY " & implode(", ", ordered)>
 	</cffunction>
 
 	<!---
@@ -631,7 +639,7 @@
 
 		<cfset identity = identityColumn_(arguments.table)>
 
-		<cfif Len(identity) GT 0 AND in_array(identity, arguments.keys)>
+		<cfif Len(identity) GT 0 AND hasKey_(arguments.keys, identity)>
 			<cfreturn addIdentity(fullTableName, sql)>
 		</cfif>
 
@@ -902,6 +910,26 @@
 	</cffunction>
 
 	<!---
+	 * Tells if a list of column names holds a name, in any case (the
+	 * names of SQL Server columns are compared without case).
+	 *
+	 * Not in the original.
+	--->
+	<cffunction name="hasKey_" access="private" returntype="boolean" output="no">
+		<cfargument name="keys" type="any" required="yes">
+		<cfargument name="name" type="string" required="yes">
+		<cfset var i = 0>
+
+		<cfloop from="1" to="#ArrayLen(arguments.keys)#" index="i">
+			<cfif CompareNoCase(strOf_(arguments.keys[i]), arguments.name) EQ 0>
+				<cfreturn "true">
+			</cfif>
+		</cfloop>
+
+		<cfreturn "false">
+	</cffunction>
+
+	<!---
 	 * Runs the select of get() and getWhere(), and takes the offset from
 	 * the result (see the header).
 	 *
@@ -914,6 +942,11 @@
 		<cfset var skip = 0>
 
 		<!--- Difference: the offset is taken from the result, see the header --->
+		<cfif ArrayLen(this.QBUnion) GT 0>
+			<!--- with a union the rows to skip are those of the first query only, so the nested form is used --->
+			<cfreturn this.db_.query(compileSelect(), this.binds, "false")>
+		</cfif>
+
 		<cfif numberSet_(this.QBLimit) AND numberSet_(this.QBOffset)>
 			<cfset skip = Fix(Val(this.QBOffset))>
 		</cfif>
@@ -1177,7 +1210,7 @@
 		<!--- the batch starts with SET, so it is a write (see isWriteType()) --->
 		<cfset out = "SET NOCOUNT ON" & Chr(10) & "DECLARE @ci_rows INT" & Chr(10) & "SET @ci_rows = 0" & Chr(10) & implode(Chr(10), sql)>
 
-		<cfif Len(tableIdentity) GT 0 AND in_array(tableIdentity, arguments.keys)>
+		<cfif Len(tableIdentity) GT 0 AND hasKey_(arguments.keys, tableIdentity)>
 			<cfreturn addIdentity(fullTableName, out)>
 		</cfif>
 

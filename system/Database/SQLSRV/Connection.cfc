@@ -707,7 +707,9 @@
 		<cfset var q = "">
 		<cfset var batch = arguments.sql>
 		<cfset var isChange = "false">
-		<cfset var counted = Find("DECLARE @ci_rows INT", arguments.sql) GT 0>
+		<cfset var counted = REFind("^(SET [^#Chr(10)#]*#Chr(10)#){0,3}DECLARE @ci_rows INT#Chr(10)#", arguments.sql) EQ 1>
+		<cfset var identityOn = "">
+		<cfset var identityTable = "">
 		<cfset var rowsOf = "@@ROWCOUNT">
 		<cfset var guard = "">
 		<cfset var clean = "">
@@ -756,7 +758,20 @@
 				<cfset guard = "IF @@TRANCOUNT = 0 BEGIN RAISERROR('The transaction is not open on this connection.', 16, 1) RETURN END" & Chr(10)>
 			</cfif>
 
-			<cfset batch = "SET NOCOUNT ON" & Chr(10) & guard & REReplace(arguments.sql, "[;[:space:]]+$", "") & Chr(10) & "SELECT " & rowsOf & " AS ci_affected_rows, SCOPE_IDENTITY() AS ci_insert_id" & Chr(10) & "SET NOCOUNT OFF">
+			<cfset batch = "SET NOCOUNT ON" & Chr(10) & "SET ROWCOUNT 0" & Chr(10) & guard & REReplace(arguments.sql, "[;[:space:]]+$", "") & Chr(10) & "SELECT " & rowsOf & " AS ci_affected_rows, SCOPE_IDENTITY() AS ci_insert_id" & Chr(10) & "SET NOCOUNT OFF">
+		</cfif>
+
+		<!---
+		 A limit of the builder is SET ROWCOUNT n ... SET ROWCOUNT 0 in one
+		 batch. An error that stops the batch (a conversion error, a
+		 deadlock) leaves ROWCOUNT n on the connection, which the data
+		 source hands on. So a change and a select start with SET ROWCOUNT
+		 0, and after an error ROWCOUNT and IDENTITY_INSERT are set back
+		 (see the catch). Other statements are sent as they are, as some
+		 (CREATE PROCEDURE) must be the first of their batch.
+		--->
+		<cfif NOT isChange AND REFindNoCase("^[[:space:]]*SELECT[[:space:]]", arguments.sql) GT 0>
+			<cfset batch = "SET ROWCOUNT 0" & Chr(10) & arguments.sql>
 		</cfif>
 
 		<cftry>
@@ -782,6 +797,29 @@
 				<cfset this.lastErrorCode = native>
 				<cfset this.lastErrorMessage = message>
 				<cfset log_message("error", message)>
+
+				<!---
+				 Sets back what the stopped batch left on the connection.
+				 Outside a transaction the data source may run this on
+				 another connection of the pool; the SET ROWCOUNT 0 at the
+				 start of the next change or select covers that case.
+				--->
+				<cfset identityOn = REFind("^SET IDENTITY_INSERT [^#Chr(10)#]+ ON#Chr(10)#", arguments.sql, 1, "true")>
+
+				<cfif identityOn.pos[1] EQ 1>
+					<cfset identityTable = Mid(arguments.sql, 21, identityOn.len[1] - 24)>
+				</cfif>
+
+				<cftry>
+					<cfquery name="clean" datasource="#this.DSN#">SET ROWCOUNT 0</cfquery>
+
+					<cfif Len(identityTable) GT 0>
+						<cfquery name="clean" datasource="#this.DSN#">SET IDENTITY_INSERT #PreserveSingleQuotes(identityTable)# OFF</cfquery>
+					</cfif>
+
+					<cfcatch type="any">
+					</cfcatch>
+				</cftry>
 
 				<cfif this.DBDebug>
 					<cfthrow type="ColdIgniter.Database.Exceptions.DatabaseException" errorcode="#state#/#native#" message="#message#">
