@@ -14,6 +14,14 @@
  * struct), where the names of the parameters are compared ignoring case, as
  * the keys of a struct are. A value is looked up for exclusion only when
  * the header has a quality of zero, as nothing else can exclude it.
+ *
+ * Difference: a parameter with an empty name (as in "text/html; =x") is
+ * skipped, where the original keeps it under the empty key, which a struct
+ * does not take. A header of three or more values with the same quality is
+ * sorted by a comparator in the original that returns 0 when the first value
+ * has fewer asterisks, so its order depends on the input order; here the
+ * order is the one its comments intend: fewer asterisks first, then more
+ * parameters, then the order of the header.
 --->
 <cfcomponent output="no" hint="Content negotiation with the HTTP headers">
 
@@ -102,16 +110,17 @@
 	--->
 	<cffunction name="encoding" access="public" returntype="string" output="no">
 		<cfargument name="supported" type="any" required="no" default="">
+		<cfset var list = "">
 
 		<cfif is_null(arguments.supported)>
 			<cfset arguments.supported = ArrayNew(1)>
 		</cfif>
 
-		<!--- an array argument is passed by reference here, so the caller's array is copied --->
-		<cfset arguments.supported = Duplicate(arguments.supported)>
-		<cfset ArrayAppend(arguments.supported, "identity")>
+		<!--- an array argument is the caller's array here, so a copy is appended to --->
+		<cfset list = arguments.supported>
+		<cfset ArrayAppend(list, "identity")>
 
-		<cfreturn getBestMatch(arguments.supported, this.request.getHeaderLine("accept-encoding"))>
+		<cfreturn getBestMatch(list, this.request.getHeaderLine("accept-encoding"))>
 	</cffunction>
 
 	<!---
@@ -188,15 +197,23 @@
 			</cfif>
 		</cfloop>
 
-		<cfloop from="1" to="#ArrayLen(arguments.supported)#" index="j">
-			<cfset ArrayAppend(parsed, parseSupported(arguments.supported[j]))>
-		</cfloop>
-
 		<cfloop from="1" to="#ArrayLen(acceptable)#" index="i">
 			<cfset accept = acceptable[i]>
 
 			<!--- if acceptable quality is zero, skip it. --->
 			<cfif accept.q NEQ 0>
+				<!--- a wildcard that nothing excludes takes the first supported value --->
+				<cfif NOT hasZero AND (accept.value EQ "*" OR accept.value EQ "*/*")>
+					<cfreturn arguments.supported[1]>
+				</cfif>
+
+				<!--- the supported values are parsed when they are first compared --->
+				<cfif ArrayLen(parsed) EQ 0>
+					<cfloop from="1" to="#ArrayLen(arguments.supported)#" index="j">
+						<cfset ArrayAppend(parsed, parseSupported(arguments.supported[j]))>
+					</cfloop>
+				</cfif>
+
 				<cfif accept.value EQ "*" OR accept.value EQ "*/*">
 					<!--- if acceptable value is "anything", return the first available
 					      that the header does not exclude --->
@@ -269,20 +286,25 @@
 			</cfif>
 		</cfloop>
 
-		<cfloop from="1" to="#ArrayLen(arguments.supportedLocales)#" index="j">
-			<cfset ArrayAppend(parsed, parseSupported(arguments.supportedLocales[j]))>
-		</cfloop>
+		<!--- the supported values are only compared by specificity when a value can be excluded --->
+		<cfif hasZero>
+			<cfloop from="1" to="#ArrayLen(arguments.supportedLocales)#" index="j">
+				<cfset ArrayAppend(parsed, parseSupported(arguments.supportedLocales[j]))>
+			</cfloop>
+		</cfif>
 
 		<cfloop from="1" to="#ArrayLen(acceptable)#" index="i">
 			<cfset accept = acceptable[i]>
 
 			<!--- if acceptable quality is zero, skip it. --->
 			<cfif accept.q NEQ 0>
-				<cfif accept.value EQ "*">
+				<cfif accept.value EQ "*" AND NOT hasZero>
+					<cfreturn arguments.supportedLocales[1]>
+				<cfelseif accept.value EQ "*">
 					<!--- if acceptable value is "anything", return the first available
 					      that the header does not exclude --->
 					<cfloop from="1" to="#ArrayLen(parsed)#" index="j">
-						<cfif NOT hasZero OR NOT isExcluded(acceptable, parsed[j], false, true)>
+						<cfif NOT isExcluded(acceptable, parsed[j], false, true)>
 							<cfreturn arguments.supportedLocales[j]>
 						</cfif>
 					</cfloop>
@@ -304,7 +326,7 @@
 			<cfset fallbackLocale = fallbackLocales[k]>
 
 			<!--- look for exact match --->
-			<cfloop from="1" to="#ArrayLen(parsed)#" index="j">
+			<cfloop from="1" to="#ArrayLen(arguments.supportedLocales)#" index="j">
 				<cfif Compare(arguments.supportedLocales[j], fallbackLocale) EQ 0
 					AND (NOT hasZero OR NOT isExcluded(acceptable, parsed[j], false, true))>
 					<cfreturn fallbackLocale>
@@ -312,7 +334,7 @@
 			</cfloop>
 
 			<!--- look for regional locale match --->
-			<cfloop from="1" to="#ArrayLen(parsed)#" index="j">
+			<cfloop from="1" to="#ArrayLen(arguments.supportedLocales)#" index="j">
 				<cfif str_starts_with(arguments.supportedLocales[j], fallbackLocale & "-")
 					AND (NOT hasZero OR NOT isExcluded(acceptable, parsed[j], false, true))>
 					<cfreturn arguments.supportedLocales[j]>
@@ -560,7 +582,7 @@
 
 					<cfif Compare(name, "q") EQ 0>
 						<cfset entry.q = Val(Trim(rest))>
-					<cfelse>
+					<cfelseif Len(name) GT 0>
 						<cfset entry.params[name] = Trim(rest)>
 					</cfif>
 				</cfif>
