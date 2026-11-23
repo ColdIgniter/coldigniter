@@ -396,7 +396,7 @@
 
 		<cfset this.validation = arguments.validation>
 
-		<cfset initialize()>
+		<cfset initialize_()>
 		<cfset createDataConverter()>
 
 		<cfreturn this>
@@ -426,8 +426,10 @@
 	<!---
 	 * Initializes the instance with any additional steps.
 	 * Optionally implemented by child classes.
+	 *
+	 * Difference: named initialize_ because initialize is a built-in function.
 	--->
-	<cffunction name="initialize" access="private" returntype="void" output="no">
+	<cffunction name="initialize_" access="private" returntype="void" output="no">
 	</cffunction>
 
 	<!---

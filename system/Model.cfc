@@ -34,7 +34,7 @@
  * getCompiledUpdate() of the builder are refused, as in the original, and
  * throw a ModelException.
  *
- * Difference: the property builder is named builder_, as builder() is a
+ * Difference: the property builder is named builder_, as this.builder() is a
  * method.
  *
  * Difference: the original clones the builder in chunk() so that each
@@ -73,7 +73,7 @@
 	<!---
 	 * Query Builder object.
 	 *
-	 * Named with an underscore, as builder() is a method.
+	 * Named with an underscore, as this.builder() is a method.
 	 *
 	 * @var BaseBuilder|null
 	--->
@@ -139,7 +139,7 @@
 	<cffunction name="doFind" access="private" returntype="any" output="no">
 		<cfargument name="singleton" type="boolean" required="yes">
 		<cfargument name="id" type="any" required="yes">
-		<cfset var builder = builder()>
+		<cfset var builder = this.builder()>
 		<cfset var useCast = useCasts()>
 		<cfset var returnType = "">
 		<cfset var row = "">
@@ -219,7 +219,7 @@
 			<cfset limit = 0>
 		</cfif>
 
-		<cfset builder = builder()>
+		<cfset builder = this.builder()>
 
 		<cfif useCast>
 			<cfset returnType = this.tempReturnType>
@@ -251,7 +251,7 @@
 	 * when determining the result set.
 	--->
 	<cffunction name="doFirst" access="private" returntype="any" output="no">
-		<cfset var builder = builder()>
+		<cfset var builder = this.builder()>
 		<cfset var useCast = useCasts()>
 		<cfset var returnType = "">
 		<cfset var row = "">
@@ -317,7 +317,7 @@
 			<cfset validateID(arguments.row[this.primaryKey], false)>
 		</cfif>
 
-		<cfset builder = builder()>
+		<cfset builder = this.builder()>
 
 		<!--- Must use the set() method to ensure to set the correct escape flag --->
 		<cfloop from="1" to="#ArrayLen(keys)#" index="i">
@@ -392,7 +392,7 @@
 			</cfloop>
 		</cfif>
 
-		<cfset builder = builder()>
+		<cfset builder = this.builder()>
 		<cfset builder.testMode(arguments.testing)>
 
 		<cfreturn builder.insertBatch(arguments.set_, arguments.escape, arguments.batchSize)>
@@ -410,7 +410,7 @@
 
 		<cfset this.escape = array_()>
 
-		<cfset builder = builder()>
+		<cfset builder = this.builder()>
 
 		<cfif isArr_(arguments.id) AND NOT isEmpty_(arguments.id)>
 			<cfset builder.whereIn("#this.table#.#this.primaryKey#", arguments.id)>
@@ -440,7 +440,7 @@
 		<cfargument name="index" type="any" required="yes">
 		<cfargument name="batchSize" type="numeric" required="yes">
 		<cfargument name="returnSQL" type="boolean" required="yes">
-		<cfset var builder = builder()>
+		<cfset var builder = this.builder()>
 
 		<cfset builder.testMode(arguments.returnSQL)>
 
@@ -451,7 +451,7 @@
 		<cfargument name="id" type="any" required="yes">
 		<cfargument name="purge" type="boolean" required="yes">
 		<cfset var set_ = array_()>
-		<cfset var builder = builder()>
+		<cfset var builder = this.builder()>
 
 		<cfif isArr_(arguments.id) AND NOT isEmpty_(arguments.id)>
 			<cfset builder.whereIn(this.primaryKey, arguments.id)>
@@ -477,7 +477,7 @@
 	</cffunction>
 
 	<cffunction name="doPurgeDeleted" access="private" returntype="any" output="no">
-		<cfset var builder = builder()>
+		<cfset var builder = this.builder()>
 
 		<cfset builder.where("#this.table#.#this.deletedField# IS NOT NULL")>
 
@@ -485,7 +485,7 @@
 	</cffunction>
 
 	<cffunction name="doOnlyDeleted" access="private" returntype="void" output="no">
-		<cfset var builder = builder()>
+		<cfset var builder = this.builder()>
 
 		<cfset builder.where("#this.table#.#this.deletedField# IS NOT NULL")>
 	</cffunction>
@@ -493,7 +493,7 @@
 	<cffunction name="doReplace" access="private" returntype="any" output="no">
 		<cfargument name="row" type="any" required="yes">
 		<cfargument name="returnSQL" type="boolean" required="yes">
-		<cfset var builder = builder()>
+		<cfset var builder = this.builder()>
 
 		<cfset builder.testMode(arguments.returnSQL)>
 
@@ -550,7 +550,7 @@
 		<cfset var builder = "">
 
 		<cfif truthy_(this.tempUseSoftDeletes)>
-			<cfset builder = builder()>
+			<cfset builder = this.builder()>
 			<cfset builder.where("#this.table#.#this.deletedField#")>
 		</cfif>
 
@@ -567,7 +567,7 @@
 			<cfset this.tempUseSoftDeletes = this.useSoftDeletes>
 		</cfif>
 
-		<cfset builder = builder()>
+		<cfset builder = this.builder()>
 		<cfset builder.testMode(arguments.test)>
 
 		<cfreturn builder.countAllResults(arguments.reset)>
@@ -608,7 +608,7 @@
 		<cfset cbObject = arguments.userFunc[1]>
 		<cfset cbName = arguments.userFunc[2]>
 
-		<cfset builder = builder()>
+		<cfset builder = this.builder()>
 		<cfset total = builder.countAllResults(false)>
 
 		<cfloop condition="offset LT total AND NOT stop">
@@ -934,7 +934,7 @@
 			<cfreturn parentGet_(arguments.name)>
 		</cfif>
 
-		<cfset builder = builder()>
+		<cfset builder = this.builder()>
 
 		<cfif StructKeyExists(builder, arguments.name) AND NOT IsCustomFunction(builder[arguments.name])>
 			<cfreturn builder[arguments.name]>
@@ -956,7 +956,7 @@
 			<cfreturn true>
 		</cfif>
 
-		<cfset builder = builder()>
+		<cfset builder = this.builder()>
 
 		<cfif StructKeyExists(builder, arguments.name) AND NOT IsCustomFunction(builder[arguments.name])>
 			<cfreturn NOT isNil_(builder[arguments.name])>
@@ -982,7 +982,7 @@
 	<cffunction name="__call" access="public" returntype="any" output="no">
 		<cfargument name="name" type="string" required="yes">
 		<cfargument name="params" type="array" required="no" default="#ArrayNew(1)#">
-		<cfset var builder = builder()>
+		<cfset var builder = this.builder()>
 		<cfset var result = "">
 
 		<cfif REFind("^[A-Za-z_][A-Za-z0-9_]*$", arguments.name) EQ 0>
@@ -1047,7 +1047,7 @@
 
 		<cfset checkBuilderMethod(arguments.name)>
 
-		<cfset result = callWith_(builder(), arguments.name, positional_(arguments.args))>
+		<cfset result = callWith_(this.builder(), arguments.name, positional_(arguments.args))>
 
 		<cfif instanceof_(result, "BaseBuilder")>
 			<cfreturn this>
