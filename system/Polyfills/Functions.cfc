@@ -11,6 +11,9 @@
 
 	<cfset variables.__table = StructNew()>
 
+	<!--- The functions that are here at the first call of __functions() (those of Polyfills.cfm): what a file that require_once() runs starts with. --->
+	<cfset variables.__base = StructNew()>
+
 	<!---
 	 * Returns the global functions by name.
 	--->
@@ -21,6 +24,7 @@
 			<cfloop collection="#variables#" item="name">
 				<cfif Left(name, 2) NEQ "__" AND IsCustomFunction(variables[name])>
 					<cfset variables.__table[name] = variables[name]>
+					<cfset variables.__base[name] = variables[name]>
 				</cfif>
 			</cfloop>
 		</cfif>
@@ -32,13 +36,26 @@
 	 * Makes the functions in a file global. The file is run in an
 	 * object of its own, so a function that already exists is kept
 	 * and is not an error.
+	 *
+	 * That object is an empty Holder, which is given the functions of
+	 * Polyfills.cfm that are already loaded. Creating another Functions
+	 * object would include all of Polyfills.cfm again for each file.
 	--->
 	<cffunction name="__require" access="public" returntype="void" output="no">
 		<cfargument name="file" type="string" required="yes">
-		<cfset var holder = CreateObject("component", "Functions")>
+		<cfset var holder = CreateObject("component", "Holder")>
+		<cfset var table = __functions()>
+		<cfset var scope = holder.__variables()>
+		<cfset var name = "">
 
+		<cfset StructAppend(scope, variables.__base, false)>
 		<cfset holder.__include(arguments.file)>
-		<cfset StructAppend(__functions(), holder.__functions(), false)>
+
+		<cfloop collection="#scope#" item="name">
+			<cfif Left(name, 2) NEQ "__" AND NOT StructKeyExists(table, name) AND IsCustomFunction(scope[name])>
+				<cfset table[name] = scope[name]>
+			</cfif>
+		</cfloop>
 	</cffunction>
 
 	<cffunction name="__include" access="public" returntype="void" output="no">

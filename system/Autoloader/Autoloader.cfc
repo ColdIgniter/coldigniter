@@ -358,26 +358,44 @@
 		<cfset var parentVariables = arguments.parent.__variables()>
 		<cfset var objectFunctions = methods(arguments.object)>
 		<cfset var parentFunctions = methods(arguments.parent)>
+		<cfset var globalFunctions = request.ColdIgniter.functions.__functions()>
+		<cfset var inherited = StructNew()>
+		<cfset var member = "">
 		<cfset var name = "">
 
-		<!--- Functions the parent was given by its own parent class. --->
+		<cfif StructKeyExists(parentVariables, "parent")>
+			<cfset inherited = parentVariables.parent>
+		</cfif>
+
+		<!---
+		 * Functions the parent was given by its own parent class. A global
+		 * function is left out: instantiate() gives the object its own copy
+		 * after this, so a copy from the parent is work for nothing.
+		--->
 		<cfloop collection="#parentVariables#" item="name">
-			<cfif name NEQ "this" AND name NEQ "parent" AND name NEQ "__variables" AND name NEQ "__member" AND IsCustomFunction(parentVariables[name]) AND NOT StructKeyExists(parentFunctions, name)>
+			<cfif name NEQ "this" AND name NEQ "parent" AND name NEQ "__variables" AND name NEQ "__member" AND IsCustomFunction(parentVariables[name]) AND NOT StructKeyExists(parentFunctions, name) AND (StructKeyExists(inherited, name) OR NOT StructKeyExists(globalFunctions, name))>
 				<cfset parentFunctions[name] = StructKeyExists(arguments.parent, name)>
 			</cfif>
 		</cfloop>
 
 		<cfloop collection="#parentFunctions#" item="name">
+			<!--- A private function the parent inherits is not in its Variables scope, so only that one is asked for by name. --->
+			<cfif StructKeyExists(parentVariables, name)>
+				<cfset member = parentVariables[name]>
+			<cfelse>
+				<cfset member = arguments.parent.__member(name)>
+			</cfif>
+
 			<cfif NOT StructKeyExists(objectFunctions, name) AND NOT StructKeyExists(objectVariables, name)>
-				<cfset objectVariables[name] = arguments.parent.__member(name)>
+				<cfset objectVariables[name] = member>
 
 				<!--- parentFunctions[name] tells whether the function is public --->
 				<cfif parentFunctions[name]>
-					<cfset arguments.object[name] = objectVariables[name]>
+					<cfset arguments.object[name] = member>
 				</cfif>
 			</cfif>
 
-			<cfset parentFunctions[name] = arguments.parent.__member(name)>
+			<cfset parentFunctions[name] = member>
 		</cfloop>
 
 		<cfloop collection="#arguments.parent#" item="name">
