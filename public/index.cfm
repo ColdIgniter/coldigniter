@@ -49,5 +49,18 @@
 
 <cfset Boot.bootWeb(paths)>
 
+<!---
+ Not in the original. The page buffer holds 8 KB, and a longer body leaves
+ in many small parts, which is slow (over a second for 125 KB). The buffer
+ is made as large as the body, so the body leaves in one part.
+--->
+<cftry>
+	<cfif Len(request.ColdIgniter.output) GT GetPageContext().getResponse().getBufferSize()>
+		<cfset GetPageContext().getResponse().setBufferSize(JavaCast("int", Len(request.ColdIgniter.output) + 4096))>
+	</cfif>
+
+	<cfcatch type="any"></cfcatch>
+</cftry>
+
 <!--- No output can leave a method, so the response leaves the body here to be written. --->
 <cfoutput>#request.ColdIgniter.output#</cfoutput>
