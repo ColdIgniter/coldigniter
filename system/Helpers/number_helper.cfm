@@ -16,6 +16,10 @@
  * into a BadFunctionCallException (the class is not ported, so the type
  * "ColdIgniter.Exceptions.BadFunctionCallException" is thrown).
  *
+ * Difference: Java 1.4.2 does not know every ISO 4217 code (it has no
+ * "RSD", for one), so number_to_currency() with such a code throws that
+ * BadFunctionCallException, where ICU formats it.
+ *
  * A function here has no guard against a second definition (the original
  * checks function_exists): helper() keeps the first definition of a name.
  *
@@ -222,7 +226,8 @@
 		<cfelse>
 			<!--- In order to specify a precision, we'll have to modify --->
 			<!--- the pattern used by NumberFormatter. --->
-			<cfset pattern = "##,##0." & RepeatString("##", arguments.precision)>
+			<!--- Difference: a number sign is written ## in a string here, so the pattern is ##,###0. --->
+			<cfset pattern = "##,###0." & RepeatString("##", arguments.precision)>
 
 			<cfset formatter.applyPattern(JavaCast("string", pattern))>
 			<cfset output = format_number_java_(formatter, arguments.num)>
