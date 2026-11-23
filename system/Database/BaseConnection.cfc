@@ -1342,8 +1342,9 @@
 		</cfif>
 
 		<!---
-		 * Difference: an item with no white space (and no NUL, which trim()
-		 * takes away) is the usual one. It is not changed by the trim or by
+		 * Difference: an item with no white space is the usual one (NUL is
+		 * in the class too, as trim() of the original takes it away, so
+		 * such an item goes the long way). It is not changed by the trim or by
 		 * the collapse of the white space, and it has no alias, so the steps
 		 * that look for them are left out for it.
 		--->
@@ -1574,7 +1575,8 @@
 	 * original changes the array that it is given. The regular expressions
 	 * have one quantifier on a class that has no period, so they are read
 	 * in a time that depends on the length of the item, which the guard of
-	 * preg_replace() caps at 8192 characters.
+	 * preg_replace() caps at 8192 characters. A name with no period and no
+	 * escape character does not go through them, and has no limit.
 	--->
 	<cffunction name="escapeIdentifiers" access="public" returntype="any" output="no">
 		<cfargument name="item" type="any" required="yes">
