@@ -182,7 +182,7 @@
 
 			<cfset row = query_.getRowArray()>
 
-			<cfif Val(row["qi"]) EQ 1>
+			<cfif Val(pick_(row, "qi")) EQ 1>
 				<cfset this._quoted_identifier = "true">
 				<cfset this.escapeChar = """">
 			<cfelse>
