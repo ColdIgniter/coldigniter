@@ -1,8 +1,11 @@
 <!---
  * History collector
  *
- * Difference: the history files are listed with cfdirectory, and a file
- * that is not valid JSON is skipped (the original tests json_last_error()).
+ * Difference: the history files are listed with cfdirectory. A file is
+ * not JSON: it starts with a small WDDX packet that has what is shown here
+ * (see encodeData() in Debug/Toolbar.cfc), and only that packet is read. A
+ * file that cannot be read that way is skipped (the original tests
+ * json_last_error()).
  * The date is made with java.text.SimpleDateFormat in UTC.
 --->
 <cfcomponent output="no" extends="BaseCollector" hint="History collector">
@@ -59,9 +62,10 @@
 		<cfset var seconds = "">
 		<cfset var micro = "">
 		<cfset var valid = true>
+		<cfset var pos = 0>
 		<cfset var i = 0>
 
-		<cfdirectory action="list" directory="#request.WRITEPATH#debugbar" name="filenames" filter="debugbar_*.json" sort="name asc">
+		<cfdirectory action="list" directory="#request.WRITEPATH#debugbar" name="filenames" filter="debugbar_*.wddx" sort="name asc">
 
 		<!--- the original lists the oldest first and walks the list backwards --->
 		<cfloop from="#filenames.RecordCount#" to="1" step="-1" index="i">
@@ -70,14 +74,26 @@
 
 			<!--- Oldest files will be deleted --->
 			<cfif arguments.limit GTE 0 AND counter GT arguments.limit>
-				<cffile action="delete" file="#filename#">
+				<!---
+				 Difference: another request at the same time may have deleted the
+				 file already, which is not an error.
+				--->
+				<cftry>
+					<cffile action="delete" file="#filename#">
+					<cfcatch type="any">
+						<cfif FileExists(filename)>
+							<cfrethrow>
+						</cfif>
+					</cfcatch>
+				</cftry>
 			<cfelse>
 				<!--- Get the contents of this specific history request --->
 				<cfset valid = true>
 				<cftry>
-					<cfset contents = file_get_contents(filename)>
-					<cfset decoded = json_decode(contents)>
-					<cfset stamp = REReplace(filenames.name[i], "^debugbar_(.*)\.json$", "\1")>
+					<cffile action="read" file="#filename#" variable="contents" charset="utf-8">
+					<cfset pos = Find(Chr(10), contents)>
+					<cfwddx action="wddx2cfml" input="#Mid(contents, pos + 1, Left(contents, pos - 1))#" output="decoded">
+					<cfset stamp = REReplace(filenames.name[i], "^debugbar_(.*)\.wddx$", "\1")>
 					<cfif NOT REFind("^[0-9]+\.[0-9]+$", stamp)>
 						<cfset stamp = "0.000000">
 					</cfif>
@@ -104,11 +120,11 @@
 						"time", stamp,
 						"datetime", format.format(calendar.getTime()) & "." & micro,
 						"active", JavaCast("boolean", Compare(stamp, arguments.current) EQ 0),
-						"status", decoded["vars"]["response"]["statusCode"],
+						"status", decoded["status"],
 						"method", decoded["method"],
 						"url", decoded["url"],
 						"isAJAX", iif(decoded["isAJAX"] IS true, de("Yes"), de("No")),
-						"contentType", decoded["vars"]["response"]["contentType"]
+						"contentType", decoded["contentType"]
 					))>
 					<cfcatch type="any">
 						<cfset valid = false>
