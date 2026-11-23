@@ -4,7 +4,7 @@
  * Of course, there are variations to that flow, but this is the
  * objective.
  *
- * Not ported yet: Kint, forceSecureAccess, method spoofing, the previous URL, the
+ * Not ported yet: Kint, forceSecureAccess, the previous URL, the
  * controller attributes, closures as controllers and _remap.
 --->
 <cfcomponent output="no" hint="The core of the framework">
@@ -490,7 +490,7 @@
 	--->
 	<cffunction name="getRequestObject" access="private" returntype="void" output="no">
 		<cfif IsObject(this.request_)>
-			<!--- Not ported yet: spoofRequestMethod --->
+			<cfset spoofRequestMethod()>
 			<cfreturn>
 		</cfif>
 
@@ -498,7 +498,32 @@
 
 		<cfset this.request_ = service("request")>
 
-		<!--- Not ported yet: spoofRequestMethod --->
+		<cfset spoofRequestMethod()>
+	</cffunction>
+
+	<!---
+	 * Modifies the Request Object to use a different method if a POST
+	 * variable called _method is found.
+	--->
+	<cffunction name="spoofRequestMethod" access="public" returntype="void" output="no">
+		<cfset var method = "">
+		<cfset var httpMethod = static_("ColdIgniter\HTTP\Method")>
+
+		<!--- Only works with POSTED forms --->
+		<cfif Compare(this.request_.getMethod(), httpMethod.POST) NEQ 0>
+			<cfreturn>
+		</cfif>
+
+		<cfset method = this.request_.getPost("_method")>
+
+		<cfif is_null(method)>
+			<cfreturn>
+		</cfif>
+
+		<!--- Only allows PUT, PATCH, DELETE --->
+		<cfif Compare(method, httpMethod.PUT) EQ 0 OR Compare(method, httpMethod.PATCH) EQ 0 OR Compare(method, httpMethod.DELETE) EQ 0>
+			<cfset this.request_ = this.request_.setMethod(method)>
+		</cfif>
 	</cffunction>
 
 	<!---
