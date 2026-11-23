@@ -655,13 +655,28 @@
 		<cfargument name="modified" type="numeric" required="yes">
 		<cfargument name="item" type="any" required="yes">
 		<cfset var entry = CreateObject("java", "java.util.HashMap").init()>
+		<cfset var evicted = "">
 
 		<cfif arguments.memory.size() GTE this.memoryEntries AND NOT arguments.memory.containsKey(arguments.path)>
 			<cftry>
-				<cfset arguments.memory.remove(arguments.memory.keySet().iterator().next())>
+				<!---
+				 * The entry that goes is switched off, as forget() does: a
+				 * page of the front controller may still hold it, and
+				 * forget() does not find it here any more.
+				--->
+				<cfset evicted = arguments.memory.remove(arguments.memory.keySet().iterator().next())>
+
+				<cfif IsDefined("evicted") AND NOT IsSimpleValue(evicted)>
+					<cfset evicted.put("modified", -1)>
+				</cfif>
 
 				<cfcatch type="any">
+					<!--- as clean() does: the entries cannot be switched off one by one --->
 					<cfset arguments.memory.clear()>
+
+					<cfif StructKeyExists(application.ColdIgniter, "frontPages")>
+						<cfset application.ColdIgniter.frontPages.clear()>
+					</cfif>
 				</cfcatch>
 			</cftry>
 		</cfif>

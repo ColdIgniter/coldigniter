@@ -233,10 +233,14 @@
 	 * is used.
 	 *
 	 * The item also holds the configuration files that decide all of this
-	 * (Config\App, Config\Cache, Config\Filters and the .env file) with
-	 * their modified times. The front controller serves the page only
-	 * while they are the same, so a change of the configuration is seen
-	 * with the next request.
+	 * (Config\App, Config\Cache, Config\Filters, Config/Events.cfm, the
+	 * boot file of the environment and the .env file) with their modified
+	 * times. The front controller serves the page only while they are the
+	 * same, so a change of the configuration is seen with the next request.
+	 *
+	 * A page is not kept while the events pre_system or post_system have a
+	 * listener: the listener would not run for the kept page, and a header
+	 * that it sets for one request would be sent to all.
 	--->
 	<cffunction name="keepFront" access="public" returntype="void" output="no">
 		<cfargument name="response" type="any" required="yes">
@@ -255,6 +259,7 @@
 		<cfset var stamp = "">
 		<cfset var file_ = "">
 		<cfset var path = "">
+		<cfset var events = "">
 		<cfset var i = 0>
 
 		<cfif NOT this.frontPages OR IsSimpleValue(this.frontEntry) OR NOT StructKeyExists(request, "ColdIgniterFront") OR Len(request.ColdIgniterFront.signature) EQ 0>
@@ -262,6 +267,12 @@
 		</cfif>
 
 		<cftry>
+			<cfset events = static_("ColdIgniter\Events\Events")>
+
+			<cfif ArrayLen(events.listeners("pre_system")) GT 0 OR ArrayLen(events.listeners("post_system")) GT 0>
+				<cfreturn>
+			</cfif>
+
 			<cfset output = arguments.response.getBody()>
 
 			<cfif NOT IsSimpleValue(output) OR ArrayLen(arguments.response.cookieStore.getIterator()) GT 0>
@@ -294,9 +305,13 @@
 			<!--- A file that is not there has the time 0, and is seen when it is made. --->
 			<cfset files = CreateObject("java", "java.util.ArrayList").init()>
 
-			<cfloop index="i" from="1" to="4">
+			<cfloop index="i" from="1" to="6">
 				<cfif i LTE 3>
 					<cfset path = request.APPPATH & "Config/" & ListGetAt("App,Cache,Filters", i) & ".cfc">
+				<cfelseif i EQ 4>
+					<cfset path = request.APPPATH & "Config/Events.cfm">
+				<cfelseif i EQ 5>
+					<cfset path = request.APPPATH & "Config/Boot/" & request.ENVIRONMENT & ".cfm">
 				<cfelse>
 					<cfset path = new_("Config\Paths").envDirectory & "/.env">
 				</cfif>
