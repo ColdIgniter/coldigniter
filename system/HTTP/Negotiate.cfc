@@ -110,14 +110,17 @@
 	--->
 	<cffunction name="encoding" access="public" returntype="string" output="no">
 		<cfargument name="supported" type="any" required="no" default="">
-		<cfset var list = "">
+		<cfset var list = ArrayNew(1)>
+		<cfset var i = 0>
 
-		<cfif is_null(arguments.supported)>
-			<cfset arguments.supported = ArrayNew(1)>
+		<!--- the argument can be the caller's own array or list, and a java.util.List is
+		      shared by reference, so the values are copied before "identity" is appended --->
+		<cfif NOT is_null(arguments.supported)>
+			<cfloop from="1" to="#ArrayLen(arguments.supported)#" index="i">
+				<cfset ArrayAppend(list, arguments.supported[i])>
+			</cfloop>
 		</cfif>
 
-		<!--- an array argument is the caller's array here, so a copy is appended to --->
-		<cfset list = arguments.supported>
 		<cfset ArrayAppend(list, "identity")>
 
 		<cfreturn getBestMatch(list, this.request.getHeaderLine("accept-encoding"))>
