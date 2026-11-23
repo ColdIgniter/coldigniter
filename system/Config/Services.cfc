@@ -306,8 +306,7 @@
 			<cfset arguments.config = variables.config("Config\App")>
 		</cfif>
 
-		<!--- Not ported yet: UserAgent --->
-		<cfreturn new_("ColdIgniter\HTTP\IncomingRequest", arguments.config, static_("Config\Services").get("uri"), "", "")>
+		<cfreturn new_("ColdIgniter\HTTP\IncomingRequest", arguments.config, static_("Config\Services").get("uri"), "", new_("ColdIgniter\HTTP\UserAgent"))>
 	</cffunction>
 
 	<!---
