@@ -45,8 +45,9 @@
  * rollback by either ends the work of both.
  *
  * Difference: a transaction that is already open when the request runs
- * its first statement on the DSN is rolled back by a query that
- * precedes that statement (see execute()). For example, one that a cftransaction tag or a query of
+ * its first statement on the DSN is rolled back by the query that
+ * execute() runs before the statements of the request (see execute()).
+ * For example, one that a cftransaction tag or a query of
  * "BEGIN TRANSACTION" outside this class has opened. Use transBegin().
  *
  * Difference: NULL and an empty string cannot be told apart in a query of
@@ -727,9 +728,9 @@
 		 left. The count is set when it has run, so it runs once. When it
 		 fails, the count is not set, so a later statement tries it again
 		 until a statement sets the count. The error is left to the
-		 statement that follows. A statement that runs after a failed
-		 attempt is inside what is left, so the next attempt that works
-		 rolls its changes back too.
+		 statement that follows. When a transaction was left open, a
+		 statement that runs after a failed attempt runs inside it, so the
+		 next attempt that works rolls back its changes too.
 		--->
 		<cfif NOT StructKeyExists(request, "ColdIgniter") OR NOT StructKeyExists(request.ColdIgniter, "sqlsrvTransactions") OR NOT StructKeyExists(request.ColdIgniter.sqlsrvTransactions, this.DSN)>
 			<cftry>
