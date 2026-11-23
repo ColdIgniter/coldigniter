@@ -320,7 +320,9 @@
 	 *
 	 * Difference: this function stands in for debug_backtrace() and the
 	 * array_slice() of the original. The rows of this file and of the
-	 * Events class, which called it, are left out, and so are the rows
+	 * Events class, which called it, are left out, with the row of the
+	 * line that triggers the event (a row here is the place inside a
+	 * function, not the place of its call), and so are the rows
 	 * without a file that the engine adds for a call by name.
 	--->
 	<cffunction name="callTrace" access="private" returntype="array" output="no">
@@ -349,6 +351,8 @@
 
 					<cfif skip AND NOT generated AND REFindNoCase("[\\/](Collectors[\\/]Database|Events[\\/]Events)\.cfc$", frame.template) EQ 0>
 						<cfset skip = false>
+						<!--- This row is the line that triggers the event: the original leaves it out too. --->
+						<cfset generated = true>
 					</cfif>
 
 					<cfif NOT skip AND NOT generated>
