@@ -16,6 +16,13 @@
  *
  * Difference: there is no null, so a variable that is not set and a
  * variable with an empty value are the same to a nested ${name}.
+ *
+ * Difference: the values of a file are kept in the server scope, with the
+ * time the file was last changed and its size. The original reads and
+ * parses the file on every request, and here that is only done when the
+ * time or the size is not the one that was kept. This is only done when
+ * no environment value is set yet, as a value that is already set changes
+ * what the file gives.
 --->
 <cfcomponent output="no" hint="Environment-specific configuration">
 
@@ -61,10 +68,30 @@
 		<cfset var parts = "">
 		<cfset var line = "">
 		<cfset var i = 0>
+		<cfset var file = CreateObject("java", "java.io.File").init(this.path)>
+		<cfset var stamp = "">
+		<cfset var cached = "">
+		<cfset var cacheable = StructIsEmpty(request.ColdIgniter.env)>
 
 		<!--- We don't want to enforce the presence of a .env file, they should be optional. --->
-		<cfif NOT is_file(this.path)>
+		<cfif NOT file.isFile()>
 			<cfreturn "">
+		</cfif>
+
+		<cfif cacheable>
+			<cfset stamp = file.lastModified() & "|" & file.length()>
+
+			<cflock name="ColdIgniterDotEnv" type="readonly" timeout="10">
+				<cfif StructKeyExists(server, "ColdIgniterDotEnv") AND StructKeyExists(server.ColdIgniterDotEnv, this.path)>
+					<cfset cached = server.ColdIgniterDotEnv[this.path]>
+				</cfif>
+			</cflock>
+
+			<cfif IsStruct(cached) AND Compare(cached.stamp, stamp) EQ 0>
+				<cfset StructAppend(request.ColdIgniter.env, cached.env)>
+
+				<cfreturn CreateObject("java", "java.util.LinkedHashMap").init(cached.vars)>
+			</cfif>
 		</cfif>
 
 		<cftry>
@@ -93,6 +120,20 @@
 				</cfif>
 			</cfif>
 		</cfloop>
+
+		<cfif cacheable>
+			<cfset cached = StructNew()>
+			<cfset cached.stamp = stamp>
+			<cfset cached.env = Duplicate(request.ColdIgniter.env)>
+			<cfset cached.vars = CreateObject("java", "java.util.LinkedHashMap").init(vars)>
+
+			<cflock name="ColdIgniterDotEnv" type="exclusive" timeout="10">
+				<cfif NOT StructKeyExists(server, "ColdIgniterDotEnv")>
+					<cfset server.ColdIgniterDotEnv = StructNew()>
+				</cfif>
+				<cfset server.ColdIgniterDotEnv[this.path] = cached>
+			</cflock>
+		</cfif>
 
 		<cfreturn vars>
 	</cffunction>
