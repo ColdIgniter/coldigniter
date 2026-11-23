@@ -2,9 +2,10 @@
  * Format configuration.
  *
  * Difference: the arrays of the original are lists (ArrayNew(1)) and maps
- * (see array_()). The JSON constants are written as their numbers: 256 is
- * JSON_UNESCAPED_UNICODE and 64 is JSON_UNESCAPED_SLASHES, so 320 is both.
- * JSONFormatter honours those two and JSON_PRETTY_PRINT (128).
+ * (a LinkedHashMap, which keeps the order of the keys). The JSON constants
+ * are written as their numbers: 256 is JSON_UNESCAPED_UNICODE and 64 is
+ * JSON_UNESCAPED_SLASHES, so 320 is both. JSONFormatter honours those two,
+ * JSON_PRETTY_PRINT (128) and JSON_UNESCAPED_LINE_TERMINATORS (2048).
 --->
 <cfcomponent output="no" parent="ColdIgniter\Config\BaseConfig" hint="Format configuration">
 

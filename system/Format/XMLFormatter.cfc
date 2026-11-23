@@ -29,6 +29,12 @@
 <cfcomponent output="no" extends="FormatterInterface" hint="Formats data as XML">
 
 	<!---
+	 * A name that is valid as it is: ASCII only and not "xml" at the start
+	 * (any case). Compiled once for each instance.
+	--->
+	<cfset variables.validTag = CreateObject("java", "java.util.regex.Pattern").compile(JavaCast("string", "^(?![Xx][Mm][Ll])[A-Za-z_][A-Za-z0-9_.-]*$"))>
+
+	<!---
 	 * Takes the given data and formats it.
 	 *
 	 * @param data
@@ -93,7 +99,8 @@
 
 		<cfloop from="1" to="#n#" index="i">
 			<cfif IsArray(arguments.data)>
-				<cfset key = normalizeXMLTag(i - 1)>
+				<!--- the key of a list item is its place, so the name is valid as it is --->
+				<cfset key = "item" & (i - 1)>
 				<cfset value = arguments.data[i]>
 			<cfelse>
 				<cfset key = normalizeXMLTag(keys[i])>
@@ -109,10 +116,15 @@
 				</cfif>
 			<cfelse>
 				<cfif IsObject(value)>
-					<cfif NOT StructKeyExists(value, "__toString")>
-						<cfset static_("ColdIgniter\Format\Exceptions\FormatException").forInvalidXMLValue(GetMetaData(value).name)>
+					<cfif instanceof_(value, "ColdIgniter\Database\NullValue")>
+						<!--- the null marker of a map: a null is cast to an empty string --->
+						<cfset text = "">
+					<cfelse>
+						<cfif NOT StructKeyExists(value, "__toString")>
+							<cfset static_("ColdIgniter\Format\Exceptions\FormatException").forInvalidXMLValue(GetMetaData(value).name)>
+						</cfif>
+						<cfset text = value.__toString()>
 					</cfif>
-					<cfset text = value.__toString()>
 				<cfelseif value.getClass().getName() EQ "java.lang.Boolean">
 					<cfif value.booleanValue()>
 						<cfset text = "1">
@@ -149,13 +161,22 @@
 	--->
 	<cffunction name="normalizeXMLTag" access="private" returntype="string" output="no">
 		<cfargument name="key" type="any" required="yes">
-		<cfset var text = Trim(arguments.key & "")>
-		<cfset var buf = CreateObject("java", "java.lang.StringBuffer").init()>
-		<cfset var n = Len(text)>
+		<cfset var text = "">
+		<cfset var buf = "">
+		<cfset var n = 0>
 		<cfset var i = 0>
 		<cfset var c = 0>
 		<cfset var start = false>
 		<cfset var name = "">
+
+		<!--- the usual name needs no work --->
+		<cfif variables.validTag.matcher(JavaCast("string", arguments.key & "")).matches()>
+			<cfreturn arguments.key & "">
+		</cfif>
+
+		<cfset text = Trim(arguments.key & "")>
+		<cfset buf = CreateObject("java", "java.lang.StringBuffer").init()>
+		<cfset n = Len(text)>
 
 		<cfloop from="1" to="#n#" index="i">
 			<cfset c = Asc(Mid(text, i, 1))>
