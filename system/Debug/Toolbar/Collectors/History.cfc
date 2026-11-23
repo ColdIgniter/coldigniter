@@ -90,7 +90,18 @@
 
 			<!--- Oldest files will be deleted --->
 			<cfif arguments.limit GTE 0 AND counter GT arguments.limit>
-				<cffile action="delete" file="#filename#">
+				<!---
+				 Difference: another request at the same time may have deleted the
+				 file already, which is not an error.
+				--->
+				<cftry>
+					<cffile action="delete" file="#filename#">
+					<cfcatch type="any">
+						<cfif FileExists(filename)>
+							<cfrethrow>
+						</cfif>
+					</cfcatch>
+				</cftry>
 			<cfelse>
 				<!--- Get the contents of this specific history request --->
 				<cfset valid = true>
