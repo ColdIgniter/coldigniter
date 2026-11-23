@@ -44,6 +44,12 @@
 	<cfabort>
 </cfif>
 
+<!---
+ Not in the original. A page of the page cache that is kept in the memory
+ of the server is served here, before the framework starts (see the file).
+--->
+<cfinclude template="#systemDirectory#/Cache/FrontPage.cfm">
+
 <!--- LOAD THE FRAMEWORK BOOTSTRAP FILE --->
 <cfinclude template="#systemDirectory#/Boot.cfm">
 

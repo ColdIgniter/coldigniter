@@ -783,8 +783,9 @@
  * other name is not read: a header can supply any name.
  * CONTENT_TYPE and CONTENT_LENGTH are request headers by nature and are
  * read as they are.
- * This list is the only place that names the server variables: env() and
- * the server array of Superglobals use it.
+ * This list names the server variables: env() and the server array of
+ * Superglobals use it. Cache/FrontPage.cfm has a copy in the stripped
+ * form, as it runs before this file is read. Keep the two lists the same.
  *
  * @param key The name of the variable
  *

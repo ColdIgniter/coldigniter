@@ -74,10 +74,38 @@
 	 *
 	 * Named with an underscore, because "file" is a scope.
 	 *
-	 * @var map {storePath}
+	 * Difference: memoryEntries is not in the original. It is the number
+	 * of cached items (pages) that the file handler keeps in memory, in the
+	 * application scope of the server, so that a hit does not read the file.
+	 * The files stay the durable copy. 0 switches it off.
+	 *
+	 * @var map {storePath, memoryEntries}
 	--->
 	<cfset this.file_ = CreateObject("java", "java.util.LinkedHashMap").init()>
 	<cfset this.file_.put("storePath", request.WRITEPATH & "cache/")>
+	<cfset this.file_.put("memoryEntries", "100")>
+
+	<!---
+	 * --------------------------------------------------------------------------
+	 * Front pages
+	 * --------------------------------------------------------------------------
+	 *
+	 * Difference: not in the original. When true, a page of the page cache
+	 * (cachePage() in a controller) is also kept in the memory of the
+	 * server, and the front controller serves it from there before the
+	 * framework starts. That is the fastest way to serve a page.
+	 *
+	 * For a page served this way nothing of the framework runs: not the
+	 * pre_system and post_system events, and no filters. It is used only for
+	 * a GET request, outside development mode, with the file handler and
+	 * its memoryEntries above 0, with the stock required filters, and for a
+	 * response without cookies. The page is dropped when its cache file
+	 * changes, is deleted or expires, and when Config\App, Config\Cache,
+	 * Config\Filters or the .env file changes.
+	 *
+	 * @var boolean
+	--->
+	<cfset this.frontPages = true>
 
 	<!---
 	 * --------------------------------------------------------------------------

@@ -1,26 +1,44 @@
 <!---
  * File system cache handler.
  *
- * Difference: the stored file holds a map {time, ttl, data} as a Java
- * object stream (ObjectOutputStream) and not serialize(). It is the form
- * the server writes and reads fastest, and a value comes back as it went
+ * Difference: the stored file holds two objects of a Java object stream
+ * (ObjectOutputStream) and not serialize(): a small map {time, ttl}, then
+ * the value. It is the form the server writes and reads fastest, there is
+ * no parsing, and the expiry is known from the first object, so the value
+ * of an expired file is never read. A value comes back as it went
  * in: a string, a number, a map (a struct, which keeps its kind and so
  * the order of its keys), an array and a query. A component cannot be
  * cached, also not inside a map or an array: save() returns false. The
  * file is read with readObject(), so, as with unserialize(), the cache
  * directory must be writable by the application only.
  *
- * Difference: a file is read, written and deleted under a named exclusive
- * lock (cflock) of its full path. A file is not written to a temporary name
- * and renamed, as a rename over an existing file fails on Windows with the
- * Java of the server, so a file that is cut short by a crash is read as a
+ * Difference: getShared() is not in the original. It gives the value from
+ * a map in the application scope of the server (application.ColdIgniter),
+ * which holds the items read from a file, and reads the file only when the
+ * item is not there, was changed or has expired. The value is shared by all
+ * requests, so the caller must not change it. The file stays the durable
+ * copy: save(), delete(), deleteMatching() and clean() drop the items of
+ * the map, and an item is used only while the modified time of its file
+ * is the one that it was read with (a file that is deleted or written from
+ * outside is noticed). The option file_.memoryEntries of Config\Cache is the
+ * number of items kept (default 100); 0 switches the map off. Nothing but
+ * values saved by the application is kept there, never the .env values.
+ *
+ * Difference: a file is read under a named readonly lock (cflock) of its
+ * full path, and written and deleted under a named exclusive lock. A file
+ * is not written to a temporary name and renamed, as a rename over an
+ * existing file fails on Windows with the Java of the server, so a file
+ * that is cut short by a crash is read as a
  * miss (the stream cannot be read). A file of an earlier version (JSON
- * text) is a miss too.
+ * text, or one object only) is a miss too.
  *
  * Difference: a key that the file system could not take as a file name
  * (a character of * ? " < > | / \ : or below a space, a name of "." or "..", a
  * trailing period or space, or a device name such as CON or NUL) is stored
  * under the md5 of the prefixed key, as a key that is too long is.
+ *
+ * Difference: a name of 32 hexadecimal digits (the key of a page) is used
+ * as it is, without the checks above.
  *
  * Difference: the cache directory is created when it does not exist.
  *
@@ -41,6 +59,28 @@
 	 * @var string
 	--->
 	<cfset this.path = "">
+
+	<!---
+	 * Difference: not in the original. The number of items that the map
+	 * in the application scope holds, 0 for none.
+	 *
+	 * @var int
+	--->
+	<cfset this.memoryEntries = 100>
+
+	<!---
+	 * Difference: not in the original. The map in the application scope (a
+	 * synchronized java.util.HashMap), or an empty string when it is off.
+	 * Opened once for the request, see getMemory().
+	--->
+	<cfset this.pageMemory = "">
+	<cfset this.pageMemoryReady = false>
+
+	<!---
+	 * The entry of the map that the last call of getShared() gave its value
+	 * from, or an empty string. A map {file, modified, item}.
+	--->
+	<cfset this.sharedEntry = "">
 
 	<!---
 	 * Note: Use `CacheFactory::getHandler()` to instantiate.
@@ -82,6 +122,10 @@
 
 		<cfset this.prefix = arguments.config.prefix>
 
+		<cfif StructKeyExists(arguments.config.file_, "memoryEntries")>
+			<cfset this.memoryEntries = Val(arguments.config.file_["memoryEntries"])>
+		</cfif>
+
 		<cfreturn this>
 	</cffunction>
 
@@ -104,11 +148,67 @@
 		<cfreturn "">
 	</cffunction>
 
+	<!---
+	 * Difference: not in the original. Like get(), but from the map in
+	 * the application scope when the item is there. The value is shared:
+	 * it must not be changed.
+	--->
+	<cffunction name="getShared" access="public" returntype="any" output="no">
+		<cfargument name="key" type="string" required="yes">
+		<cfset var name = fileKey(arguments.key)>
+		<cfset var memory = getMemory()>
+		<cfset var path = this.path & name>
+		<cfset var entry = "">
+		<cfset var item = "">
+		<cfset var modified = 0>
+
+		<cfset this.sharedEntry = "">
+
+		<cfif IsSimpleValue(memory)>
+			<cfset item = getItem(name)>
+
+			<cfif IsStruct(item)>
+				<cfreturn item["data"]>
+			</cfif>
+
+			<cfreturn "">
+		</cfif>
+
+		<cfset entry = memory.get(path)>
+
+		<cfif IsDefined("entry") AND IsStruct(entry)>
+			<cfif entry["file"].lastModified() EQ entry["modified"] AND NOT isExpired(entry["item"])>
+				<cfset this.sharedEntry = entry>
+
+				<cfreturn entry["item"]["data"]>
+			</cfif>
+
+			<!--- changed, deleted or expired: read the file --->
+			<cfset memory.remove(path)>
+		</cfif>
+
+		<!--- the modified time is taken before the read, so a file written after it is read again --->
+		<cfset entry = CreateObject("java", "java.io.File").init(path)>
+		<cfset modified = entry.lastModified()>
+		<cfset item = getItem(name)>
+
+		<cfif NOT IsStruct(item)>
+			<cfreturn "">
+		</cfif>
+
+		<!--- No time: the file was made after the time was taken. It is not kept, as a deleted file has no time either. --->
+		<cfif modified NEQ 0>
+			<cfset remember(memory, path, entry, modified, item)>
+		</cfif>
+
+		<cfreturn item["data"]>
+	</cffunction>
+
 	<cffunction name="save" access="public" returntype="boolean" output="no">
 		<cfargument name="key" type="string" required="yes">
 		<cfargument name="value" type="any" required="yes">
 		<cfargument name="ttl" type="numeric" required="no" default="60">
-		<cfset var contents = CreateObject("java", "java.util.LinkedHashMap").init()>
+		<cfset var head = CreateObject("java", "java.util.LinkedHashMap").init()>
 
 		<cfif IsObject(arguments.value)>
 			<cfreturn false>
@@ -116,11 +216,10 @@
 
 		<cfset arguments.key = fileKey(arguments.key)>
 
-		<cfset contents.put("time", JavaCast("string", Int(time())))>
-		<cfset contents.put("ttl", JavaCast("string", Int(arguments.ttl)))>
-		<cfset contents.put("data", arguments.value)>
+		<cfset head.put("time", JavaCast("string", Int(time())))>
+		<cfset head.put("ttl", JavaCast("string", Int(arguments.ttl)))>
 
-		<cfreturn writeFile(this.path & arguments.key, contents)>
+		<cfreturn writeFile(this.path & arguments.key, head, arguments.value)>
 	</cffunction>
 
 	<cffunction name="delete" access="public" returntype="boolean" output="no">
@@ -136,6 +235,8 @@
 				<cfset result = file_.delete()>
 			</cfif>
 		</cflock>
+
+		<cfset forget(this.path & arguments.key)>
 
 		<cfreturn result>
 	</cffunction>
@@ -177,6 +278,8 @@
 						<cfset deleted = deleted + 1>
 					</cfif>
 				</cflock>
+
+				<cfset forget(this.path & files[i])>
 			</cfif>
 		</cfloop>
 
@@ -230,7 +333,12 @@
 	 * .htaccess and web.config.
 	--->
 	<cffunction name="clean" access="public" returntype="boolean" output="no">
-		<cfreturn deleteFiles(this.path, false, true)>
+		<cfset var result = deleteFiles(this.path, false, true)>
+
+		<!--- Difference: the items of the map in the application scope go as well --->
+		<cfset forget("")>
+
+		<cfreturn result>
 	</cffunction>
 
 	<cffunction name="getCacheInfo" access="public" returntype="any" output="no">
@@ -285,6 +393,14 @@
 		<cfset var bad = false>
 		<cfset var last = "">
 
+		<!---
+		 * A name of 32 hexadecimal digits, as the key of a page is, is a
+		 * good file name: the checks below need not run for it.
+		--->
+		<cfif Len(name) EQ 32 AND CreateObject("java", "java.lang.String").init(name).matches("[0-9a-fA-F]+")>
+			<cfreturn name>
+		</cfif>
+
 		<cfif Compare(name, ".") EQ 0 OR Compare(name, "..") EQ 0>
 			<cfset bad = true>
 		</cfif>
@@ -328,14 +444,20 @@
 	 * Does the heavy lifting of actually retrieving the file and
 	 * verifying its age.
 	 *
+	 * Difference: the age is checked on the first object of the file, so the
+	 * value of an expired file is not read.
+	 *
 	 * @return A map {data, ttl, time}, or false
 	--->
 	<cffunction name="getItem" access="private" returntype="any" output="no">
 		<cfargument name="filename" type="string" required="yes">
 		<cfset var file_ = CreateObject("java", "java.io.File").init(this.path & arguments.filename)>
 		<cfset var raw = "">
+		<cfset var stream = "">
+		<cfset var head = "">
 		<cfset var data = "">
 		<cfset var ok = true>
+		<cfset var expired = false>
 		<cfset var integer = CreateObject("java", "java.lang.String")>
 
 		<cfif NOT file_.isFile()>
@@ -343,14 +465,30 @@
 		</cfif>
 
 		<cftry>
-			<cflock name="ColdIgniterCache#md5(this.path & arguments.filename)#" type="exclusive" timeout="10">
+			<cflock name="ColdIgniterCache#md5(this.path & arguments.filename)#" type="readonly" timeout="10">
 				<cfset raw = CreateObject("java", "java.io.FileInputStream").init(this.path & arguments.filename)>
 
 				<!--- There is no finally: the file is closed in both ways out. --->
 				<cftry>
-					<cfset data = CreateObject("java", "java.io.ObjectInputStream").init(
+					<cfset stream = CreateObject("java", "java.io.ObjectInputStream").init(
 						CreateObject("java", "java.io.BufferedInputStream").init(raw)
-					).readObject()>
+					)>
+					<cfset head = stream.readObject()>
+
+					<cfif IsStruct(head) AND StructKeyExists(head, "ttl") AND StructKeyExists(head, "time") AND IsSimpleValue(head["ttl"]) AND IsSimpleValue(head["time"])>
+						<cfif integer.init(head["ttl"]).matches("-?[0-9]+") AND integer.init(head["time"]).matches("-?[0-9]+")>
+							<cfif isExpired(head)>
+								<cfset expired = true>
+							<cfelse>
+								<cfset data = stream.readObject()>
+							</cfif>
+						<cfelse>
+							<cfset ok = false>
+						</cfif>
+					<cfelse>
+						<cfset ok = false>
+					</cfif>
+
 					<cfset raw.close()>
 
 					<cfcatch type="any">
@@ -365,23 +503,11 @@
 			</cfcatch>
 		</cftry>
 
-		<cfif NOT ok OR NOT IsStruct(data)>
+		<cfif NOT ok>
 			<cfreturn false>
 		</cfif>
 
-		<cfif NOT StructKeyExists(data, "ttl") OR NOT IsSimpleValue(data["ttl"]) OR NOT integer.init(data["ttl"]).matches("-?[0-9]+")>
-			<cfreturn false>
-		</cfif>
-
-		<cfif NOT StructKeyExists(data, "time") OR NOT IsSimpleValue(data["time"]) OR NOT integer.init(data["time"]).matches("-?[0-9]+")>
-			<cfreturn false>
-		</cfif>
-
-		<cfif NOT StructKeyExists(data, "data")>
-			<cfreturn false>
-		</cfif>
-
-		<cfif Val(data["ttl"]) GT 0 AND time() GT Val(data["time"]) + Val(data["ttl"])>
+		<cfif expired>
 			<cflock name="ColdIgniterCache#md5(this.path & arguments.filename)#" type="exclusive" timeout="10">
 				<cfset file_.delete()>
 			</cflock>
@@ -389,18 +515,22 @@
 			<cfreturn false>
 		</cfif>
 
-		<cfreturn data>
+		<cfset head.put("data", data)>
+
+		<cfreturn head>
 	</cffunction>
 
 	<!---
 	 * Writes a file to disk, or returns false if not successful.
 	 *
 	 * @param path Path to the file
-	 * @param data The value to write (Difference: not text, see the header)
+	 * @param head The map {time, ttl}, the first object of the file
+	 * @param data The value to write, the second object (Difference: not text, see the header)
 	 * @param mode Not used, the file is always written whole
 	--->
 	<cffunction name="writeFile" access="private" returntype="boolean" output="no">
 		<cfargument name="path" type="string" required="yes">
+		<cfargument name="head" type="any" required="yes">
 		<cfargument name="data" type="any" required="yes">
 		<cfargument name="mode" type="string" required="no" default="wb">
 		<cfset var ok = true>
@@ -420,6 +550,7 @@
 					<cfset out = CreateObject("java", "java.io.ObjectOutputStream").init(
 						CreateObject("java", "java.io.BufferedOutputStream").init(raw)
 					)>
+					<cfset out.writeObject(arguments.head)>
 					<cfset out.writeObject(arguments.data)>
 					<cfset out.close()>
 
@@ -436,7 +567,159 @@
 			</cfcatch>
 		</cftry>
 
+		<!--- Difference: the item of the map in the application scope is out of date --->
+		<cfset forget(arguments.path)>
+
 		<cfreturn ok>
+	</cffunction>
+
+	<!---
+	 * Difference: not in the original. Whether the item has expired.
+	 *
+	 * @param head A map with time and ttl
+	--->
+	<cffunction name="isExpired" access="private" returntype="boolean" output="no">
+		<cfargument name="head" type="any" required="yes">
+
+		<cfreturn Val(arguments.head["ttl"]) GT 0 AND time() GT Val(arguments.head["time"]) + Val(arguments.head["ttl"])>
+	</cffunction>
+
+	<!---
+	 * Difference: not in the original. Opens the map of the items in the
+	 * application scope, and makes the scope if no template has.
+	 *
+	 * The map is a synchronized java.util.HashMap (the Java of the server has
+	 * no ConcurrentHashMap), kept in application.ColdIgniter, the struct of
+	 * this framework in the scope. The application is named after the root
+	 * path of the site. Any failure switches the map off for the request.
+	 *
+	 * @return The map, or an empty string when it is off
+	--->
+	<cffunction name="getMemory" access="private" returntype="any" output="no">
+		<cfset var ready = false>
+
+		<cfif this.pageMemoryReady>
+			<cfreturn this.pageMemory>
+		</cfif>
+
+		<cfset this.pageMemoryReady = true>
+
+		<cfif this.memoryEntries LTE 0>
+			<cfreturn this.pageMemory>
+		</cfif>
+
+		<cftry>
+			<cftry>
+				<cfset ready = StructKeyExists(application, "ColdIgniter")>
+
+				<cfcatch type="any">
+					<!--- the scope is not enabled --->
+					<cfapplication name="ColdIgniter#md5(request.FCPATH)#">
+				</cfcatch>
+			</cftry>
+
+			<cfif NOT StructKeyExists(application, "ColdIgniter") OR NOT StructKeyExists(application.ColdIgniter, "pageMemory")>
+				<cflock scope="application" type="exclusive" timeout="10">
+					<cfif NOT StructKeyExists(application, "ColdIgniter")>
+						<cfset application.ColdIgniter = StructNew()>
+					</cfif>
+
+					<cfif NOT StructKeyExists(application.ColdIgniter, "pageMemory")>
+						<cfset application.ColdIgniter.pageMemory = CreateObject("java", "java.util.Collections").synchronizedMap(
+							CreateObject("java", "java.util.HashMap").init()
+						)>
+					</cfif>
+				</cflock>
+			</cfif>
+
+			<cfset this.pageMemory = application.ColdIgniter.pageMemory>
+
+			<cfcatch type="any">
+				<cfset this.pageMemory = "">
+			</cfcatch>
+		</cftry>
+
+		<cfreturn this.pageMemory>
+	</cffunction>
+
+	<!---
+	 * Difference: not in the original. Keeps an item in the map, and makes
+	 * room by dropping one when the map is full.
+	 *
+	 * @param modified The modified time of the file, taken before it was read
+	--->
+	<cffunction name="remember" access="private" returntype="void" output="no">
+		<cfargument name="memory" type="any" required="yes">
+		<cfargument name="path" type="string" required="yes">
+		<cfargument name="file_" type="any" required="yes">
+		<cfargument name="modified" type="numeric" required="yes">
+		<cfargument name="item" type="any" required="yes">
+		<cfset var entry = CreateObject("java", "java.util.HashMap").init()>
+		<cfset var evicted = "">
+
+		<cfif arguments.memory.size() GTE this.memoryEntries AND NOT arguments.memory.containsKey(arguments.path)>
+			<cftry>
+				<!---
+				 * The entry that goes is switched off, as forget() does: a
+				 * page of the front controller may still hold it, and
+				 * forget() does not find it here any more.
+				--->
+				<cfset evicted = arguments.memory.remove(arguments.memory.keySet().iterator().next())>
+
+				<cfif IsDefined("evicted") AND NOT IsSimpleValue(evicted)>
+					<cfset evicted.put("modified", -1)>
+				</cfif>
+
+				<cfcatch type="any">
+					<!--- as clean() does: the entries cannot be switched off one by one --->
+					<cfset arguments.memory.clear()>
+
+					<cfif StructKeyExists(application.ColdIgniter, "frontPages")>
+						<cfset application.ColdIgniter.frontPages.clear()>
+					</cfif>
+				</cfcatch>
+			</cftry>
+		</cfif>
+
+		<cfset entry.put("file", arguments.file_)>
+		<cfset entry.put("modified", arguments.modified)>
+		<cfset entry.put("item", arguments.item)>
+
+		<cfset arguments.memory.put(arguments.path, entry)>
+
+		<cfset this.sharedEntry = entry>
+	</cffunction>
+
+	<!---
+	 * Difference: not in the original. Drops an item of the map in the
+	 * application scope, or all of them when the path is empty.
+	 *
+	 * The front controller can hold the entry of a page too (see
+	 * Cache/FrontPage.cfm). A dropped entry gets a modified time that no
+	 * file has, so it is not served from there any more.
+	--->
+	<cffunction name="forget" access="private" returntype="void" output="no">
+		<cfargument name="path" type="string" required="yes">
+		<cfset var memory = getMemory()>
+		<cfset var entry = "">
+
+		<cfif IsSimpleValue(memory)>
+			<cfreturn>
+		</cfif>
+
+		<cfif Compare(arguments.path, "") EQ 0>
+			<cfset memory.clear()>
+
+			<cfif StructKeyExists(application.ColdIgniter, "frontPages")>
+				<cfset application.ColdIgniter.frontPages.clear()>
+			</cfif>
+		<cfelse>
+			<cfset entry = memory.remove(arguments.path)>
+
+			<cfif IsDefined("entry") AND IsStruct(entry)>
+				<cfset entry.put("modified", -1)>
+			</cfif>
+		</cfif>
 	</cffunction>
 
 	<!---
