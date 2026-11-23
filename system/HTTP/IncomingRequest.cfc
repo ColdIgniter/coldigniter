@@ -21,9 +21,9 @@
  * - Upload files, if any
  * - Deserialized body binds
  *
- * Not ported yet: locale negotiation, the filters of the input values
- * (see RequestTrait), the JSON body (there is no JSON decoder), file
- * uploads, old input (needs the session) and the UserAgent class.
+ * Not ported yet: the filters of the input values (see RequestTrait),
+ * the JSON body (there is no JSON decoder), file uploads, old input
+ * (needs the session) and the UserAgent class.
 --->
 <cfcomponent output="no" extends="Request" hint="Represents an incoming, server-side HTTP request">
 
@@ -144,7 +144,7 @@
 			<cfreturn>
 		</cfif>
 
-		<!--- Not ported yet: the negotiator --->
+		<cfset setLocale_(negotiate("language", arguments.config.supportedLocales))>
 	</cffunction>
 
 	<!---
@@ -158,9 +158,26 @@
 		<cfargument name="supported" type="array" required="yes">
 		<cfargument name="strictMatch" type="boolean" required="no" default="false">
 
-		<!--- Not ported yet: the negotiator --->
+		<cfif is_null(this.negotiator)>
+			<cfset this.negotiator = service("negotiator", this, true)>
+		</cfif>
 
-		<cfreturn "">
+		<cfswitch expression="#LCase(arguments.type)#">
+			<cfcase value="media">
+				<cfreturn this.negotiator.media(arguments.supported, arguments.strictMatch)>
+			</cfcase>
+			<cfcase value="charset">
+				<cfreturn this.negotiator.charset(arguments.supported)>
+			</cfcase>
+			<cfcase value="encoding">
+				<cfreturn this.negotiator.encoding(arguments.supported)>
+			</cfcase>
+			<cfcase value="language">
+				<cfreturn this.negotiator.language(arguments.supported)>
+			</cfcase>
+		</cfswitch>
+
+		<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="""#arguments.type#"" is not a valid negotiation type. Must be one of: media, charset, encoding, language.">
 	</cffunction>
 
 	<!---
