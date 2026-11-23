@@ -3,9 +3,10 @@
  *
  * Inspiration: http://prophiler.fabfuel.de
  *
- * Difference: the times are seconds (see microtime()), the numbers that
- * are written to the data are strings with a plain decimal form (a Double
- * could be written in the form 1.0E-4).
+ * Difference: the times are seconds (see microtime()). The start time,
+ * the total time, the memory, the segment values and the start and the
+ * duration of a timeline row are written to the data as strings with a
+ * plain decimal form (a Double could be written in the form 1.0E-4).
  *
  * Difference: the file of a request (WRITEPATH/debugbar/debugbar_<time>.ser)
  * is not JSON. There are no JSON functions on the server: json_encode()
@@ -250,9 +251,17 @@
 			<cfset out.close()>
 
 			<cfcatch type="any">
-				<!--- A file with a part of the data is of no use. --->
+				<!---
+				 A file with a part of the data is of no use. When it cannot
+				 be deleted (another request may have it open), the first
+				 error is still the one that is thrown.
+				--->
 				<cfset raw.close()>
-				<cffile action="delete" file="#arguments.filename#">
+				<cftry>
+					<cffile action="delete" file="#arguments.filename#">
+					<cfcatch type="any">
+					</cfcatch>
+				</cftry>
 
 				<cfrethrow>
 			</cfcatch>
@@ -268,12 +277,17 @@
 	--->
 	<cffunction name="readData" access="private" returntype="any" output="no">
 		<cfargument name="filename" type="string" required="yes">
-		<cfset var raw = CreateObject("java", "java.io.FileInputStream").init(arguments.filename)>
+		<cfset var raw = "">
 		<cfset var stream = "">
 		<cfset var data = "">
 
-		<!--- There is no finally: the file is closed in both ways out. --->
+		<!---
+		 There is no finally: the file is closed in both ways out. The
+		 file is opened here too, as the History collector of another
+		 request may have deleted it by now.
+		--->
 		<cftry>
+			<cfset raw = CreateObject("java", "java.io.FileInputStream").init(arguments.filename)>
 			<cfset stream = CreateObject("java", "java.io.ObjectInputStream").init(
 				CreateObject("java", "java.io.BufferedInputStream").init(raw)
 			)>
@@ -284,7 +298,9 @@
 			<cfset raw.close()>
 
 			<cfcatch type="any">
-				<cfset raw.close()>
+				<cfif NOT IsSimpleValue(raw)>
+					<cfset raw.close()>
+				</cfif>
 
 				<cfthrow type="ColdIgniter.RuntimeException" message="The debug data of the request cannot be read.">
 			</cfcatch>
@@ -776,6 +792,15 @@
 
 			<cfset stamp = query["debugbar_time"]>
 			<cfif NOT IsSimpleValue(stamp)>
+				<cfset stamp = "">
+			</cfif>
+
+			<!---
+			 Difference: the file is read with an object stream (see the top
+			 of this file), so only a time in the form of historyTime() is
+			 looked up.
+			--->
+			<cfif REFind("^[0-9]+\.[0-9]+$", stamp) EQ 0>
 				<cfset stamp = "">
 			</cfif>
 
