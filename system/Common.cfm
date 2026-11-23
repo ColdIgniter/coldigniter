@@ -848,7 +848,8 @@
  * Difference: this has no counterpart in the original. The engine builds
  * the structure anew for every call (about half a millisecond on the
  * server), and a request reads it several times, so it is read once and
- * kept for the request. Cache/FrontPage.cfm reads it first when it runs.
+ * kept for the request. Cache/FrontPage.cfm reads it first for a GET
+ * request.
  *
  * @return A structure with the keys headers, content, method and protocol
 --->
