@@ -16,20 +16,25 @@
  * Difference: the original calls strtolower(), str_replace() and lcfirst()
  * here. In this file they are LCase(), Replace() with "all" (exact, as
  * str_replace() is) and the same few lines written out, because that is
- * cheaper than a polyfill call.
+ * cheaper than a polyfill call. LCase() also lowercases letters outside
+ * ASCII, which strtolower() and lcfirst() do not (since 8.2), so camelize(),
+ * decamelize() and is_pluralizable() differ for such a letter.
 --->
 
 <!---
  * Not in the original. Returns the rule table of singular() or plural()
- * (the kind, "singular" or "plural"): a struct with two lists of the same
- * length, patterns and replacements, in the order of the original.
+ * (the kind, "singular" or "plural"): a struct with three lists of the same
+ * length, patterns, replacements and compiled (the java.util.regex.Pattern
+ * of each pattern, immutable and so safe to share), in the order of the
+ * original.
  *
  * Difference: a map keeps its order in the original (an array of
  * pattern => replacement). Here the order is the order of the two lists.
  *
  * The tables are built at the first call. In production they are kept in
- * the memory of the server (server.ColdIgniterInflector) until it is
- * restarted, anywhere else in request.ColdIgniter.inflector for the
+ * the memory of the server (server.ColdIgniterInflector, one map of tables
+ * per system folder) until it is restarted, anywhere else in
+ * request.ColdIgniter.inflector for the
  * request only, so a change of this file is seen on the next request.
  * They hold rules only, never a value of the configuration.
  *
@@ -45,21 +50,29 @@
 	<cfset var rules = "">
 
 	<cfif StructKeyExists(request, "ENVIRONMENT") AND request.ENVIRONMENT EQ "production">
-		<cfif NOT StructKeyExists(server, "ColdIgniterInflector")>
+		<!--- one map of tables per install, with the system folder as key --->
+		<cfif NOT StructKeyExists(server, "ColdIgniterInflector") OR NOT StructKeyExists(server.ColdIgniterInflector, request.SYSTEMPATH)>
 			<cflock name="ColdIgniterInflector" type="exclusive" timeout="10">
 				<cfif NOT StructKeyExists(server, "ColdIgniterInflector")>
 					<cfset server.ColdIgniterInflector = StructNew()>
 				</cfif>
+
+				<cfif NOT StructKeyExists(server.ColdIgniterInflector, request.SYSTEMPATH)>
+					<cfset server.ColdIgniterInflector[request.SYSTEMPATH] = StructNew()>
+				</cfif>
 			</cflock>
 		</cfif>
 
-		<cfset kept = server.ColdIgniterInflector>
-	<cfelse>
+		<cfset kept = server.ColdIgniterInflector[request.SYSTEMPATH]>
+	<cfelseif StructKeyExists(request, "ColdIgniter")>
 		<cfif NOT StructKeyExists(request.ColdIgniter, "inflector")>
 			<cfset request.ColdIgniter.inflector = StructNew()>
 		</cfif>
 
 		<cfset kept = request.ColdIgniter.inflector>
+	<cfelse>
+		<!--- nowhere to keep them: built for this call only --->
+		<cfset kept = StructNew()>
 	</cfif>
 
 	<cfif StructKeyExists(kept, arguments.kind)>
@@ -69,6 +82,7 @@
 	<cfset rules = StructNew()>
 	<cfset rules.patterns = ArrayNew(1)>
 	<cfset rules.replacements = ArrayNew(1)>
+	<cfset rules.compiled = ArrayNew(1)>
 
 	<cfif arguments.kind EQ "singular">
 		<!--- Arranged in order. --->
@@ -138,6 +152,79 @@
 
 	<cfset ArrayAppend(arguments.rules.patterns, arguments.pattern)>
 	<cfset ArrayAppend(arguments.rules.replacements, arguments.replacement)>
+	<cfset ArrayAppend(arguments.rules.compiled, preg_pattern(arguments.pattern))>
+</cffunction>
+
+<!---
+ * Not in the original. Applies the first rule of a rule table that matches
+ * to the string, as the loop in singular() and plural() does.
+ *
+ * Difference: one matcher per rule does the match and the replacement
+ * (the original matches, then replaces). A reference in a replacement is
+ * a backslash and one digit; a group that does not exist or did not take
+ * part gives nothing, as in the original.
+ *
+ * @param kind   singular or plural
+ * @param string The word
+--->
+<cffunction name="inflector_apply_" returntype="string" output="no" hint="Applies the first rule of a rule table that matches to the string">
+	<cfargument name="kind" type="string" required="yes">
+	<cfargument name="string" type="string" required="yes">
+	<cfset var rules = inflector_rules_(arguments.kind)>
+	<cfset var result = arguments.string>
+	<cfset var matcher = "">
+	<cfset var buffer = "">
+	<cfset var template = "">
+	<cfset var out = "">
+	<cfset var character = "">
+	<cfset var found = false>
+	<cfset var position = 0>
+	<cfset var group = 0>
+	<cfset var i = 0>
+	<cfset var j = 0>
+
+	<cfloop from="1" to="#ArrayLen(rules.compiled)#" index="i">
+		<cfset matcher = rules.compiled[i].matcher(JavaCast("string", result))>
+
+		<cfif matcher.find()>
+			<cfset template = rules.replacements[i]>
+			<cfset buffer = CreateObject("java", "java.lang.StringBuffer").init()>
+			<cfset position = 0>
+			<cfset found = true>
+
+			<cfloop condition="found">
+				<cfset buffer.append(JavaCast("string", Mid(result, position + 1, matcher.start() - position)))>
+
+				<!--- expand the references to the groups --->
+				<cfset out = "">
+				<cfset j = 1>
+				<cfloop condition="j LTE Len(template)">
+					<cfset character = Mid(template, j, 1)>
+
+					<cfif Compare(character, "\") EQ 0 AND REFind("^[0-9]", Mid(template, j + 1, 1)) GT 0>
+						<cfset group = Val(Mid(template, j + 1, 1))>
+						<cfif group LTE matcher.groupCount() AND matcher.start(JavaCast("int", group)) GTE 0>
+							<cfset out = out & matcher.group(JavaCast("int", group))>
+						</cfif>
+						<cfset j = j + 2>
+					<cfelse>
+						<cfset out = out & character>
+						<cfset j = j + 1>
+					</cfif>
+				</cfloop>
+
+				<cfset buffer.append(JavaCast("string", out))>
+				<cfset position = matcher.end()>
+				<cfset found = matcher.find()>
+			</cfloop>
+
+			<cfset buffer.append(JavaCast("string", Mid(result, position + 1, Len(result) - position)))>
+
+			<cfreturn buffer.toString()>
+		</cfif>
+	</cfloop>
+
+	<cfreturn result>
 </cffunction>
 
 <!---
@@ -150,24 +237,13 @@
 <cffunction name="singular" returntype="string" output="no" hint="Takes a plural word and makes it singular">
 	<cfargument name="string" type="string" required="yes">
 	<cfset var result = arguments.string>
-	<cfset var singularRules = "">
-	<cfset var i = 0>
 
 	<cfif NOT is_pluralizable(result)>
 		<cfreturn result>
 	</cfif>
 
-	<!--- Arranged in order. --->
-	<cfset singularRules = inflector_rules_("singular")>
-
-	<cfloop from="1" to="#ArrayLen(singularRules.patterns)#" index="i">
-		<cfif preg_match(singularRules.patterns[i], result, true)>
-			<cfset result = preg_replace(singularRules.patterns[i], singularRules.replacements[i], result, true)>
-			<cfbreak>
-		</cfif>
-	</cfloop>
-
-	<cfreturn result>
+	<!--- Arranged in order: the rules are in inflector_rules_(), the loop is in inflector_apply_(). --->
+	<cfreturn inflector_apply_("singular", result)>
 </cffunction>
 
 <!---
@@ -180,23 +256,12 @@
 <cffunction name="plural" returntype="string" output="no" hint="Takes a singular word and makes it plural">
 	<cfargument name="string" type="string" required="yes">
 	<cfset var result = arguments.string>
-	<cfset var pluralRules = "">
-	<cfset var i = 0>
 
 	<cfif NOT is_pluralizable(result)>
 		<cfreturn result>
 	</cfif>
 
-	<cfset pluralRules = inflector_rules_("plural")>
-
-	<cfloop from="1" to="#ArrayLen(pluralRules.patterns)#" index="i">
-		<cfif preg_match(pluralRules.patterns[i], result, true)>
-			<cfset result = preg_replace(pluralRules.patterns[i], pluralRules.replacements[i], result, true)>
-			<cfbreak>
-		</cfif>
-	</cfloop>
-
-	<cfreturn result>
+	<cfreturn inflector_apply_("plural", result)>
 </cffunction>
 
 <!---
