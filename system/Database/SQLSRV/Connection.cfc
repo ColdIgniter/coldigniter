@@ -44,10 +44,10 @@
  * nested in the first: the work is kept when both have committed, and a
  * rollback by either ends the work of both.
  *
- * Difference: a transaction that is open before the first statement of
- * the request on the DSN is rolled back by that first query: one that
- * a transaction tag around the calls has opened with a query of its own,
- * for one. Use transBegin().
+ * Difference: a transaction that is already open when the request runs
+ * its first statement on the DSN is rolled back by that first query.
+ * For example, one that a cftransaction tag or a query of
+ * "BEGIN TRANSACTION" outside this class has opened. Use transBegin().
  *
  * Difference: NULL and an empty string cannot be told apart in a query of
  * 6.1. Both are an empty string (see Result).
@@ -724,14 +724,15 @@
 		 a transaction that a request left open is still open there
 		 (verified on the server). So the first statement of a request on
 		 a DSN is preceded by a query of its own that rolls back what is
-		 left. The count is set before it, so it runs once. An error in it
-		 is left to the statement that follows.
+		 left. The count is set when it has run, so it runs once. When it
+		 fails, the count is not set and the next statement tries it
+		 again: the error is left to the statement that follows.
 		--->
 		<cfif NOT StructKeyExists(request, "ColdIgniter") OR NOT StructKeyExists(request.ColdIgniter, "sqlsrvTransactions") OR NOT StructKeyExists(request.ColdIgniter.sqlsrvTransactions, this.DSN)>
-			<cfset setTransCount(0)>
-
 			<cftry>
 				<cfquery name="clean" datasource="#this.DSN#">IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION</cfquery>
+
+				<cfset setTransCount(0)>
 
 				<cfcatch type="any">
 				</cfcatch>
