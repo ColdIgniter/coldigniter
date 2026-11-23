@@ -318,12 +318,17 @@
 		<cfloop index="i" from="1" to="#ArrayLen(list)#">
 			<cfset alias = list[i]>
 
-			<cfif NOT ListFindNoCase(arguments.allowed, alias) OR NOT arguments.filtersConfig.aliases.containsKey(alias)>
+			<cfif NOT IsSimpleValue(alias) OR NOT ListFind(arguments.allowed, alias) OR NOT arguments.filtersConfig.aliases.containsKey(alias)>
+				<cfreturn false>
+			</cfif>
+
+			<!--- an alias can stand for a list of classes --->
+			<cfif NOT IsSimpleValue(arguments.filtersConfig.aliases.get(alias))>
 				<cfreturn false>
 			</cfif>
 
 			<!--- the alias is the name of the stock class --->
-			<cfif Compare(arguments.filtersConfig.aliases.get(alias), "ColdIgniter\Filters\" & ListGetAt("ForceHTTPS,PageCache,DebugToolbar", ListFindNoCase("forcehttps,pagecache,toolbar", alias))) NEQ 0>
+			<cfif Compare(arguments.filtersConfig.aliases.get(alias), "ColdIgniter\Filters\" & ListGetAt("ForceHTTPS,PageCache,DebugToolbar", ListFind("forcehttps,pagecache,toolbar", alias))) NEQ 0>
 				<cfreturn false>
 			</cfif>
 

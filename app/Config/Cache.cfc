@@ -100,9 +100,8 @@
 	 * a GET request, outside development mode, with the file handler and
 	 * its memoryEntries above 0, with the stock required filters, and for a
 	 * response without cookies. The page is dropped when its cache file
-	 * changes, is deleted or expires.
-	 *
-	 * After a change of the configuration, clear the cache.
+	 * changes, is deleted or expires, and when Config\App, Config\Cache,
+	 * Config\Filters or the .env file changes.
 	 *
 	 * @var boolean
 	--->

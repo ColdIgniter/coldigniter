@@ -231,6 +231,12 @@
 	 * The item holds the entry of the cache handler, not a copy, so the
 	 * handler can switch it off. Only the application scope of this site
 	 * is used.
+	 *
+	 * The item also holds the configuration files that decide all of this
+	 * (Config\App, Config\Cache, Config\Filters and the .env file) with
+	 * their modified times. The front controller serves the page only
+	 * while they are the same, so a change of the configuration is seen
+	 * with the next request.
 	--->
 	<cffunction name="keepFront" access="public" returntype="void" output="no">
 		<cfargument name="response" type="any" required="yes">
@@ -245,6 +251,11 @@
 		<cfset var head = "">
 		<cfset var expires = 0>
 		<cfset var limit = 100>
+		<cfset var files = "">
+		<cfset var stamp = "">
+		<cfset var file_ = "">
+		<cfset var path = "">
+		<cfset var i = 0>
 
 		<cfif NOT this.frontPages OR IsSimpleValue(this.frontEntry) OR NOT StructKeyExists(request, "ColdIgniterFront") OR Len(request.ColdIgniterFront.signature) EQ 0>
 			<cfreturn>
@@ -280,8 +291,25 @@
 				<cfset expires = Val(head["time"]) + Val(head["ttl"])>
 			</cfif>
 
+			<!--- A file that is not there has the time 0, and is seen when it is made. --->
+			<cfset files = CreateObject("java", "java.util.ArrayList").init()>
+
+			<cfloop index="i" from="1" to="4">
+				<cfif i LTE 3>
+					<cfset path = request.APPPATH & "Config/" & ListGetAt("App,Cache,Filters", i) & ".cfc">
+				<cfelse>
+					<cfset path = new_("Config\Paths").envDirectory & "/.env">
+				</cfif>
+
+				<cfset file_ = CreateObject("java", "java.io.File").init(JavaCast("string", path))>
+				<cfset files.add(file_)>
+				<cfset stamp = stamp & file_.lastModified() & ",">
+			</cfloop>
+
 			<cfset page = CreateObject("java", "java.util.HashMap").init()>
 			<cfset page.put("entry", this.frontEntry)>
+			<cfset page.put("files", files)>
+			<cfset page.put("stamp", JavaCast("string", stamp))>
 			<cfset page.put("expires", expires)>
 			<cfset page.put("status", JavaCast("string", arguments.response.getStatusCode()))>
 			<cfset page.put("reason", JavaCast("string", arguments.response.getReasonPhrase()))>
@@ -308,9 +336,15 @@
 				<cfset limit = this.cache.memoryEntries>
 			</cfif>
 
-			<!--- Full: start again, the pages come back with their next request. --->
-			<cfif pages.size() GTE limit>
-				<cfset pages.clear()>
+			<!--- Full: one item goes, as in the memory of the file handler. --->
+			<cfif pages.size() GTE limit AND NOT pages.containsKey(request.ColdIgniterFront.signature)>
+				<cftry>
+					<cfset pages.remove(pages.keySet().iterator().next())>
+
+					<cfcatch type="any">
+						<cfset pages.clear()>
+					</cfcatch>
+				</cftry>
 			</cfif>
 
 			<cfset pages.put(request.ColdIgniterFront.signature, page)>

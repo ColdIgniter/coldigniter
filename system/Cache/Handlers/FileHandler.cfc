@@ -26,8 +26,9 @@
  *
  * Difference: a file is read under a named readonly lock (cflock) of its
  * full path, and written and deleted under a named exclusive lock. A file
- * is not written to a temporary name and renamed, as a rename over an existing file fails on Windows with the
- * Java of the server, so a file that is cut short by a crash is read as a
+ * is not written to a temporary name and renamed, as a rename over an
+ * existing file fails on Windows with the Java of the server, so a file
+ * that is cut short by a crash is read as a
  * miss (the stream cannot be read). A file of an earlier version (JSON
  * text, or one object only) is a miss too.
  *
@@ -195,7 +196,10 @@
 			<cfreturn "">
 		</cfif>
 
-		<cfset remember(memory, path, entry, modified, item)>
+		<!--- No time: the file was made after the time was taken. It is not kept, as a deleted file has no time either. --->
+		<cfif modified NEQ 0>
+			<cfset remember(memory, path, entry, modified, item)>
+		</cfif>
 
 		<cfreturn item["data"]>
 	</cffunction>
