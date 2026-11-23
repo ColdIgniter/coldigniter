@@ -411,6 +411,11 @@
 		<cfset var object = "">
 		<cfset var name = "">
 
+		<!--- instantiate() takes a leading backslash off too, so one class is kept under one name --->
+		<cfif Left(arguments.class, 1) EQ "\">
+			<cfset arguments.class = REReplace(arguments.class, "^\\+", "")>
+		</cfif>
+
 		<cfif NOT StructKeyExists(variables, "parents")>
 			<cfset variables.parents = StructNew()>
 			<cfset variables.parentsShared = StructNew()>
@@ -749,6 +754,11 @@
 		 * is taken out with them, so those are looked at by name after it.
 		 * The functions written in the parent class are the next largest
 		 * group, so that is asked first.
+		 *
+		 * The names are taken out as they are spelled, and the engine spells
+		 * the name of a function in capitals. A name that code put into the
+		 * scope in another spelling stays in, which is why the loop still
+		 * asks whether a name is a global function.
 		--->
 		<cfset rest = CreateObject("java", "java.util.HashMap").init(parentVariables)>
 		<cfset rest.keySet().removeAll(globalFunctions.keySet())>
@@ -816,8 +826,8 @@
 	 *
 	 * Each entry of the metadata is read once into a variable: asking
 	 * for meta.functions[i] again for the name and the access costs
-	 * about as much as the rest of the loop. The first class has no
-	 * name twice, so nothing is looked up for it.
+	 * about as much as the rest of the loop. The first class that has
+	 * functions has no name twice, so nothing is looked up for it.
 	--->
 	<cffunction name="methods" access="private" returntype="struct" output="no">
 		<cfargument name="object" type="any" required="yes">

@@ -19,7 +19,9 @@
  *
  * Difference: is_null(x) is written out as (IsSimpleValue(x) AND x EQ "")
  * in this file, which is the body of is_null() without the call of the
- * function.
+ * function. Each result is asked these tests several times on a page
+ * (the rows, a field, the count), and the test costs a tenth of the call
+ * of the function.
  *
  * Not ported yet: the result objects of a class (getCustomResultObject()
  * and getCustomRowObject()), as Entity is not ported.

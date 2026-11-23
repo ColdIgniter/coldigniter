@@ -869,7 +869,7 @@
 		<cfset var op = "">
 		<cfset var i = 0>
 
-		<!--- IsObject() is asked first here and below: only a component can be an instance, and the test costs far less than the call --->
+		<!--- IsObject() is asked first here, below in this function and in compileWhereHaving(): only a component can be an instance, and the test costs far less than the call --->
 		<cfif IsObject(arguments.key) AND instanceof_(arguments.key, "RawSql")>
 			<cfif arguments.valueGiven>
 				<cfset keyValue[arguments.key.__toString()] = arguments.value>
