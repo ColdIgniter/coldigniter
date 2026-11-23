@@ -516,7 +516,13 @@
 
 		<cfset method = this.request_.getPost("_method")>
 
+		<!--- a missing key comes back as an empty string here, which fails every compare below, so the result matches the original --->
 		<cfif is_null(method)>
+			<cfreturn>
+		</cfif>
+
+		<!--- Difference: an array or map value (_method[]=PUT) cannot be compared, the original strict in_array just finds no match --->
+		<cfif NOT IsSimpleValue(method)>
 			<cfreturn>
 		</cfif>
 
