@@ -1329,7 +1329,8 @@
 		 * Added exception for single quotes as well, we don't want to alter
 		 * literal strings.
 		--->
-		<cfif strcspn(item_, "()'") NEQ Len(item_)>
+		<!--- Difference: REFind() with one class, where the original calls strcspn() --->
+		<cfif REFind("[()']", item_) GT 0>
 			<cfset this.protectCache_.put(cacheKey, item_)>
 			<cfreturn item_>
 		</cfif>
@@ -1340,36 +1341,44 @@
 			<cfreturn item_>
 		</cfif>
 
-		<!--- Convert tabs or multiple spaces into single spaces --->
-		<cfset item_ = preg_replace("/\s+/", " ", trim_(item_), true)>
-
 		<!---
-		 * If the item has an alias declaration we remove it and set it aside.
-		 * Note: strripos() is used in order to support spaces in table names
+		 * Difference: an item with no white space (and no NUL, which trim()
+		 * takes away) is the usual one. It is not changed by the trim or by
+		 * the collapse of the white space, and it has no alias, so the steps
+		 * that look for them are left out for it.
 		--->
-		<cfset offset = strripos(item_, " AS ")>
+		<cfif REFind("[\x00\x09-\x0D\x20]", item_) GT 0>
+			<!--- Convert tabs or multiple spaces into single spaces --->
+			<cfset item_ = preg_replace("/\s+/", " ", trim_(item_), true)>
 
-		<cfif offset GT 0>
-			<cfif protect>
-				<cfset alias = substr(item_, offset, 4) & this.escapeIdentifiers(substr(item_, offset + 4))>
-			<cfelse>
-				<cfset alias = substr(item_, offset)>
-			</cfif>
-
-			<cfset item_ = substr(item_, 0, offset)>
-		<cfelse>
-			<cfset offset = strrpos(item_, " ")>
+			<!---
+			 * If the item has an alias declaration we remove it and set it aside.
+			 * Note: strripos() is used in order to support spaces in table names
+			--->
+			<cfset offset = strripos(item_, " AS ")>
 
 			<cfif offset GT 0>
 				<cfif protect>
-					<cfset alias = " " & this.escapeIdentifiers(substr(item_, offset + 1))>
+					<cfset alias = substr(item_, offset, 4) & this.escapeIdentifiers(substr(item_, offset + 4))>
 				<cfelse>
 					<cfset alias = substr(item_, offset)>
 				</cfif>
 
 				<cfset item_ = substr(item_, 0, offset)>
 			<cfelse>
-				<cfset alias = "">
+				<cfset offset = strrpos(item_, " ")>
+
+				<cfif offset GT 0>
+					<cfif protect>
+						<cfset alias = " " & this.escapeIdentifiers(substr(item_, offset + 1))>
+					<cfelse>
+						<cfset alias = substr(item_, offset)>
+					</cfif>
+
+					<cfset item_ = substr(item_, 0, offset)>
+				<cfelse>
+					<cfset alias = "">
+				</cfif>
 			</cfif>
 		</cfif>
 
@@ -1413,6 +1422,11 @@
 
 	<cffunction name="trimEscapeChar" access="private" returntype="string" output="no">
 		<cfargument name="item" type="string" required="yes">
+
+		<!--- Difference: with one escape character that is not in the item, there is nothing to trim --->
+		<cfif IsSimpleValue(this.escapeChar) AND Len(this.escapeChar) EQ 1 AND Find(this.escapeChar, arguments.item) EQ 0>
+			<cfreturn arguments.item>
+		</cfif>
 
 		<cfif IsArray(this.escapeChar)>
 			<cfreturn trim_(arguments.item, implode("", this.escapeChar))>
@@ -1614,8 +1628,20 @@
 		</cfif>
 
 		<!--- Avoid breaking functions and literal values inside queries --->
-		<cfif ctype_digit(arguments.item) OR Compare(Left(arguments.item, 1), "'") EQ 0 OR (NOT doubleQuote AND Compare(Left(arguments.item, 1), """") EQ 0) OR Find("(", arguments.item) GT 0>
+		<!--- Difference: REFind() for a character that is not a digit, where the original calls ctype_digit() (the item is not empty here) --->
+		<cfif REFind("[^0-9]", arguments.item) EQ 0 OR Compare(Left(arguments.item, 1), "'") EQ 0 OR (NOT doubleQuote AND Compare(Left(arguments.item, 1), """") EQ 0) OR Find("(", arguments.item) GT 0>
 			<cfreturn arguments.item>
+		</cfif>
+
+		<!---
+		 * Difference: a name with no period and no escape character is the
+		 * usual item, and the regular expression below can only put the
+		 * escape character on each side of it. That is done here with no
+		 * regular expression (and so with no limit on its length). This runs
+		 * for every name of every query.
+		--->
+		<cfif IsSimpleValue(this.escapeChar) AND Len(this.escapeChar) EQ 1 AND Find(".", arguments.item) EQ 0 AND Find(this.escapeChar, arguments.item) EQ 0>
+			<cfreturn this.escapeChar & arguments.item & this.escapeChar>
 		</cfif>
 
 		<cfif ArrayLen(this.pregEscapeChar) EQ 0>
