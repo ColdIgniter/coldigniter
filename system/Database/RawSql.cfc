@@ -22,7 +22,7 @@
 		<cfargument name="sqlString" type="string" required="yes">
 
 		<cfset this.string = arguments.sqlString>
-		<cfset this.id = Replace(CreateUUID(), "-", "", "all")>
+		<cfset this.id = object_id_()>
 
 		<cfreturn this>
 	</cffunction>

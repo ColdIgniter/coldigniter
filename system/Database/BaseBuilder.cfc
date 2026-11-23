@@ -196,7 +196,7 @@
 	 *
 	 * @var string
 	--->
-	<cfset this.uid_ = Replace(CreateUUID(), "-", "", "all")>
+	<cfset this.uid_ = "">
 
 	<!---
 	 * Name of the primary table for this instance.
@@ -334,6 +334,7 @@
 		</cfif>
 
 		<cfset this.db_ = arguments.db>
+		<cfset this.uid_ = object_id_()>
 
 		<cfif instanceof_(arguments.tableName, "TableName")>
 			<cfset this.tableName = arguments.tableName.getTableName()>
