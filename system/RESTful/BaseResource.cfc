@@ -1,11 +1,10 @@
 <!---
- * An extendable controller to help provide a UI for a resource.
- *
  * Difference: initController() does what Controller.initController() does
  * itself instead of calling parent.initController(). An application
  * controller has ResourceController as its parent, and the "parent" table
- * of such a chain is shared (see the notes on inheritance), so the call
- * would reach this function again.
+ * of such a chain is shared (see extend() and parentObject() of the
+ * Autoloader), so the call would reach this function again. The copy must
+ * change whenever Controller.initController() changes.
  *
  * Not ported yet: model() (Factories): setModel() makes the model with
  * new_(), so a model is not shared.
@@ -20,17 +19,19 @@
 	<cfset this.request_ = "">
 
 	<!---
-	 * The name of the model class, used by setModel().
+	 * The model that holding this resource's data: a class name, or an empty string (null)
 	--->
 	<cfset this.modelName = "">
 
 	<!---
-	 * The model, an object (see setModel()), or an empty string for none.
+	 * The model that holding this resource's data: an object, or an empty string (null)
 	--->
 	<cfset this.model = "">
 
 	<!---
 	 * Constructor.
+	 *
+	 * @param request_ The request
 	--->
 	<cffunction name="initController" access="public" returntype="void" output="no">
 		<cfargument name="request_" type="any" required="yes">

@@ -1,10 +1,10 @@
 <!---
- * An extendable controller to provide a UI for a resource.
+ * An extendable controller to help provide a UI for a resource.
 --->
 <cfcomponent output="no" extends="BaseResource" hint="An extendable controller to provide a UI for a resource">
 
 	<!---
-	 * Return an array of resource objects, themselves in array format.
+	 * Present a view of resource objects
 	--->
 	<cffunction name="index" access="public" returntype="any" output="no">
 		<cfset var args = ArrayNew(1)>
@@ -15,7 +15,7 @@
 	</cffunction>
 
 	<!---
-	 * Return the properties of a resource object.
+	 * Present a view to present a specific resource object
 	 *
 	 * @param id The id of the resource; an empty string (null) for none
 	--->
@@ -29,7 +29,7 @@
 	</cffunction>
 
 	<!---
-	 * Return a new resource object, with default properties.
+	 * Present a view to present a new single resource object
 	--->
 	<cffunction name="new" access="public" returntype="any" output="no">
 		<cfset var args = ArrayNew(1)>
@@ -40,7 +40,8 @@
 	</cffunction>
 
 	<!---
-	 * Create a new resource object, from "posted" parameters.
+	 * Process the creation/insertion of a new resource object.
+	 * This should be a POST.
 	--->
 	<cffunction name="create" access="public" returntype="any" output="no">
 		<cfset var args = ArrayNew(1)>
@@ -51,7 +52,7 @@
 	</cffunction>
 
 	<!---
-	 * Return the editable properties of a resource object.
+	 * Present a view to edit the properties of a specific resource object
 	 *
 	 * @param id The id of the resource; an empty string (null) for none
 	--->
@@ -65,7 +66,8 @@
 	</cffunction>
 
 	<!---
-	 * Add or update a model resource, from "posted" properties.
+	 * Process the updating, full or partial, of a specific resource object.
+	 * This should be a POST.
 	 *
 	 * @param id The id of the resource; an empty string (null) for none
 	--->
@@ -79,7 +81,7 @@
 	</cffunction>
 
 	<!---
-	 * Present a view to confirm the deletion of a resource object.
+	 * Present a view to confirm the deletion of a specific resource object
 	 *
 	 * @param id The id of the resource; an empty string (null) for none
 	--->
@@ -93,7 +95,7 @@
 	</cffunction>
 
 	<!---
-	 * Delete the designated resource object from the model.
+	 * Process the deletion of a specific resource object
 	 *
 	 * @param id The id of the resource; an empty string (null) for none
 	--->

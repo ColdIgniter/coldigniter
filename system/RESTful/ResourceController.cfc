@@ -98,7 +98,7 @@
 	</cffunction>
 
 	<!---
-	 * Set or change the format this controller responds in.
+	 * Set/change the expected response representation for returned objects.
 	 * Does nothing for a format other than json or xml.
 	 *
 	 * @param format json or xml
