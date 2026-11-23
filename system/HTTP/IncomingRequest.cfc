@@ -518,11 +518,41 @@
 			<cfset data = result>
 		</cfif>
 
+		<!--- Difference: json_decode() gives the text null for a JSON null, which is turned into an empty string (null) here, also inside a nested value. A string "null" is turned too, as the two can not be told apart. --->
+		<cfset data = nullText(data)>
+
 		<!--- Not ported yet: the filters (filter_var, array_walk_recursive) --->
 
 		<!--- Difference: an object is a map whether assoc is set or not (there is no object type), so the conversion with json_decode(json_encode()) is not done. --->
 
 		<cfreturn data>
+	</cffunction>
+
+	<!---
+	 * Turns the text null of a decoded JSON value into an empty string (null),
+	 * in a map or a list too.
+	--->
+	<cffunction name="nullText" access="private" returntype="any" output="no">
+		<cfargument name="value" type="any" required="yes">
+		<cfset var keys = "">
+		<cfset var key = "">
+		<cfset var i = 0>
+
+		<cfif IsArray(arguments.value)>
+			<cfloop from="1" to="#ArrayLen(arguments.value)#" index="i">
+				<cfset arguments.value[i] = nullText(arguments.value[i])>
+			</cfloop>
+		<cfelseif IsStruct(arguments.value)>
+			<cfset keys = arguments.value.keySet().toArray()>
+			<cfloop from="1" to="#ArrayLen(keys)#" index="i">
+				<cfset key = keys[i]>
+				<cfset arguments.value[key] = nullText(arguments.value[key])>
+			</cfloop>
+		<cfelseif IsSimpleValue(arguments.value) AND Compare(arguments.value, "null") EQ 0>
+			<cfreturn "">
+		</cfif>
+
+		<cfreturn arguments.value>
 	</cffunction>
 
 	<!---
