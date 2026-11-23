@@ -29,7 +29,7 @@
  *      // register the autoloader
  *      <cfset loader.register()>
  *
- * Not in the original: instantiate(), createComponent() and extend(). A
+ * Not in the original: instantiate(), classInfo() and extend(). A
  * class file cannot be loaded and kept for later, so the autoloader creates
  * the object itself; new_() and static_() call instantiate().
  *
@@ -268,17 +268,43 @@
 	 * its constructor: finds the file, creates the component, mixes in
 	 * the class named in the "parent" attribute of cfcomponent, and gives
 	 * the object the global functions.
+	 *
+	 * What is found out about a class (see classInfo()) is kept, so that
+	 * it is found out once and not for every object. When what was kept
+	 * no longer creates the component, for a file that was moved or
+	 * removed, it is dropped and found out again.
 	--->
 	<cffunction name="instantiate" access="public" returntype="any" output="no">
 		<cfargument name="class" type="string" required="yes">
-		<cfset var name = REReplace(arguments.class, "^\\+", "")>
-		<cfset var filePath = loadInNamespace(name)>
+		<cfset var name = arguments.class>
+		<cfset var info = "">
 		<cfset var object = "">
-		<cfset var meta = "">
-		<cfset var parentClass = "">
 
-		<cfif filePath EQ "">
-			<cfthrow type="ColdIgniter.Autoloader.ClassNotFoundException" message="Class ""#name#"" not found">
+		<cfif Left(name, 1) EQ "\">
+			<cfset name = REReplace(name, "^\\+", "")>
+		</cfif>
+
+		<cfif NOT StructKeyExists(variables, "classes")>
+			<cfset variables.classes = keptClasses()>
+		</cfif>
+
+		<cfif StructKeyExists(variables.classes, name)>
+			<cftry>
+				<cfset info = variables.classes[name]>
+				<cfset object = includeComponent(info.loader, info.component)>
+
+				<cfcatch type="any">
+					<cfset StructDelete(variables.classes, name)>
+					<cfset object = "">
+				</cfcatch>
+			</cftry>
+		</cfif>
+
+		<cfif NOT IsObject(object)>
+			<cfset info = classInfo(name)>
+			<cfset object = includeComponent(info.loader, info.component)>
+			<cfset info.parent = parentClass(object)>
+			<cfset variables.classes[name] = info>
 		</cfif>
 
 		<!---
@@ -286,27 +312,14 @@
 		 * that is created is noted with the helper files that require_once()
 		 * notes. The Files collector of the debug toolbar reads them.
 		--->
-		<cfset request.ColdIgniter.included[filePath] = true>
+		<cfset request.ColdIgniter.included[info.file] = true>
 
-		<cfset object = createComponent(filePath)>
 		<cfset object.__variables = request.ColdIgniter.functions.__variables>
 		<!--- Difference: the class name cannot be read from the component metadata, which only has the name relative to the nearest autoload.cfm --->
 		<cfset object.__class = name>
 
-		<!--- A class in another folder tree cannot be named in "extends", so it is named in "parent". --->
-		<cfset meta = GetMetaData(object)>
-		<cfloop condition="parentClass EQ ''">
-			<cfif StructKeyExists(meta, "parent")>
-				<cfset parentClass = meta.parent>
-			<cfelseif StructKeyExists(meta, "extends")>
-				<cfset meta = meta.extends>
-			<cfelse>
-				<cfbreak>
-			</cfif>
-		</cfloop>
-
-		<cfif parentClass NEQ "">
-			<cfset extend(object, instantiate(parentClass))>
+		<cfif info.parent NEQ "">
+			<cfset extend(object, instantiate(info.parent))>
 		</cfif>
 
 		<cfset request.ColdIgniter.functions.__inject(object)>
@@ -315,32 +328,120 @@
 	</cffunction>
 
 	<!---
-	 * Not in the original. Creates the component in a class file. Only a
-	 * file in the same folder tree can do that, so the nearest
-	 * autoload.cfm at or above the file is asked to do it.
+	 * Not in the original. The map that keeps what is found out about
+	 * each class, with the class name as key.
+	 *
+	 * In production the map is in the memory of the server
+	 * (server.ColdIgniterClasses), one map per application, so a class is
+	 * looked up once and not once per request. It only holds class names
+	 * and file paths, never a value of the configuration. Anywhere else the
+	 * map only lives as long as this object, so a class file that is added
+	 * or moved is seen on the next request.
+	 *
+	 * An entry is written without a lock: it is complete before it is
+	 * stored, and two requests that write the same class at the same time
+	 * write the same values.
 	--->
-	<cffunction name="createComponent" access="private" returntype="any" output="no">
-		<cfargument name="filePath" type="string" required="yes">
-		<cfset var directory = REReplace(Replace(GetDirectoryFromPath(arguments.filePath), "\", "/", "all"), "/+$", "")>
-		<cfset var name = ListFirst(GetFileFromPath(arguments.filePath), ".")>
+	<cffunction name="keptClasses" access="private" returntype="struct" output="no">
+		<cfset var key = "">
+
+		<cfif NOT StructKeyExists(request, "ENVIRONMENT") OR request.ENVIRONMENT NEQ "production">
+			<cfreturn StructNew()>
+		</cfif>
+
+		<cfset key = request.SYSTEMPATH & "|" & request.APPPATH>
+
+		<cfif NOT StructKeyExists(server, "ColdIgniterClasses") OR NOT StructKeyExists(server.ColdIgniterClasses, key)>
+			<cflock name="ColdIgniterClasses" type="exclusive" timeout="10">
+				<cfif NOT StructKeyExists(server, "ColdIgniterClasses")>
+					<cfset server.ColdIgniterClasses = StructNew()>
+				</cfif>
+
+				<cfif NOT StructKeyExists(server.ColdIgniterClasses, key)>
+					<cfset server.ColdIgniterClasses[key] = StructNew()>
+				</cfif>
+			</cflock>
+		</cfif>
+
+		<cfreturn server.ColdIgniterClasses[key]>
+	</cffunction>
+
+	<!---
+	 * Not in the original. Finds out what is needed to create the
+	 * component of a class: the class file ("file"), and how to reach it.
+	 * Only a file in the same folder tree can create a component, so the
+	 * nearest autoload.cfm at or above the class file is asked to do it:
+	 * "loader" is the path cfinclude needs for that autoload.cfm, and
+	 * "component" is the name of the component as seen from there.
+	--->
+	<cffunction name="classInfo" access="private" returntype="struct" output="no">
+		<cfargument name="class" type="string" required="yes">
+		<cfset var info = StructNew()>
+		<cfset var filePath = loadInNamespace(arguments.class)>
+		<cfset var directory = "">
+		<cfset var name = "">
+
+		<cfif filePath EQ "">
+			<cfthrow type="ColdIgniter.Autoloader.ClassNotFoundException" message="Class ""#arguments.class#"" not found">
+		</cfif>
+
+		<cfset directory = REReplace(Replace(GetDirectoryFromPath(filePath), "\", "/", "all"), "/+$", "")>
+		<cfset name = ListFirst(GetFileFromPath(filePath), ".")>
 
 		<cfloop condition="NOT is_file(directory & '/autoload.cfm')">
 			<cfif ListLen(directory, "/") LTE 1>
-				<cfthrow type="ColdIgniter.Autoloader.ClassNotFoundException" message="No autoload.cfm at or above ""#arguments.filePath#""">
+				<cfthrow type="ColdIgniter.Autoloader.ClassNotFoundException" message="No autoload.cfm at or above ""#filePath#""">
 			</cfif>
 
 			<cfset name = ListLast(directory, "/") & "." & name>
 			<cfset directory = ListDeleteAt(directory, ListLen(directory, "/"), "/")>
 		</cfloop>
 
-		<cfreturn includeComponent(directory & "/autoload.cfm", name)>
+		<cfset info.file = filePath>
+		<cfset info.loader = includePath(directory & "/autoload.cfm")>
+		<cfset info.component = name>
+		<cfset info.parent = "">
+
+		<cfreturn info>
 	</cffunction>
 
+	<!---
+	 * Not in the original. The class an object is to be given the members
+	 * of. A class in another folder tree cannot be named in "extends", so
+	 * it is named in the "parent" attribute of cfcomponent.
+	 *
+	 * @return The class name, an empty string when there is none
+	--->
+	<cffunction name="parentClass" access="private" returntype="string" output="no">
+		<cfargument name="object" type="any" required="yes">
+		<cfset var meta = GetMetaData(arguments.object)>
+
+		<cfloop condition="true">
+			<cfif StructKeyExists(meta, "parent")>
+				<cfreturn meta.parent>
+			</cfif>
+
+			<cfif NOT StructKeyExists(meta, "extends")>
+				<cfbreak>
+			</cfif>
+
+			<cfset meta = meta.extends>
+		</cfloop>
+
+		<cfreturn "">
+	</cffunction>
+
+	<!---
+	 * Not in the original. Creates a component.
+	 *
+	 * @param loader The path cfinclude needs for an autoload.cfm
+	 * @param class  The name of the component, as seen from that file
+	--->
 	<cffunction name="includeComponent" access="private" returntype="any" output="no">
 		<cfargument name="loader" type="string" required="yes">
 		<cfargument name="class" type="string" required="yes">
 
-		<cfinclude template="#includePath(arguments.loader)#">
+		<cfinclude template="#arguments.loader#">
 
 		<cfreturn arguments.component>
 	</cffunction>
