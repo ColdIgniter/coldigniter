@@ -11,7 +11,7 @@
 
 	<cfset variables.__table = StructNew()>
 
-	<!--- The functions of Polyfills.cfm only: what a file that require_once() runs starts with. --->
+	<!--- The functions that are here at the first call of __functions() (those of Polyfills.cfm): what a file that require_once() runs starts with. --->
 	<cfset variables.__base = StructNew()>
 
 	<!---
