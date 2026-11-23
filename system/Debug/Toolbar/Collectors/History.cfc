@@ -4,6 +4,11 @@
  * Difference: the history files are listed with cfdirectory, and a file
  * that is not valid JSON is skipped (the original tests json_last_error()).
  * The date is made with java.text.SimpleDateFormat in UTC.
+ *
+ * Difference: the fields read from each file are kept in the server scope,
+ * by folder and by file name, size and date, so a file is decoded only once
+ * and not on every request. The cache of a folder holds only the files
+ * listed on the last call.
 --->
 <cfcomponent output="no" extends="BaseCollector" hint="History collector">
 
@@ -60,8 +65,23 @@
 		<cfset var micro = "">
 		<cfset var valid = true>
 		<cfset var i = 0>
+		<cfset var folder = request.WRITEPATH & "debugbar">
+		<cfset var cache = StructNew()>
+		<cfset var fresh = StructNew()>
+		<cfset var cacheKey = "">
+		<cfset var entry = "">
 
-		<cfdirectory action="list" directory="#request.WRITEPATH#debugbar" name="filenames" filter="debugbar_*.json" sort="name asc">
+		<cfdirectory action="list" directory="#folder#" name="filenames" filter="debugbar_*.json" sort="name asc">
+
+		<cflock name="ColdIgniterHistory" type="readonly" timeout="10">
+			<cfif StructKeyExists(server, "ColdIgniterHistory") AND StructKeyExists(server.ColdIgniterHistory, folder)>
+				<cfset cache = server.ColdIgniterHistory[folder]>
+			</cfif>
+		</cflock>
+
+		<cfset format = CreateObject("java", "java.text.SimpleDateFormat").init("yyyy-MM-dd HH:mm:ss")>
+		<cfset zone = CreateObject("java", "java.util.TimeZone").getTimeZone("UTC")>
+		<cfset format.setTimeZone(zone)>
 
 		<!--- the original lists the oldest first and walks the list backwards --->
 		<cfloop from="#filenames.RecordCount#" to="1" step="-1" index="i">
@@ -74,9 +94,30 @@
 			<cfelse>
 				<!--- Get the contents of this specific history request --->
 				<cfset valid = true>
+				<cfset cacheKey = filenames.name[i] & "|" & filenames.size[i] & "|" & filenames.datelastmodified[i]>
 				<cftry>
-					<cfset contents = file_get_contents(filename)>
-					<cfset decoded = json_decode(contents)>
+					<cfif StructKeyExists(cache, cacheKey)>
+						<cfset entry = cache[cacheKey]>
+					<cfelse>
+						<cfset contents = file_get_contents(filename)>
+						<cfset entry = StructNew()>
+						<cftry>
+							<cfset decoded = json_decode(contents)>
+							<cfset entry["status"] = decoded["vars"]["response"]["statusCode"]>
+							<cfset entry["method"] = decoded["method"]>
+							<cfset entry["url"] = decoded["url"]>
+							<cfset entry["isAJAX"] = iif(decoded["isAJAX"] IS true, de("Yes"), de("No"))>
+							<cfset entry["contentType"] = decoded["vars"]["response"]["contentType"]>
+							<cfset entry["valid"] = true>
+							<cfcatch type="any">
+								<cfset entry["valid"] = false>
+							</cfcatch>
+						</cftry>
+					</cfif>
+					<cfset fresh[cacheKey] = entry>
+					<cfif NOT entry["valid"]>
+						<cfthrow type="ColdIgniter.HistoryException" message="Not a history file">
+					</cfif>
 					<cfset stamp = REReplace(filenames.name[i], "^debugbar_(.*)\.json$", "\1")>
 					<cfif NOT REFind("^[0-9]+\.[0-9]+$", stamp)>
 						<cfset stamp = "0.000000">
@@ -85,10 +126,6 @@
 					<cfset micro = ListLast(stamp, ".") & "000000">
 					<cfset micro = Left(micro, 6)>
 					<cfset stamp = seconds & "." & micro>
-
-					<cfset format = CreateObject("java", "java.text.SimpleDateFormat").init("yyyy-MM-dd HH:mm:ss")>
-					<cfset zone = CreateObject("java", "java.util.TimeZone").getTimeZone("UTC")>
-					<cfset format.setTimeZone(zone)>
 
 					<!---
 					 Difference: JavaCast("long") cannot take a value larger than an integer, so the
@@ -104,11 +141,11 @@
 						"time", stamp,
 						"datetime", format.format(calendar.getTime()) & "." & micro,
 						"active", JavaCast("boolean", Compare(stamp, arguments.current) EQ 0),
-						"status", decoded["vars"]["response"]["statusCode"],
-						"method", decoded["method"],
-						"url", decoded["url"],
-						"isAJAX", iif(decoded["isAJAX"] IS true, de("Yes"), de("No")),
-						"contentType", decoded["vars"]["response"]["contentType"]
+						"status", entry["status"],
+						"method", entry["method"],
+						"url", entry["url"],
+						"isAJAX", entry["isAJAX"],
+						"contentType", entry["contentType"]
 					))>
 					<cfcatch type="any">
 						<cfset valid = false>
@@ -116,6 +153,13 @@
 				</cftry>
 			</cfif>
 		</cfloop>
+
+		<cflock name="ColdIgniterHistory" type="exclusive" timeout="10">
+			<cfif NOT StructKeyExists(server, "ColdIgniterHistory")>
+				<cfset server.ColdIgniterHistory = StructNew()>
+			</cfif>
+			<cfset server.ColdIgniterHistory[folder] = fresh>
+		</cflock>
 
 		<cfset this.files = files>
 	</cffunction>

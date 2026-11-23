@@ -26,7 +26,8 @@
  *
  * The open lists and maps are kept in a java.util.ArrayList and filled with
  * their own add() and put() methods, so a list is never copied while it is
- * being filled.
+ * being filled. A closed one leaves its slot, which the next one opened at
+ * that depth takes over.
 --->
 <cffunction name="json_decode" returntype="any" output="no" hint="Decodes a JSON string">
 	<cfargument name="json" type="string" required="yes">
@@ -57,6 +58,7 @@
 	<cfset var done = false>
 	<cfset var span = "">
 	<cfset var container = "">
+	<cfset var kind = "">
 
 	<!---
 	 expect is what may come next: "value", "valueOrClose" (just after [),
@@ -186,18 +188,27 @@
 					<cfthrow type="ColdIgniter.JsonException" message="Syntax error">
 				</cfif>
 				<cfif Compare(character, "{") EQ 0>
-					<cfset containers.add(CreateObject("java", "java.util.LinkedHashMap").init())>
-					<cfset kinds.add("o")>
+					<cfset container = CreateObject("java", "java.util.LinkedHashMap").init()>
+					<cfset kind = "o">
 					<cfset expect = "keyOrClose">
 				<cfelse>
 					<cfset container = ArrayNew(1)>
-					<cfset containers.add(container)>
-					<cfset kinds.add("a")>
+					<cfset kind = "a">
 					<cfset expect = "valueOrClose">
 				</cfif>
-				<cfset keys.add("")>
-				<cfset starts.add(JavaCast("int", 0))>
 				<cfset top = top + 1>
+				<!--- a slot left by a closed list or map is used again: remove() can not be called here, as it has two forms --->
+				<cfif containers.size() GT top>
+					<cfset containers.set(JavaCast("int", top), container)>
+					<cfset kinds.set(JavaCast("int", top), kind)>
+					<cfset keys.set(JavaCast("int", top), "")>
+					<cfset starts.set(JavaCast("int", top), JavaCast("int", 0))>
+				<cfelse>
+					<cfset containers.add(container)>
+					<cfset kinds.add(kind)>
+					<cfset keys.add("")>
+					<cfset starts.add(JavaCast("int", 0))>
+				</cfif>
 			<cfelse>
 				<!--- } or ] --->
 				<cfif top LT 0>
@@ -212,10 +223,7 @@
 						<cfthrow type="ColdIgniter.JsonException" message="Syntax error">
 					</cfif>
 				</cfif>
-				<cfset value = containers.remove(JavaCast("int", top))>
-				<cfset kinds.remove(JavaCast("int", top))>
-				<cfset keys.remove(JavaCast("int", top))>
-				<cfset starts.remove(JavaCast("int", top))>
+				<cfset value = containers.get(JavaCast("int", top))>
 				<cfset top = top - 1>
 				<cfset haveValue = true>
 			</cfif>
