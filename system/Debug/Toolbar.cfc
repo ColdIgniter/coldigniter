@@ -814,7 +814,8 @@
 				<cfif Compare(kind, "json") EQ 0>
 					<cfcontent type="application/json">
 				<cfelse>
-					<cfcontent type="text/html">
+					<!--- Difference: the charset is named, the original gets it from default_charset. --->
+					<cfcontent type="text/html; charset=UTF-8">
 				</cfif>
 
 				<cfset exit_()>

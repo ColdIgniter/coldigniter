@@ -20,13 +20,12 @@
 	 *
 	 * A list of class names.
 	 *
-	 * Not ported yet: the Database collector (there is no database layer, so
-	 * its class is a mark and it is not in the list) and the Cache collector
-	 * (it is commented out in the original as well).
+	 * Not ported yet: the Cache collector (it is commented out in the
+	 * original as well).
 	--->
 	<cfset this.collectors = ArrayNew(1)>
 	<cfset ArrayAppend(this.collectors, "ColdIgniter\Debug\Toolbar\Collectors\Timers")>
-	<!--- ColdIgniter\Debug\Toolbar\Collectors\Database (not ported yet) --->
+	<cfset ArrayAppend(this.collectors, "ColdIgniter\Debug\Toolbar\Collectors\Database")>
 	<cfset ArrayAppend(this.collectors, "ColdIgniter\Debug\Toolbar\Collectors\Logs")>
 	<cfset ArrayAppend(this.collectors, "ColdIgniter\Debug\Toolbar\Collectors\Views")>
 	<!--- ColdIgniter\Debug\Toolbar\Collectors\Cache (not ported yet) --->
