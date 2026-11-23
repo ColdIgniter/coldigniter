@@ -1134,6 +1134,7 @@
 						<cfif isset_(attributes, "AFTER")>
 							<cfset field["after"] = attributes["AFTER"]>
 						<cfelseif isset_(attributes, "FIRST")>
+							<!--- Difference: the original casts to bool, so 1 is true there; here only true and "true" are (see isTrue_) --->
 							<cfif isTrue_(attributes["FIRST"])>
 								<cfset field["first"] = "true">
 							<cfelse>

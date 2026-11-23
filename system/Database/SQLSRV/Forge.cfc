@@ -23,8 +23,8 @@
  *   DROP TABLE IF EXISTS.
  * - _attributeType makes IMAGE of BLOB, where the original has
  *   VARBINARY(MAX).
- * - dropIndexStr is DROP INDEX owner.table.index, as 2000 has no
- *   DROP INDEX index ON table.
+ * - dropIndexStr and _dropIndex are DROP INDEX owner.table.index, as 2000
+ *   has no DROP INDEX index ON table.
  *
  * Difference: renameTable() is in this class. The original passes the
  * escaped names to sp_rename, which takes the names as strings, and its
@@ -345,12 +345,19 @@
 			</cfif>
 
 			<cfif array_key_exists("comment", field) AND Compare(field["comment"], "") NEQ 0>
-				<!--- Difference: sp_addextendedproperty and USER, see the header --->
+				<!---
+				 * Difference: sp_addextendedproperty and USER, see the header.
+				 * The original puts the comment, which has its quotes
+				 * already, between quotes again, and gives the escaped names
+				 * of the table and the column, which the procedure does not
+				 * find. Here the comment keeps its own quotes and the names
+				 * are bare.
+				--->
 				<cfset ArrayAppend(sqls, "EXEC sp_addextendedproperty "
-					& "@name=N'Caption', @value=N'" & field["comment"] & "' , "
+					& "@name=N'Caption', @value=N" & field["comment"] & " , "
 					& "@level0type=N'USER',@level0name=N'" & this.db.schema & "', "
-					& "@level1type=N'TABLE',@level1name=N'" & this.db.escapeIdentifiers(arguments.table) & "', "
-					& "@level2type=N'COLUMN',@level2name=N'" & this.db.escapeIdentifiers(field["name"]) & "'")>
+					& "@level1type=N'TABLE',@level1name=N'" & arguments.table & "', "
+					& "@level2type=N'COLUMN',@level2name=N'" & field["name"] & "'")>
 			</cfif>
 
 			<cfif Compare(field["new_name"], "") NEQ 0>
@@ -376,7 +383,16 @@
 		<cfif Compare(arguments.indexData["type"], "PRIMARY") EQ 0>
 			<cfset sql = "ALTER TABLE [" & this.db.schema & "].[" & arguments.table & "] DROP [" & arguments.indexData["name"] & "]">
 		<cfelse>
-			<cfset sql = "DROP INDEX [" & arguments.indexData["name"] & "] ON [" & this.db.schema & "].[" & arguments.table & "]">
+			<!---
+			 * Difference: the original has DROP INDEX index ON table, which
+			 * is not in SQL Server 2000, and it has that for the index of a
+			 * unique constraint too, which no version can drop that way. A
+			 * unique constraint is dropped as a constraint, and an index
+			 * with DROP INDEX owner.table.index.
+			--->
+			<cfset sql = "IF OBJECTPROPERTY(OBJECT_ID('[" & this.db.schema & "].[" & arguments.indexData["name"] & "]'), 'IsUniqueCnst') = 1 "
+				& "ALTER TABLE [" & this.db.schema & "].[" & arguments.table & "] DROP CONSTRAINT [" & arguments.indexData["name"] & "] "
+				& "ELSE DROP INDEX [" & this.db.schema & "].[" & arguments.table & "].[" & arguments.indexData["name"] & "]">
 		</cfif>
 
 		<cfreturn this.db.simpleQuery(sql)>
