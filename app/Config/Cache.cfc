@@ -74,10 +74,16 @@
 	 *
 	 * Named with an underscore, because "file" is a scope.
 	 *
-	 * @var map {storePath}
+	 * Difference: memoryEntries is not in the original. It is the number
+	 * of cached items (pages) that the file handler keeps in memory, in the
+	 * application scope of the server, so that a hit does not read the file.
+	 * The files stay the durable copy. 0 switches it off.
+	 *
+	 * @var map {storePath, memoryEntries}
 	--->
 	<cfset this.file_ = CreateObject("java", "java.util.LinkedHashMap").init()>
 	<cfset this.file_.put("storePath", request.WRITEPATH & "cache/")>
+	<cfset this.file_.put("memoryEntries", "100")>
 
 	<!---
 	 * --------------------------------------------------------------------------

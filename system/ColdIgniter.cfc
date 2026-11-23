@@ -143,11 +143,23 @@
 		<cfset this.benchmark.stop("bootstrap")>
 
 		<cfset this.benchmark.start("required_before_filters")>
-		<!--- Start up the filters --->
-		<cfset filters = static_("Config\Services").filters()>
 
-		<!--- Run required before filters --->
-		<cfset possibleResponse = runRequiredBeforeFilters(filters)>
+		<!---
+		 * Difference: a page that is in the page cache is looked up here
+		 * first, before the filters are made, when the required filters
+		 * are the stock ones (see getCachedPage()). Then the required
+		 * filters do not run, as their work for such a request is done.
+		--->
+		<cfset possibleResponse = getCachedPage()>
+
+		<cfif NOT instanceof_(possibleResponse, "ColdIgniter\HTTP\ResponseInterface")>
+			<!--- Start up the filters --->
+			<cfset filters = static_("Config\Services").filters()>
+
+			<!--- Run required before filters --->
+			<cfset possibleResponse = runRequiredBeforeFilters(filters)>
+		</cfif>
+
 		<cfset this.benchmark.stop("required_before_filters")>
 
 		<!--- If a ResponseInterface instance is returned then send it back to the client and stop --->
@@ -167,7 +179,10 @@
 			</cftry>
 		</cfif>
 
-		<cfset runRequiredAfterFilters(filters)>
+		<!--- Difference: there are no filters when the page came from the cache early, see above. --->
+		<cfif IsObject(filters)>
+			<cfset runRequiredAfterFilters(filters)>
+		</cfif>
 
 		<!---
 		 Upstream the required after filter "performance" does this, in
@@ -224,6 +239,92 @@
 		<cfset arguments.output = Replace(arguments.output, "{memory_usage}", NumberFormat((runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024, "0.000"), "all")>
 
 		<cfreturn arguments.output>
+	</cffunction>
+
+	<!---
+	 * Difference: not in the original. Looks up the page cache before the
+	 * required filters are made, so a hit does not make the filters, the
+	 * force https and page cache filters and the debug toolbar filter.
+	 *
+	 * It is done only when the result is the one that the required filters
+	 * would give: only a GET request, the filters enabled, the required
+	 * before filters are forcehttps and pagecache, the required after
+	 * filters are pagecache and toolbar (all with the stock classes),
+	 * forceGlobalSecureRequests is off (the force https filter has nothing
+	 * to do), and CI_DEBUG is off (the toolbar filter has nothing to do).
+	 * The page cache filter after a hit only stores the page when the TTL
+	 * is not 0, and it is 0 for a hit, so nothing is lost. In every other
+	 * case the filters do it as in the original.
+	 *
+	 * @return The response from the cache, or an empty string
+	--->
+	<cffunction name="getCachedPage" access="private" returntype="any" output="no">
+		<cfset var filtersConfig = "">
+		<cfset var appConfig = "">
+
+		<cfif NOT this.enableFilters OR Compare(this.request_.getMethod(), "GET") NEQ 0 OR request.CI_DEBUG>
+			<cfreturn "">
+		</cfif>
+
+		<cfset appConfig = config("Config\App")>
+
+		<cfif IsBoolean(appConfig.forceGlobalSecureRequests) AND appConfig.forceGlobalSecureRequests>
+			<cfreturn "">
+		</cfif>
+
+		<cfset filtersConfig = config("Config\Filters")>
+
+		<cfif NOT onlyRequired(filtersConfig, "before", "forcehttps,pagecache", "pagecache")
+			OR NOT onlyRequired(filtersConfig, "after", "pagecache,toolbar", "pagecache")>
+			<cfreturn "">
+		</cfif>
+
+		<cfreturn service("responsecache").get(this.request_, service("response"))>
+	</cffunction>
+
+	<!---
+	 * Difference: not in the original. Whether the required filters of a
+	 * position are all in the list, with the stock classes, and the
+	 * wanted one is among them.
+	 *
+	 * @param position "before" or "after"
+	 * @param allowed  A list of aliases
+	 * @param wanted   An alias that must be there
+	--->
+	<cffunction name="onlyRequired" access="private" returntype="boolean" output="no">
+		<cfargument name="filtersConfig" type="any" required="yes">
+		<cfargument name="position" type="string" required="yes">
+		<cfargument name="allowed" type="string" required="yes">
+		<cfargument name="wanted" type="string" required="yes">
+		<cfset var list = "">
+		<cfset var found = false>
+		<cfset var i = 0>
+		<cfset var alias = "">
+
+		<cfif NOT StructKeyExists(arguments.filtersConfig.required, arguments.position)>
+			<cfreturn false>
+		</cfif>
+
+		<cfset list = arguments.filtersConfig.required[arguments.position]>
+
+		<cfloop index="i" from="1" to="#ArrayLen(list)#">
+			<cfset alias = list[i]>
+
+			<cfif NOT ListFindNoCase(arguments.allowed, alias) OR NOT arguments.filtersConfig.aliases.containsKey(alias)>
+				<cfreturn false>
+			</cfif>
+
+			<!--- the alias is the name of the stock class --->
+			<cfif Compare(arguments.filtersConfig.aliases.get(alias), "ColdIgniter\Filters\" & ListGetAt("ForceHTTPS,PageCache,DebugToolbar", ListFindNoCase("forcehttps,pagecache,toolbar", alias))) NEQ 0>
+				<cfreturn false>
+			</cfif>
+
+			<cfif Compare(alias, arguments.wanted) EQ 0>
+				<cfset found = true>
+			</cfif>
+		</cfloop>
+
+		<cfreturn found>
 	</cffunction>
 
 	<!---

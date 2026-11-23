@@ -12,6 +12,11 @@
  * as a miss, as it does in the cache handlers. Any other cached value
  * that is not such a map is an error, as invalid data is in the original.
  *
+ * Difference: a handler that has getShared() (the file handler) gives the
+ * cached map from a map in the application scope, and the map is not
+ * changed here (the headers and the body are only read), so it is shared by
+ * all requests. See the file handler.
+ *
  * Not ported yet: the CLI request (CLIRequest), so only IncomingRequest.
 --->
 <cfcomponent output="no" hint="Web Page Caching">
@@ -136,7 +141,8 @@
 	<cffunction name="get" access="public" returntype="any" output="no">
 		<cfargument name="request_" type="any" required="yes">
 		<cfargument name="response" type="any" required="yes">
-		<cfset var cachedResponse = this.cache.get(generateCacheKey(arguments.request_))>
+		<cfset var key = generateCacheKey(arguments.request_)>
+		<cfset var cachedResponse = "">
 		<cfset var headers = "">
 		<cfset var current = "">
 		<cfset var keys = "">
@@ -144,6 +150,12 @@
 		<cfset var name = "">
 		<cfset var status = 200>
 		<cfset var reason = "">
+
+		<cfif method_exists(this.cache, "getShared")>
+			<cfset cachedResponse = this.cache.getShared(key)>
+		<cfelse>
+			<cfset cachedResponse = this.cache.get(key)>
+		</cfif>
 
 		<cfif IsSimpleValue(cachedResponse) AND Compare(cachedResponse, "") EQ 0>
 			<cfreturn "">
