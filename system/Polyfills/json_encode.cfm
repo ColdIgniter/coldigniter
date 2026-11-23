@@ -78,18 +78,31 @@
 		<cfreturn Replace(arguments.value & "", ",", "", "all")>
 	</cfif>
 
-	<!--- a string --->
-	<cfset text = arguments.value & "">
+	<!---
+	 a string: one search finds each character that needs an escape, and
+	 the runs between them are copied whole. The pattern is compiled once
+	 for each request.
+	--->
+	<cfif NOT StructKeyExists(request, "__jsonEncodeEscapes")>
+		<cfset request.__jsonEncodeEscapes = CreateObject("java", "java.util.regex.Pattern").compile(JavaCast("string", "[^\x20-\x7e]|[""\\/<>&']"))>
+	</cfif>
+	<cfset text = JavaCast("string", arguments.value & "")>
+	<cfset it = request.__jsonEncodeEscapes.matcher(text)>
+	<cfset n = 0>
 	<cfset buf.append("""")>
-	<cfset n = Len(text)>
-	<cfloop from="1" to="#n#" index="i">
-		<cfset ch = Mid(text, i, 1)>
+	<cfloop condition="it.find()">
+		<cfset i = it.start()>
+		<cfif i GT n>
+			<cfset buf.append(text.substring(JavaCast("int", n), JavaCast("int", i)))>
+		</cfif>
+		<cfset n = it.end()>
+		<cfset ch = it.group()>
 		<cfset c = Asc(ch)>
-		<cfif ch EQ """">
+		<cfif Compare(ch, """") EQ 0>
 			<cfset buf.append("\""")>
-		<cfelseif ch EQ "\">
+		<cfelseif Compare(ch, "\") EQ 0>
 			<cfset buf.append("\\")>
-		<cfelseif ch EQ "/">
+		<cfelseif Compare(ch, "/") EQ 0>
 			<cfset buf.append("\/")>
 		<cfelseif c EQ 8>
 			<cfset buf.append("\b")>
@@ -101,13 +114,14 @@
 			<cfset buf.append("\f")>
 		<cfelseif c EQ 13>
 			<cfset buf.append("\r")>
-		<cfelseif c LT 32 OR c GT 126 OR ch EQ "<" OR ch EQ ">" OR ch EQ "&" OR ch EQ "'">
+		<cfelse>
 			<cfset hex = UCase(FormatBaseN(c, 16))>
 			<cfset buf.append("\u" & RepeatString("0", 4 - Len(hex)) & hex)>
-		<cfelse>
-			<cfset buf.append(ch)>
 		</cfif>
 	</cfloop>
+	<cfif Len(text) GT n>
+		<cfset buf.append(text.substring(JavaCast("int", n)))>
+	</cfif>
 	<cfset buf.append("""")>
 
 	<cfreturn buf.toString()>
