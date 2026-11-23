@@ -15,7 +15,7 @@
 	<cfargument name="precision" type="numeric" required="no" default="0">
 	<cfset var factor = 10 ^ arguments.precision>
 	<cfset var scaled = Abs(arguments.num) * factor>
-	<cfset var rounded = CreateObject("java", "java.lang.Math").floor(JavaCast("double", scaled + 0.5))>
+	<cfset var rounded = Int(scaled + 0.5)>
 
 	<cfif arguments.num LT 0>
 		<cfreturn 0 - (rounded / factor)>

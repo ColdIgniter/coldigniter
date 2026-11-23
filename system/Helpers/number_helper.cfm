@@ -47,6 +47,7 @@
 
 	<!--- Strip any formatting & ensure numeric input --->
 	<!--- Difference: a non-numeric value is tested, where the original catches the warning (ErrorException). --->
+	<!--- Only a leading-numeric string ("12abc") gives false there; a wholly non-numeric one ("abc") throws a TypeError, and here it gives false as well. --->
 	<cfset arguments.num = str_replace(",", "", arguments.num & "")>
 	<cfif NOT is_numeric(arguments.num)>
 		<cfreturn false>
@@ -107,6 +108,7 @@
 
 	<!--- Strip any formatting & ensure numeric input --->
 	<!--- Difference: a non-numeric value is tested, where the original catches the warning (ErrorException). --->
+	<!--- Only a leading-numeric string ("12abc") gives false there; a wholly non-numeric one ("abc") throws a TypeError, and here it gives false as well. --->
 	<cfset arguments.num = str_replace(",", "", arguments.num & "")>
 	<cfif NOT is_numeric(arguments.num)>
 		<cfreturn false>
@@ -180,6 +182,10 @@
 	<cfset var formatter = "">
 	<cfset var pattern = "">
 	<cfset var output = "">
+	<cfset var handles = number_handles_()>
+	<cfset var reason = "">
+	<cfset var found = 0>
+	<cfset var rest = "">
 
 	<!--- If locale is not passed, get from the default locale that is set from our config file --->
 	<!--- or set by HTTP content negotiation. --->
@@ -198,22 +204,31 @@
 	</cfif>
 
 	<!--- Difference: a Java locale is made from "en_US" or "en-US"; ICU keywords ("@") are not read. --->
-	<cfset parts = ListToArray(Replace(arguments.locale, "-", "_", "all"), "_")>
-	<cfif ArrayLen(parts) GTE 3>
-		<cfset javaLocale = CreateObject("java", "java.util.Locale").init(parts[1], parts[2], parts[3])>
-	<cfelseif ArrayLen(parts) EQ 2>
-		<cfset javaLocale = CreateObject("java", "java.util.Locale").init(parts[1], parts[2])>
-	<cfelseif ArrayLen(parts) EQ 1>
-		<cfset javaLocale = CreateObject("java", "java.util.Locale").init(parts[1])>
+	<!--- A Locale is immutable, so one made for a name is kept (at most 100 names) and used again. --->
+	<cfif handles.locales.containsKey(JavaCast("string", arguments.locale))>
+		<cfset javaLocale = handles.locales.get(JavaCast("string", arguments.locale))>
 	<cfelse>
-		<cfset javaLocale = CreateObject("java", "java.util.Locale").init("")>
+		<cfset parts = ListToArray(Replace(arguments.locale, "-", "_", "all"), "_")>
+		<cfif ArrayLen(parts) GTE 3>
+			<cfset javaLocale = CreateObject("java", "java.util.Locale").init(parts[1], parts[2], parts[3])>
+		<cfelseif ArrayLen(parts) EQ 2>
+			<cfset javaLocale = CreateObject("java", "java.util.Locale").init(parts[1], parts[2])>
+		<cfelseif ArrayLen(parts) EQ 1>
+			<cfset javaLocale = CreateObject("java", "java.util.Locale").init(parts[1])>
+		<cfelse>
+			<cfset javaLocale = CreateObject("java", "java.util.Locale").init("")>
+		</cfif>
+
+		<cfif handles.locales.size() LT 100>
+			<cfset handles.locales.put(JavaCast("string", arguments.locale), javaLocale)>
+		</cfif>
 	</cfif>
 
 	<cftry>
 		<cfif type EQ 2>
-			<cfset formatter = CreateObject("java", "java.text.NumberFormat").getCurrencyInstance(javaLocale)>
+			<cfset formatter = handles.numberFormat.getCurrencyInstance(javaLocale)>
 		<cfelse>
-			<cfset formatter = CreateObject("java", "java.text.NumberFormat").getInstance(javaLocale)>
+			<cfset formatter = handles.numberFormat.getInstance(javaLocale)>
 		</cfif>
 
 		<!--- Try to format it per the locale --->
@@ -221,8 +236,8 @@
 			<!--- Difference: FRACTION_DIGITS sets the minimum and the maximum, as two calls. --->
 			<cfset formatter.setMinimumFractionDigits(JavaCast("int", Fix(Val(options_["fraction"]))))>
 			<cfset formatter.setMaximumFractionDigits(JavaCast("int", Fix(Val(options_["fraction"]))))>
-			<cfset formatter.setCurrency(CreateObject("java", "java.util.Currency").getInstance(JavaCast("string", options_["currency"])))>
-			<cfset output = format_number_java_(formatter, arguments.num)>
+			<cfset formatter.setCurrency(handles.currency.getInstance(JavaCast("string", options_["currency"])))>
+			<cfset output = format_number_java_(handles, formatter, arguments.num)>
 		<cfelse>
 			<!--- In order to specify a precision, we'll have to modify --->
 			<!--- the pattern used by NumberFormatter. --->
@@ -230,11 +245,26 @@
 			<cfset pattern = "##,####0." & RepeatString("##", arguments.precision)>
 
 			<cfset formatter.applyPattern(JavaCast("string", pattern))>
-			<cfset output = format_number_java_(formatter, arguments.num)>
+			<cfset output = format_number_java_(handles, formatter, arguments.num)>
 		</cfif>
 
 		<cfcatch type="java.lang.Exception">
-			<cfthrow type="ColdIgniter.Exceptions.BadFunctionCallException" message="#cfcatch.message#">
+			<!--- Difference: a call through reflection fails with an InvocationTargetException that has no message, so the message of its cause is used. --->
+			<cfset reason = cfcatch.message>
+			<cfif reason EQ "">
+				<cfset found = Find("Caused by: ", cfcatch.stackTrace)>
+				<cfif found GT 0>
+					<cfset rest = Mid(cfcatch.stackTrace, found + 11, Len(cfcatch.stackTrace))>
+					<cfif Find(Chr(10), rest) GT 0>
+						<cfset rest = Left(rest, Find(Chr(10), rest) - 1)>
+					</cfif>
+					<cfset reason = Trim(rest)>
+				</cfif>
+			</cfif>
+			<cfif reason EQ "">
+				<cfset reason = cfcatch.type>
+			</cfif>
+			<cfthrow type="ColdIgniter.Exceptions.BadFunctionCallException" message="#reason#">
 		</cfcatch>
 	</cftry>
 
@@ -254,30 +284,93 @@
 </cffunction>
 
 <!---
+ * Returns the Java objects that the formatting needs and that can be kept:
+ * the format(double) Method, the class handles for the static calls, the
+ * reflection helpers and a table of Locale objects by name.
+ *
+ * Difference: not in the original. Looking these up takes about a
+ * millisecond, so they are kept in the memory of the server in production
+ * (server.ColdIgniterNumber, one entry per system folder), anywhere else
+ * in request.ColdIgniter.number for the request only, and made for the
+ * call when there is no request.ColdIgniter. They hold no value of the
+ * configuration. A Method, a Class and a Locale are immutable, and the
+ * table of locales is a synchronized java.util.Hashtable. A
+ * NumberFormat is not thread-safe and is never kept.
+ *
+ * The entry is complete before it is stored; only the check and the
+ * creation of it are inside a lock.
+--->
+<cffunction name="number_handles_" returntype="struct" output="no" hint="Returns the Java objects that the number formatting keeps">
+	<cfif StructKeyExists(request, "ENVIRONMENT") AND request.ENVIRONMENT EQ "production" AND StructKeyExists(request, "SYSTEMPATH")>
+		<cfif NOT StructKeyExists(server, "ColdIgniterNumber") OR NOT StructKeyExists(server.ColdIgniterNumber, request.SYSTEMPATH)>
+			<cflock name="ColdIgniterNumber" type="exclusive" timeout="10">
+				<cfif NOT StructKeyExists(server, "ColdIgniterNumber")>
+					<cfset server.ColdIgniterNumber = StructNew()>
+				</cfif>
+
+				<cfif NOT StructKeyExists(server.ColdIgniterNumber, request.SYSTEMPATH)>
+					<cfset server.ColdIgniterNumber[request.SYSTEMPATH] = number_handles_make_()>
+				</cfif>
+			</cflock>
+		</cfif>
+
+		<cfreturn server.ColdIgniterNumber[request.SYSTEMPATH]>
+	</cfif>
+
+	<cfif StructKeyExists(request, "ColdIgniter")>
+		<cfif NOT StructKeyExists(request.ColdIgniter, "number")>
+			<cfset request.ColdIgniter.number = number_handles_make_()>
+		</cfif>
+
+		<cfreturn request.ColdIgniter.number>
+	</cfif>
+
+	<!--- nowhere to keep them: made for this call only --->
+	<cfreturn number_handles_make_()>
+</cffunction>
+
+<!---
+ * Makes the entry of number_handles_().
+--->
+<cffunction name="number_handles_make_" returntype="struct" output="no" hint="Makes the Java objects that the number formatting keeps">
+	<cfset var handles = StructNew()>
+	<cfset var classClass = CreateObject("java", "java.lang.Class")>
+	<cfset var types = "">
+
+	<cfset handles.reflectArray = CreateObject("java", "java.lang.reflect.Array")>
+	<cfset handles.objectClass = classClass.forName("java.lang.Object")>
+	<cfset handles.numberFormat = CreateObject("java", "java.text.NumberFormat")>
+	<cfset handles.currency = CreateObject("java", "java.util.Currency")>
+	<cfset handles.locales = CreateObject("java", "java.util.Hashtable").init()>
+
+	<cfset types = handles.reflectArray.newInstance(classClass.forName("java.lang.Class"), JavaCast("int", 1))>
+	<cfset handles.reflectArray.set(types, JavaCast("int", 0), CreateObject("java", "java.lang.Double").TYPE)>
+	<cfset handles.format = classClass.forName("java.text.NumberFormat").getMethod("format", types)>
+
+	<cfreturn handles>
+</cffunction>
+
+<!---
  * Calls format(double) of a java.text.NumberFormat.
  *
  * Difference: not in the original. The method format is overloaded
  * (double, long, Object and the forms with a StringBuffer) and the server
- * does not choose one for a number, so the method for a double is looked
- * up by its signature and invoked.
+ * does not choose one for a number, so the method for a double, kept by
+ * number_handles_(), is invoked.
  *
+ * @param handles   See number_handles_()
  * @param formatter A java.text.NumberFormat
  * @param num
 --->
 <cffunction name="format_number_java_" returntype="string" output="no" hint="Calls format(double) of a java.text.NumberFormat">
+	<cfargument name="handles" type="struct" required="yes">
 	<cfargument name="formatter" type="any" required="yes">
 	<cfargument name="num" type="numeric" required="yes">
-	<cfset var classClass = CreateObject("java", "java.lang.Class")>
-	<cfset var reflectArray = CreateObject("java", "java.lang.reflect.Array")>
-	<cfset var types = reflectArray.newInstance(classClass.forName("java.lang.Class"), JavaCast("int", 1))>
-	<cfset var values = reflectArray.newInstance(classClass.forName("java.lang.Object"), JavaCast("int", 1))>
-	<cfset var method = "">
+	<cfset var values = arguments.handles.reflectArray.newInstance(arguments.handles.objectClass, JavaCast("int", 1))>
 
-	<cfset reflectArray.set(types, JavaCast("int", 0), CreateObject("java", "java.lang.Double").TYPE)>
-	<cfset reflectArray.set(values, JavaCast("int", 0), CreateObject("java", "java.lang.Double").init(JavaCast("double", arguments.num)))>
-	<cfset method = arguments.formatter.getClass().getMethod("format", types)>
+	<cfset arguments.handles.reflectArray.set(values, JavaCast("int", 0), CreateObject("java", "java.lang.Double").init(JavaCast("double", arguments.num)))>
 
-	<cfreturn method.invoke(arguments.formatter, values) & "">
+	<cfreturn arguments.handles.format.invoke(arguments.formatter, values) & "">
 </cffunction>
 
 <!---
