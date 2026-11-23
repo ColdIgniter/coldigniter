@@ -6,7 +6,7 @@ A CFML port of CodeIgniter 4.
 
 The goal is to build a modern website with a retro language, using that language's own syntax to recreate CodeIgniter in it.
 
-The target is ColdFusion MX 6.1. Older versions were tried on the way there, and each one fell short:
+The target is ColdFusion MX 6.1. Older versions were tried on the way there. The list shows what each one lacked and what MX 6.1 adds:
 
 - **4.0** has `cftry`/`cfcatch` and `cflock`, but no user-defined functions and no Java integration, and its Expression Evaluator sample application let remote users read, upload and delete files on the server (Allaire bulletin ASB99-01).
 - **4.5** added the first Java integration, but still had no user-defined functions.
