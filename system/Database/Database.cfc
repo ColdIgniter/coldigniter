@@ -10,10 +10,10 @@
  * only checks the name of the driver. The CriticalError of the original is
  * not ported.
  *
- * Not ported yet: loadForge() (Forge), and
- * the driver classes (a driver name in the original is a folder of
- * connection, forge and utils classes). A driver that does not exist
- * ends in a class not found error from the autoloader.
+ * Not ported yet: loadForge() (Forge). A driver name in the original is
+ * a folder of connection, forge and utils classes: SQLSRV has its
+ * connection, result and utils. A driver that does not exist ends in a
+ * class not found error from the autoloader.
 --->
 <cfcomponent output="no" hint="Database Connection Factory">
 
