@@ -219,6 +219,10 @@
 
 	<cfset arguments.reader.pos = arguments.reader.pos + match.len[1]>
 
+	<cfif arguments.reader.nullEmpty AND Compare(token, "null") EQ 0>
+		<cfreturn "">
+	</cfif>
+
 	<cfreturn Mid(token, 1, match.len[1])>
 </cffunction>
 
@@ -235,6 +239,10 @@
  * Difference: the nesting is cut at a depth of 32 (the original allows 512),
  * to keep the recursion small.
  *
+ * Difference: the optional nullEmpty argument (off by default) makes a bare
+ * null come back as an empty string, which stands for null here. A string
+ * "null" stays the text null.
+ *
  * Difference: the optional spans argument is a list that is filled with
  * the members of the top-level object, as structs with key, start and end
  * (the place of the first and the last character of "key": value in the
@@ -244,6 +252,7 @@
 <cffunction name="json_decode" returntype="any" output="no" hint="Decodes a JSON string">
 	<cfargument name="json" type="string" required="yes">
 	<cfargument name="spans" type="any" required="no" default="">
+	<cfargument name="nullEmpty" type="boolean" required="no" default="false">
 	<cfset var reader = StructNew()>
 	<cfset var result = "">
 
@@ -251,6 +260,7 @@
 	<cfset reader.length = Len(arguments.json)>
 	<cfset reader.pos = 1>
 	<cfset reader.maxDepth = 32>
+	<cfset reader.nullEmpty = arguments.nullEmpty>
 	<!--- the matchers of json_find(): the first character that is not white space, the end of a run in a string (a quote, a backslash or a control character below 0x20), the end of a number or word --->
 	<cfset reader.white = CreateObject("java", "java.util.regex.Pattern").compile(JavaCast("string", "[^ \t\r\n]")).matcher(JavaCast("string", arguments.json))>
 	<cfset reader.stop = CreateObject("java", "java.util.regex.Pattern").compile(JavaCast("string", "[""\\\x00-\x1f]")).matcher(JavaCast("string", arguments.json))>

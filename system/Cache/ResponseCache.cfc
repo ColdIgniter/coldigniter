@@ -208,7 +208,14 @@
 
 		<!--- Set cached headers --->
 		<cfloop collection="#headers#" item="name">
-			<cfset arguments.response.setHeader(name, headers[name])>
+			<cfif IsArray(headers[name])>
+				<!--- several headers of the same name (see addHeader) --->
+				<cfloop index="i" from="1" to="#ArrayLen(headers[name])#">
+					<cfset arguments.response.addHeader(name, headers[name][i])>
+				</cfloop>
+			<cfelse>
+				<cfset arguments.response.setHeader(name, headers[name])>
+			</cfif>
 		</cfloop>
 
 		<cfset arguments.response.setBody(cachedResponse["output"])>
@@ -291,8 +298,16 @@
 				<cfif name EQ "Content-Type">
 					<cfset contentType = headers[name]>
 				<cfelse>
-					<cfset names.add(JavaCast("string", name))>
-					<cfset values.add(JavaCast("string", headers[name]))>
+					<cfif IsArray(headers[name])>
+						<!--- one entry for each of several headers of the same name --->
+						<cfloop index="i" from="1" to="#ArrayLen(headers[name])#">
+							<cfset names.add(JavaCast("string", name))>
+							<cfset values.add(JavaCast("string", headers[name][i]))>
+						</cfloop>
+					<cfelse>
+						<cfset names.add(JavaCast("string", name))>
+						<cfset values.add(JavaCast("string", headers[name]))>
+					</cfif>
 				</cfif>
 			</cfloop>
 

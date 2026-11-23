@@ -21,9 +21,8 @@
  * - Upload files, if any
  * - Deserialized body binds
  *
- * Not ported yet: the filters of the input values (see RequestTrait),
- * the JSON body (there is no JSON decoder), file uploads, old input
- * (needs the session).
+ * Not ported yet: the filters of the input values (see RequestTrait and
+ * getJsonVar), file uploads and old input (needs the session).
 --->
 <cfcomponent output="no" extends="Request" hint="Represents an incoming, server-side HTTP request">
 
@@ -101,7 +100,10 @@
 		<cfset populateHeaders()>
 
 		<!--- The body of the request is read here, where the original reads the input stream. --->
-		<cfif is_null(arguments.body)>
+		<!--- The input stream is not available with enctype="multipart/form-data". --->
+		<cfif is_null(arguments.body)
+			AND Find("multipart/form-data", getHeaderLine("Content-Type")) EQ 0
+			AND Val(getHeaderLine("Content-Length")) LTE getPostMaxSize(ini_get("post_max_size"))>
 			<cfset arguments.body = http_request_data().content>
 		</cfif>
 
@@ -126,6 +128,76 @@
 		<cfset detectLocale(arguments.config)>
 
 		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Gets the number of bytes of a post_max_size value.
+	 *
+	 * A value of 0 or less means unlimited.
+	 *
+	 * Difference: the value comes from ini_get("post_max_size"), which holds
+	 * what ini_set() has kept, as the server has no ini file; an option that was
+	 * not set is an empty string, which is 0 and so unlimited. The unlimited
+	 * value is 9223372036854775807. The prefixes of hex, octal and binary
+	 * (0x, 0, 0b, 0o) are read as the original does, with the suffix K, M or G.
+	 *
+	 * @param postMaxSize
+	--->
+	<cffunction name="getPostMaxSize" access="private" returntype="numeric" output="no">
+		<cfargument name="postMaxSize" type="string" required="yes">
+		<cfset var text = LCase(Trim(arguments.postMaxSize))>
+		<cfset var match = REFind("^([-+]?)(0x[0-9a-f]+|0b[01]+|0o[0-7]+|[0-9]+)([kmg]?)", text, 1, true)>
+		<cfset var sign = "">
+		<cfset var digits = "">
+		<cfset var suffix = "">
+		<cfset var bytes = 0>
+		<cfset var radix = 10>
+
+		<cfif match.pos[1] EQ 0>
+			<cfreturn 9223372036854775807>
+		</cfif>
+
+		<cfset sign = Mid(text, match.pos[2], match.len[2])>
+		<cfset digits = Mid(text, match.pos[3], match.len[3])>
+		<cfset suffix = Mid(text, match.pos[4], match.len[4])>
+
+		<cfif Left(digits, 2) EQ "0x">
+			<cfset radix = 16>
+			<cfset digits = Mid(digits, 3, Len(digits))>
+		<cfelseif Left(digits, 2) EQ "0o">
+			<cfset radix = 8>
+			<cfset digits = Mid(digits, 3, Len(digits))>
+		<cfelseif Left(digits, 2) EQ "0b">
+			<cfset radix = 2>
+			<cfset digits = Mid(digits, 3, Len(digits))>
+		<cfelseif Len(digits) GT 1 AND Left(digits, 1) EQ "0">
+			<cfset radix = 8>
+			<cfset digits = Mid(digits, 2, Len(digits))>
+		</cfif>
+
+		<cfif radix EQ 10>
+			<cfset bytes = Val(digits)>
+		<cfelse>
+			<cfset bytes = CreateObject("java", "java.lang.Long").parseLong(JavaCast("string", digits), JavaCast("int", radix))>
+		</cfif>
+
+		<cfif suffix EQ "k">
+			<cfset bytes = bytes * 1024>
+		<cfelseif suffix EQ "m">
+			<cfset bytes = bytes * 1048576>
+		<cfelseif suffix EQ "g">
+			<cfset bytes = bytes * 1073741824>
+		</cfif>
+
+		<cfif sign EQ "-">
+			<cfset bytes = 0 - bytes>
+		</cfif>
+
+		<cfif bytes LTE 0>
+			<cfreturn 9223372036854775807>
+		</cfif>
+
+		<cfreturn bytes>
 	</cffunction>
 
 	<!---
@@ -310,6 +382,21 @@
 
 		<cfset this.locale = arguments.locale>
 
+		<!--- Not ported yet: Locale::setDefault, the locale of the server is not changed --->
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Set the valid locales.
+	 *
+	 * @param locales list of strings
+	--->
+	<cffunction name="setValidLocales" access="public" returntype="any" output="no">
+		<cfargument name="locales" type="array" required="yes">
+
+		<cfset this.validLocales = arguments.locales>
+
 		<cfreturn this>
 	</cffunction>
 
@@ -363,6 +450,13 @@
 	 * @param depth   How many levels deep to decode
 	 * @param options Bitmask of options
 	 *
+	 * Difference: json_decode() has no assoc, depth or options arguments (an
+	 * object is always a map, the depth is cut at 32), only the option
+	 * JSON_THROW_ON_ERROR (4194304) is read. The text of a number, true,
+	 * false comes back as it is written, and a bare null as an empty string (null), see json_decode(). The
+	 * message of the exception is the one of the language file HTTP, which
+	 * is not ported, written in place.
+	 *
 	 * @throws HTTPException When the body is invalid as JSON.
 	--->
 	<cffunction name="getJSON" access="public" returntype="any" output="no">
@@ -370,9 +464,26 @@
 		<cfargument name="depth" type="numeric" required="no" default="512">
 		<cfargument name="options" type="numeric" required="no" default="0">
 
-		<!--- Not ported yet: json_decode, there is no JSON decoder. An empty string (null) comes back. --->
+		<cfset var result = "">
 
-		<cfreturn "">
+		<cfif is_null(this.body)>
+			<cfreturn "">
+		</cfif>
+
+		<cftry>
+			<cfset result = json_decode(this.body, "", true)>
+
+			<cfcatch type="ColdIgniter.JsonException">
+				<!--- JSON_THROW_ON_ERROR (4194304) keeps the JsonException --->
+				<cfif BitAnd(arguments.options, 4194304) NEQ 0>
+					<cfrethrow>
+				</cfif>
+
+				<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Failed to parse JSON string. Error: #cfcatch.message#">
+			</cfcatch>
+		</cftry>
+
+		<cfreturn result>
 	</cffunction>
 
 	<!---
@@ -388,10 +499,33 @@
 		<cfargument name="assoc" type="boolean" required="no" default="false">
 		<cfargument name="filter" type="any" required="no" default="">
 		<cfargument name="flags" type="any" required="no" default="">
+		<cfset var data = getJSON(true)>
+		<cfset var result = "">
+		<cfset var key = "">
+		<cfset var i = 0>
 
-		<!--- Not ported yet: the JSON decoder (see getJSON). An empty string (null) comes back. --->
+		<cfif NOT is_array(data)>
+			<cfreturn "">
+		</cfif>
 
-		<cfreturn "">
+		<cfif IsSimpleValue(arguments.index) AND NOT is_null(arguments.index)>
+			<cfset data = static_("ColdIgniter\Helpers\Array\ArrayHelper").dotSearch(arguments.index, data)>
+		<cfelseif IsArray(arguments.index)>
+			<cfset result = CreateObject("java", "java.util.LinkedHashMap").init()>
+
+			<cfloop from="1" to="#ArrayLen(arguments.index)#" index="i">
+				<cfset key = arguments.index[i]>
+				<cfset result[key] = static_("ColdIgniter\Helpers\Array\ArrayHelper").dotSearch(key, data)>
+			</cfloop>
+
+			<cfset data = result>
+		</cfif>
+
+		<!--- Not ported yet: the filters (filter_var, array_walk_recursive) --->
+
+		<!--- Difference: an object is a map whether assoc is set or not (there is no object type), so the conversion with json_decode(json_encode()) is not done. --->
+
+		<cfreturn data>
 	</cffunction>
 
 	<!---
