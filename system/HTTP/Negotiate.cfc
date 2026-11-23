@@ -107,6 +107,8 @@
 			<cfset arguments.supported = ArrayNew(1)>
 		</cfif>
 
+		<!--- an array argument is passed by reference here, so the caller's array is copied --->
+		<cfset arguments.supported = Duplicate(arguments.supported)>
 		<cfset ArrayAppend(arguments.supported, "identity")>
 
 		<cfreturn getBestMatch(arguments.supported, this.request.getHeaderLine("accept-encoding"))>
