@@ -15,6 +15,12 @@
  * Difference: the data of the toolbar is written to a file with an object
  * stream (see ColdIgniter\Debug\Toolbar), so display() and
  * formatTimelineData() give text and numbers only, never the Query.
+ *
+ * Difference: the text of a query for the toolbar is made once and kept in
+ * the row of the query (key display), as display() and
+ * formatTimelineData() both need it. display() cleans the path of a file
+ * once, not for every row of every trace: clean_path() asks the file
+ * system.
 --->
 <cfcomponent output="no" extends="BaseCollector" hint="Collector for the Database tab of the Debug Toolbar">
 
@@ -49,8 +55,9 @@
 	 * The query instances that have been collected
 	 * through the DBQuery Event.
 	 *
-	 * A list of maps with the keys query, string, duplicate and trace. Only
-	 * the list of the object of static_() is used (see the top of this file).
+	 * A list of maps with the keys query, string, duplicate and trace, and
+	 * display once the toolbar asked for it. Only the list of the object of
+	 * static_() is used (see the top of this file).
 	--->
 	<cfset this.queries = ArrayNew(1)>
 
@@ -142,7 +149,7 @@
 				"component", "Database",
 				"start", queries[i]["query"].getStartTime(true),
 				"duration", queries[i]["query"].getDuration(),
-				"query", queries[i]["query"].debugToolbarDisplay()
+				"query", queryDisplay(queries[i])
 			))>
 		</cfloop>
 
@@ -167,6 +174,7 @@
 		<cfset var row = "">
 		<cfset var hover = "">
 		<cfset var cssClass = "">
+		<cfset var cleaned = array_()>
 		<cfset var i = 0>
 		<cfset var index = 0>
 
@@ -183,7 +191,11 @@
 
 				<!--- simplify file and line --->
 				<cfif Len(line["file"]) GT 0>
-					<cfset row["file"] = clean_path(line["file"]) & ":" & line["line"]>
+					<cfif NOT array_key_exists(line["file"], cleaned)>
+						<cfset cleaned[line["file"]] = clean_path(line["file"])>
+					</cfif>
+
+					<cfset row["file"] = cleaned[line["file"]] & ":" & line["line"]>
 				<cfelse>
 					<cfset row["file"] = "[internal function]">
 				</cfif>
@@ -214,7 +226,7 @@
 				"hover", hover,
 				"class", cssClass,
 				"duration", (item["query"].getDuration(5) * 1000) & " ms",
-				"sql", item["query"].debugToolbarDisplay(),
+				"sql", queryDisplay(item),
 				"trace", traceRows,
 				"trace-file", firstNonSystemLine,
 				"qid", md5(item["string"] & microtime(true) & " " & i)
@@ -312,6 +324,25 @@
 	--->
 	<cffunction name="staticQueries" access="private" returntype="any" output="no">
 		<cfreturn static_("ColdIgniter\Debug\Toolbar\Collectors\Database").queries>
+	</cffunction>
+
+	<!---
+	 * Returns the text of a query for the toolbar. It is made at the first
+	 * call and kept in the row of the query.
+	 *
+	 * Difference: this function is not in the original, see the top of
+	 * this file.
+	 *
+	 * @param item A row of the list of the queries
+	--->
+	<cffunction name="queryDisplay" access="private" returntype="string" output="no">
+		<cfargument name="item" type="any" required="yes">
+
+		<cfif NOT array_key_exists("display", arguments.item)>
+			<cfset arguments.item["display"] = arguments.item["query"].debugToolbarDisplay()>
+		</cfif>
+
+		<cfreturn arguments.item["display"]>
 	</cffunction>
 
 	<!---
