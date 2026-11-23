@@ -8,11 +8,6 @@
  * in the original hold the text "false". They end in an underscore, as
  * a property cannot have the name of a method.
  *
- * Difference: getXMLFromResult() converts the text of a value with a
- * private method (xmlConvert_), which changes & < > ' and ". The original
- * calls xml_convert() of the xml helper.
- * Not ported yet: the xml helper.
- *
  * Difference: backup() has no gzip format: gzencode() does not exist. The
  * format gzip (the default) is turned into txt, also when DBDebug is on
  * (the original throws then only if gzencode() is missing), so the
@@ -323,6 +318,7 @@
 			</cfif>
 		</cfloop>
 
+		<cfset helper("xml")>
 		<cfset xml = "<" & settings["root"] & ">" & settings["newline"]>
 
 		<cfset row = arguments.query.getUnbufferedRow()>
@@ -335,7 +331,7 @@
 				<cfset val = row[keys[j]]>
 
 				<cfif Len(val) GT 0>
-					<cfset val = xmlConvert_(val)>
+					<cfset val = xml_convert(val)>
 				</cfif>
 
 				<cfset xml = xml & settings["tab"] & settings["tab"] & "<" & keys[j] & ">" & val & "</" & keys[j] & ">" & settings["newline"]>
@@ -346,23 +342,6 @@
 		</cfloop>
 
 		<cfreturn xml & "</" & settings["root"] & ">" & settings["newline"]>
-	</cffunction>
-
-	<!---
-	 * Converts the characters of a text that XML does not allow. Stands
-	 * in for xml_convert() of the xml helper.
-	--->
-	<cffunction name="xmlConvert_" access="private" returntype="string" output="no">
-		<cfargument name="str" type="string" required="yes">
-		<cfset var out = arguments.str>
-
-		<cfset out = Replace(out, "&", "&amp;", "all")>
-		<cfset out = Replace(out, "<", "&lt;", "all")>
-		<cfset out = Replace(out, ">", "&gt;", "all")>
-		<cfset out = Replace(out, "'", "&##39;", "all")>
-		<cfset out = Replace(out, """", "&quot;", "all")>
-
-		<cfreturn out>
 	</cffunction>
 
 	<!---
