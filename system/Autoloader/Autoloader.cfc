@@ -284,6 +284,7 @@
 		<cfset var info = "">
 		<cfset var found = "">
 		<cfset var object = "">
+		<cfset var need = "">
 		<cfset var table = "">
 		<cfset var scope = "">
 		<cfset var count = 0>
@@ -322,6 +323,14 @@
 			<cfset info = classInfo(name)>
 			<cfset object = includeComponent(info.loader, info.component)>
 			<cfset info.parent = parentClass(object)>
+			<cfset classFiles(object, info)>
+			<cfset variables.classes[name] = info>
+		</cfif>
+
+		<!--- What was kept before the files of a class were noted has no list of them yet. A new entry takes its place, complete before it is stored. --->
+		<cfif NOT StructKeyExists(info, "files")>
+			<cfset info = StructCopy(info)>
+			<cfset classFiles(object, info)>
 			<cfset variables.classes[name] = info>
 		</cfif>
 
@@ -341,34 +350,53 @@
 		</cfif>
 
 		<!---
-		 * The global functions. Copying them and keeping each name the
-		 * object already has (__inject()) is the slow part of making an
-		 * object, and for most classes no name is kept: the class and its
-		 * parents have no member with the name of a global function. That
-		 * is seen with the first object of a class, whose Variables scope
-		 * then grows by the size of the table. The next objects of the
-		 * class are given the whole table in one call, which takes half
-		 * the time. That call replaces what is there, so it is counted
-		 * again: an object that does have such a name after all is thrown
-		 * away and made once more the slow way. Then the body of the class
-		 * runs a second time, and a parent that cannot be shared (see
+		 * The global functions. Copying them is the slow part of making an
+		 * object, and the time goes with their number. So the objects of a
+		 * class are given only the ones the class needs (see
+		 * neededFunctions()). Working that out costs more than the copy
+		 * saves for one object, and most classes have one object in a
+		 * request: the first object of a class gets all of them, and the
+		 * list is worked out when a second one is made.
+		 *
+		 * Copying them and keeping each name the object already has is
+		 * slower than giving them in one call, and for most classes no
+		 * name is kept: the class and its parents have no member with the
+		 * name of a global function. That is seen with the first object of
+		 * a class, whose Variables scope then grows by the number of
+		 * functions it is given. The next objects of the class are given
+		 * them in one call. That call replaces what is there, so it is
+		 * counted again: an object that does have such a name after all is
+		 * thrown away and made once more the slow way. Then the body of the
+		 * class runs a second time, and a parent that cannot be shared (see
 		 * parentObject()) is made a second time too. The count after the
-		 * call is what keeps the result right. The size of the table is
+		 * call is what keeps the result right. The number of functions is
 		 * kept with the class only to save such a thrown away object: a
 		 * helper that is loaded later can bring a name the class has, and
-		 * with another size the class is looked at again the slow way.
+		 * with another number the class is looked at again the slow way.
 		--->
 		<cfif NOT StructKeyExists(variables, "apart")>
 			<cfset variables.apart = StructNew()>
 		</cfif>
 
-		<cfset table = request.ColdIgniter.functions.__functions()>
+		<cfif NOT StructKeyExists(variables, "made")>
+			<cfset variables.made = StructNew()>
+		</cfif>
+
+		<cfif StructKeyExists(variables.made, name)>
+			<cfset need = neededFunctions(name, info)>
+			<cfset table = need.table>
+			<cfset count = need.size>
+		<cfelse>
+			<cfset variables.made[name] = true>
+			<cfset table = request.ColdIgniter.functions.__functions()>
+			<cfset count = StructCount(table)>
+		</cfif>
+
 		<cfset scope = object.__variables()>
-		<cfset count = StructCount(table)>
 		<cfset before = StructCount(scope)>
+		<cfset object.__member = request.ColdIgniter.functions.__member>
 
 		<cfif StructKeyExists(variables.apart, name) AND variables.apart[name] EQ count>
-			<cfset object.__member = request.ColdIgniter.functions.__member>
 			<cfset scope.putAll(table)>
 
 			<cfif StructCount(scope) NEQ before + count>
@@ -380,13 +408,116 @@
 			<cfreturn object>
 		</cfif>
 
-		<cfset request.ColdIgniter.functions.__inject(object)>
+		<cfset StructAppend(scope, table, false)>
 
 		<cfif StructCount(scope) EQ before + count>
 			<cfset variables.apart[name] = count>
 		</cfif>
 
 		<cfreturn object>
+	</cffunction>
+
+	<!---
+	 * Not in the original. Gives the global functions the objects of a
+	 * class are given (see __subset() in Polyfills/Functions.cfc): the
+	 * ones that are named in the file of the class, in the files it
+	 * extends and in its parent class, and the ones those call.
+	 *
+	 * A class gets every global function when one of those files includes
+	 * another file, and when its cfcomponent tag has globals="all". That
+	 * attribute is for a class that calls a global function by a name it
+	 * puts together at run time (with Evaluate()), which cannot be seen in
+	 * the file. An object that calls helper() is given every function as
+	 * before.
+	 *
+	 * The answer is kept for the request, with the number of global
+	 * functions there were: a helper that is loaded later brings more, and
+	 * then it is worked out again.
+	 *
+	 * @param class The class name, without a leading backslash
+	 * @param info  What is kept about the class (see classInfo())
+	--->
+	<cffunction name="neededFunctions" access="private" returntype="struct" output="no">
+		<cfargument name="class" type="string" required="yes">
+		<cfargument name="info" type="struct" required="yes">
+		<cfset var count = StructCount(request.ColdIgniter.functions.__functions())>
+		<cfset var all = arguments.info.all>
+		<cfset var need = "">
+		<cfset var parent = "">
+		<cfset var parentName = "">
+
+		<cfif NOT StructKeyExists(variables, "needs")>
+			<cfset variables.needs = StructNew()>
+		</cfif>
+
+		<!---
+		 * When the table has grown, what was worked out still holds as long
+		 * as each name the class needs was a function already: a helper only
+		 * adds functions and never changes one. With every function the
+		 * table is the table itself, so only its size is new.
+		--->
+		<cfif StructKeyExists(variables.needs, arguments.class)>
+			<cfset need = variables.needs[arguments.class]>
+
+			<cfif need.count EQ count>
+				<cfreturn need>
+			</cfif>
+
+			<cfif need.all OR need.missing EQ 0>
+				<cfset need.count = count>
+				<cfset need.size = StructCount(need.table)>
+
+				<cfreturn need>
+			</cfif>
+		</cfif>
+
+		<!--- The parent class was created before this (see instantiate()), so it is known. If it is not, nothing is left out. --->
+		<cfif arguments.info.parent NEQ "">
+			<cfset parentName = REReplace(arguments.info.parent, "^\\+", "")>
+
+			<cfif StructKeyExists(variables.classes, parentName) AND StructKeyExists(variables.classes[parentName], "files")>
+				<cfset parent = neededFunctions(parentName, variables.classes[parentName])>
+			<cfelse>
+				<cfset all = true>
+			</cfif>
+		</cfif>
+
+		<cfset variables.needs[arguments.class] = request.ColdIgniter.functions.__subset(arguments.info.files, parent, all)>
+
+		<cfreturn variables.needs[arguments.class]>
+	</cffunction>
+
+	<!---
+	 * Not in the original. Notes the files a class is written in: its own
+	 * file and the file of each class it extends ("files"), and whether
+	 * one of them asks for every global function with globals="all" on
+	 * its cfcomponent tag ("all"). The last class of the chain is the
+	 * component of the engine, which every component extends: it is left
+	 * out. A class with no file to read gets every function.
+	--->
+	<cffunction name="classFiles" access="private" returntype="void" output="no">
+		<cfargument name="object" type="any" required="yes">
+		<cfargument name="info" type="struct" required="yes">
+		<cfset var meta = GetMetaData(arguments.object)>
+
+		<cfset arguments.info.files = ArrayNew(1)>
+		<cfset arguments.info.all = false>
+
+		<cfloop condition="StructKeyExists(meta, 'extends')">
+			<cfif StructKeyExists(meta, "path")>
+				<cfset ArrayAppend(arguments.info.files, meta.path)>
+			</cfif>
+
+			<cfif StructKeyExists(meta, "globals") AND meta.globals EQ "all">
+				<cfset arguments.info.all = true>
+			</cfif>
+
+			<cfset meta = meta.extends>
+		</cfloop>
+
+		<cfif ArrayLen(arguments.info.files) EQ 0>
+			<cfset arguments.info.all = true>
+		</cfif>
 	</cffunction>
 
 	<!---
@@ -410,6 +541,11 @@
 		<cfargument name="class" type="string" required="yes">
 		<cfset var object = "">
 		<cfset var name = "">
+
+		<!--- instantiate() takes a leading backslash off too: one class is kept under one name --->
+		<cfif Left(arguments.class, 1) EQ "\">
+			<cfset arguments.class = REReplace(arguments.class, "^\\+", "")>
+		</cfif>
 
 		<cfif NOT StructKeyExists(variables, "parents")>
 			<cfset variables.parents = StructNew()>
@@ -494,7 +630,8 @@
 	 * Anywhere else the map only lives as long as this object, so a class
 	 * file that is added or moved is seen on the next request.
 	 *
-	 * The map only holds class names and file paths, never a value of the
+	 * The map only holds class names and file paths (with the files a
+	 * class is written in, see classFiles()), never a value of the
 	 * configuration. Other applications on the same server can read it,
 	 * and it stays until the server is restarted.
 	 *
@@ -747,6 +884,10 @@
 		 * the scope in one call and only the rest is looked at. A function
 		 * of the parent's own parent that has the name of a global function
 		 * is taken out with them, so those are looked at by name after it.
+		 * The names are taken out as they are spelled, and the engine
+		 * spells the name of a function in capitals. A name that code put
+		 * into the scope in another spelling stays in, which is why the
+		 * loop still asks whether a name is a global function.
 		 * The functions written in the parent class are the next largest
 		 * group, so that is asked first.
 		--->
@@ -816,8 +957,8 @@
 	 *
 	 * Each entry of the metadata is read once into a variable: asking
 	 * for meta.functions[i] again for the name and the access costs
-	 * about as much as the rest of the loop. The first class has no
-	 * name twice, so nothing is looked up for it.
+	 * about as much as the rest of the loop. The first class that has
+	 * functions has no name twice, so nothing is looked up for it.
 	--->
 	<cffunction name="methods" access="private" returntype="struct" output="no">
 		<cfargument name="object" type="any" required="yes">
