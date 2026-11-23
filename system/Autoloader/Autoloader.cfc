@@ -332,12 +332,64 @@
 		<cfset object.__class = name>
 
 		<cfif info.parent NEQ "">
-			<cfset extend(object, instantiate(info.parent))>
+			<cfset extend(object, parentObject(info.parent))>
 		</cfif>
 
 		<cfset request.ColdIgniter.functions.__inject(object)>
 
 		<cfreturn object>
+	</cffunction>
+
+	<!---
+	 * Not in the original. Gives the object of a parent class that
+	 * extend() reads the members from.
+	 *
+	 * extend() only reads the parent: its functions are given to the child
+	 * as they are, and its constructor never runs. So when a class is asked
+	 * for a second time in a request (BaseConfig is the parent of every
+	 * config class), the first object serves again and no new one is made.
+	 * That holds only while each property of the parent is a simple value
+	 * or an empty array of the engine, which an assignment copies. A
+	 * structure, an object or a list of Java would be one value shared by
+	 * every child, so a class that has one gets a new object each time.
+	 *
+	 * @param class The name of the parent class
+	--->
+	<cffunction name="parentObject" access="private" returntype="any" output="no">
+		<cfargument name="class" type="string" required="yes">
+		<cfset var object = "">
+		<cfset var name = "">
+
+		<cfif NOT StructKeyExists(variables, "parents")>
+			<cfset variables.parents = StructNew()>
+			<cfset variables.parentsShared = StructNew()>
+		</cfif>
+
+		<!--- First time: the object is kept, and looked at only if the class comes again --->
+		<cfif NOT StructKeyExists(variables.parents, arguments.class)>
+			<cfset object = instantiate(arguments.class)>
+			<cfset variables.parents[arguments.class] = object>
+
+			<cfreturn object>
+		</cfif>
+
+		<cfif NOT StructKeyExists(variables.parentsShared, arguments.class)>
+			<cfset object = variables.parents[arguments.class]>
+			<cfset variables.parentsShared[arguments.class] = true>
+
+			<cfloop collection="#object#" item="name">
+				<cfif NOT IsCustomFunction(object[name]) AND NOT IsSimpleValue(object[name]) AND NOT (IsArray(object[name]) AND ArrayLen(object[name]) EQ 0 AND object[name].getClass().getName() EQ "coldfusion.runtime.Array")>
+					<cfset variables.parentsShared[arguments.class] = false>
+					<cfbreak>
+				</cfif>
+			</cfloop>
+		</cfif>
+
+		<cfif variables.parentsShared[arguments.class]>
+			<cfreturn variables.parents[arguments.class]>
+		</cfif>
+
+		<cfreturn instantiate(arguments.class)>
 	</cffunction>
 
 	<!---
