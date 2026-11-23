@@ -12,7 +12,7 @@
  * attribute is checked the same way (through static_()), so the chain of
  * the parent is followed too; a match costs nothing more. The answer of
  * that pass is kept for the request in request.ColdIgniter.instanceofs
- * (by the class of the value and the wanted class), and the parents
+ * (by the file path of the class of the value and the wanted class), and the parents
  * already looked into are passed on in the third argument, so a parent
  * that names itself or a loop of parents ends.
  *
@@ -43,9 +43,12 @@
 	</cfif>
 
 	<cfset meta = GetMetaData(arguments.value)>
-	<cfset top = meta.name>
 
 	<cfloop condition="IsStruct(meta)">
+		<cfif IsSimpleValue(top)>
+			<cfset top = meta>
+		</cfif>
+
 		<cfif StructKeyExists(meta, "name") AND Compare(ListLast(meta.name, "."), wanted) EQ 0>
 			<cfreturn true>
 		</cfif>
@@ -71,7 +74,12 @@
 	</cfif>
 
 	<!--- the answer of the parents is kept for the request, by the class of the value and the wanted class (only a complete walk, one that began with nothing seen, is kept) --->
-	<cfset key = top & "|" & wanted>
+	<!--- the path, as the name is relative to the nearest autoload.cfm: app/Config/Filters and system/Config/Filters are both Config.Filters --->
+	<cfif StructKeyExists(top, "path")>
+		<cfset key = top.path & "|" & wanted>
+	<cfelse>
+		<cfset key = top.name & "|" & wanted>
+	</cfif>
 
 	<cfif arguments.seen EQ "">
 		<cfif StructKeyExists(request.ColdIgniter.instanceofs, key)>
