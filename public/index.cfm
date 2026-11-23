@@ -50,13 +50,15 @@
 <cfset Boot.bootWeb(paths)>
 
 <!---
- Not in the original. The page buffer holds 8 KB, and a longer body leaves
- in many small parts, which is slow (over a second for 125 KB). The buffer
- is made as large as the body, so the body leaves in one part.
+ Not in the original. The page buffer holds 8 KB by default, and a longer
+ body leaves in many small parts, which is slow (over a second for 125 KB).
+ The buffer is made as large as the body (counted in characters), so the
+ body leaves in one part. The server keeps the larger buffer for later
+ requests, so it never grows past 1 MB.
 --->
 <cftry>
 	<cfif Len(request.ColdIgniter.output) GT GetPageContext().getResponse().getBufferSize()>
-		<cfset GetPageContext().getResponse().setBufferSize(JavaCast("int", Len(request.ColdIgniter.output) + 4096))>
+		<cfset GetPageContext().getResponse().setBufferSize(JavaCast("int", Min(Len(request.ColdIgniter.output) + 4096, 1048576)))>
 	</cfif>
 
 	<cfcatch type="any"></cfcatch>
