@@ -24,7 +24,7 @@
  * Not ported yet: the part of the pre_system listener of the original that
  * checks that the output compression of the engine is off and starts output
  * buffering (neither applies: the output is not written from the framework),
- * the DBQuery listener of the Database collector, and the hot reload route.
+ * and the hot reload route.
 --->
 
 <!---
@@ -35,11 +35,13 @@
  *
  * Difference: there are no closures, so the listener of the original,
  * which calls service("toolbar").respond(), is the callable
- * [toolbar, "respond"].
+ * [toolbar, "respond"]. The DBQuery listener, which the original adds
+ * inside that listener, is added here.
 --->
 <cfif request.CI_DEBUG>
 	<cfset toolbarListener = ArrayNew(1)>
 	<cfset ArrayAppend(toolbarListener, service("toolbar"))>
 	<cfset ArrayAppend(toolbarListener, "respond")>
+	<cfset static_("ColdIgniter\Events\Events").on("DBQuery", "ColdIgniter\Debug\Toolbar\Collectors\Database::collect")>
 	<cfset static_("ColdIgniter\Events\Events").on("pre_system", toolbarListener)>
 </cfif>
