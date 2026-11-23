@@ -358,44 +358,57 @@
 	--->
 	<cffunction name="callTrace" access="private" returntype="array" output="no">
 		<cfset var rows = ArrayNew(1)>
-		<cfset var context = "">
+		<cfset var writer = CreateObject("java", "java.io.StringWriter").init()>
+		<cfset var frames = "">
 		<cfset var frame = "">
+		<cfset var place = "">
+		<cfset var line = "">
 		<cfset var skip = true>
 		<cfset var generated = false>
+		<cfset var start = 0>
 		<cfset var i = 0>
 
-		<cftry>
-			<cfthrow type="ColdIgniter.Debug.Trace" message="trace">
+		<!---
+		 * Difference: the trace is read from the stack of the Java machine.
+		 * A template is compiled to a class with a name that starts with
+		 * "cf", and its rows have the file and the line of the template, so
+		 * they are the rows a caught error gives in its tagContext. To throw
+		 * and catch an error for each query takes much more time.
+		--->
+		<cfset CreateObject("java", "java.lang.Throwable").init().printStackTrace(CreateObject("java", "java.io.PrintWriter").init(writer))>
+		<cfset frames = writer.toString().split(Chr(9) & "at cf")>
 
-			<cfcatch type="ColdIgniter.Debug.Trace">
-				<cfset context = cfcatch.tagContext>
+		<!--- The first part is the name of the error. --->
+		<cfloop from="2" to="#ArrayLen(frames)#" index="i">
+			<!--- A part is "Name2ecfc123$funcNAME.runFunction(file:line)" and the rows of the engine after it. --->
+			<cfset frame = ListFirst(frames[i], Chr(13) & Chr(10))>
+			<cfset start = Find("(", frame)>
+			<cfset generated = true>
 
-				<cfloop from="1" to="#ArrayLen(context)#" index="i">
-					<cfset frame = context[i]>
+			<cfif start GT 0 AND Right(frame, 1) EQ ")">
+				<cfset place = Mid(frame, start + 1, Len(frame) - start - 1)>
+				<cfset line = ListLast(place, ":")>
 
-					<!--- The rows the engine adds for a call by name have no file. --->
-					<cfif Left(frame.template, 1) EQ "<">
-						<cfset generated = true>
-					<cfelse>
-						<cfset generated = false>
-					</cfif>
+				<cfif IsNumeric(line) AND Len(place) GT Len(line) + 1>
+					<cfset place = Left(place, Len(place) - Len(line) - 1)>
+					<cfset generated = false>
+				</cfif>
+			</cfif>
 
-					<cfif skip AND NOT generated AND REFindNoCase("[\\/](Collectors[\\/]Database|Events[\\/]Events)\.cfc$", frame.template) EQ 0>
-						<cfset skip = false>
-						<!--- This row is the line that triggers the event: the original leaves it out too. --->
-						<cfset generated = true>
-					</cfif>
+			<cfif skip AND NOT generated AND REFindNoCase("[\\/](Collectors[\\/]Database|Events[\\/]Events)\.cfc$", place) EQ 0>
+				<cfset skip = false>
+				<!--- This row is the line that triggers the event: the original leaves it out too. --->
+				<cfset generated = true>
+			</cfif>
 
-					<cfif NOT skip AND NOT generated>
-						<cfset ArrayAppend(rows, array_(
-							"file", ToString(frame.template),
-							"line", ToString(frame.line),
-							"function", ""
-						))>
-					</cfif>
-				</cfloop>
-			</cfcatch>
-		</cftry>
+			<cfif NOT skip AND NOT generated>
+				<cfset ArrayAppend(rows, array_(
+					"file", place,
+					"line", line,
+					"function", ""
+				))>
+			</cfif>
+		</cfloop>
 
 		<cfreturn rows>
 	</cffunction>
