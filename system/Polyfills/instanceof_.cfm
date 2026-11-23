@@ -10,7 +10,11 @@
  * A value that is not a component is never an instance.
  * When the walk finds no match, each component named in a "parent"
  * attribute is checked the same way (through static_()), so the chain of
- * the parent is followed too; a match costs nothing more.
+ * the parent is followed too; a match costs nothing more. The answer of
+ * that pass is kept for the request in request.ColdIgniter.instanceofs
+ * (by the class of the value and the wanted class), and the parents
+ * already looked into are passed on in the third argument, so a parent
+ * that names itself or a loop of parents ends.
  *
  * Difference: two classes with the same short name in different folders
  * cannot be told apart.
@@ -18,10 +22,15 @@
 <cffunction name="instanceof_" returntype="boolean" output="no" hint="Finds whether an object is an instance of a class">
 	<cfargument name="value" type="any" required="yes">
 	<cfargument name="class" type="string" required="yes">
+	<cfargument name="seen" type="string" required="no" default="" hint="The parents already looked into (set by the function itself)">
 	<cfset var wanted = ListLast(arguments.class, "\")>
 	<cfset var meta = "">
 	<cfset var parents = "">
 	<cfset var parent = "">
+	<cfset var top = "">
+	<cfset var key = "">
+	<cfset var kept = false>
+	<cfset var seen_ = "">
 
 	<cfif NOT IsObject(arguments.value)>
 		<cfreturn false>
@@ -34,6 +43,7 @@
 	</cfif>
 
 	<cfset meta = GetMetaData(arguments.value)>
+	<cfset top = meta.name>
 
 	<cfloop condition="IsStruct(meta)">
 		<cfif StructKeyExists(meta, "name") AND Compare(ListLast(meta.name, "."), wanted) EQ 0>
@@ -56,11 +66,38 @@
 		<cfset meta = meta.extends>
 	</cfloop>
 
+	<cfif parents EQ "">
+		<cfreturn false>
+	</cfif>
+
+	<!--- the answer of the parents is kept for the request, by the class of the value and the wanted class (only a complete walk, one that began with nothing seen, is kept) --->
+	<cfset key = top & "|" & wanted>
+
+	<cfif arguments.seen EQ "">
+		<cfif StructKeyExists(request.ColdIgniter.instanceofs, key)>
+			<cfreturn request.ColdIgniter.instanceofs[key]>
+		</cfif>
+
+		<cfset kept = true>
+	</cfif>
+
+	<cfset seen_ = ListAppend(arguments.seen, parents)>
+
 	<cfloop list="#parents#" index="parent">
-		<cfif instanceof_(static_(parent), arguments.class)>
-			<cfreturn true>
+		<cfif NOT ListFind(arguments.seen, parent)>
+			<cfif instanceof_(static_(parent), arguments.class, seen_)>
+				<cfif kept>
+					<cfset request.ColdIgniter.instanceofs[key] = true>
+				</cfif>
+
+				<cfreturn true>
+			</cfif>
 		</cfif>
 	</cfloop>
+
+	<cfif kept>
+		<cfset request.ColdIgniter.instanceofs[key] = false>
+	</cfif>
 
 	<cfreturn false>
 </cffunction>
