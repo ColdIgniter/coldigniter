@@ -255,7 +255,15 @@
 	<cffunction name="_escapeString" access="private" returntype="string" output="no">
 		<cfargument name="str" type="string" required="yes">
 
-		<cfreturn str_replace("'", "''", remove_invisible_characters(arguments.str, false))>
+		<!---
+		 * Difference: REReplace() and Replace(), where the original calls
+		 * remove_invisible_characters($str, false) and str_replace(). The
+		 * class is the one of remove_invisible_characters(): every control
+		 * character except tab, newline and carriage return. One pass is
+		 * enough, because taking a control character out never makes one.
+		 * This runs for every value of every query.
+		--->
+		<cfreturn Replace(REReplace(arguments.str, "[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]+", "", "all"), "'", "''", "all")>
 	</cffunction>
 
 	<!---

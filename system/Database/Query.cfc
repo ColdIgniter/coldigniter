@@ -404,7 +404,6 @@
 		<cfset var isSQLite = Compare(platform, "SQLite3") EQ 0>
 		<cfset var isOCI8 = Compare(platform, "OCI8") EQ 0>
 		<cfset var backslashEscapes = false>
-		<cfset var stop = ":'""`-/##[$">
 		<cfset var length = Len(arguments.sql)>
 		<cfset var result = "">
 		<cfset var offset = 0>
@@ -420,10 +419,12 @@
 		<cfset var handled = false>
 		<cfset var newLine = 0>
 		<cfset var tag = "">
+		<cfset var found = 0>
 		<cfset var j = 0>
 		<cfset var i = 0>
 
-		<cfif Len(strpbrk(arguments.sql, "'""`##[$")) EQ 0 AND Find("--", arguments.sql) EQ 0 AND Find("/*", arguments.sql) EQ 0>
+		<!--- Difference: the characters are looked for with REFind(), where the original uses strpbrk(). --->
+		<cfif REFind("['""`##\[$]", arguments.sql) EQ 0 AND Find("--", arguments.sql) EQ 0 AND Find("/*", arguments.sql) EQ 0>
 			<cfreturn strtr(arguments.sql, arguments.replacers)>
 		</cfif>
 
@@ -439,15 +440,36 @@
 		</cfif>
 
 		<cfloop condition="offset LT length">
-			<cfset position = offset + strcspn(arguments.sql, stop, offset)>
-			<cfset result = result & substr(arguments.sql, offset, position - offset)>
+			<!---
+			 * Difference: the next character of $stop is found with REFind(),
+			 * and the parts are read with Mid(), where the original uses
+			 * strcspn(), substr() and $sql[$position]. This loop runs for
+			 * every query of the builder, and a call of a function costs
+			 * more here than the work it does. The set is $stop of the
+			 * original: : ' " ` - / ## [ $
+			--->
+			<cfset found = REFind("[:'""`/##\[$-]", arguments.sql, offset + 1)>
+
+			<cfif found EQ 0>
+				<cfset position = length>
+			<cfelse>
+				<cfset position = found - 1>
+			</cfif>
+
+			<cfif position GT offset>
+				<cfset result = result & Mid(arguments.sql, offset + 1, position - offset)>
+			</cfif>
 
 			<cfif position GTE length>
 				<cfbreak>
 			</cfif>
 
-			<cfset char = charAt(arguments.sql, position)>
-			<cfset next = charAt(arguments.sql, position + 1)>
+			<cfset char = Mid(arguments.sql, position + 1, 1)>
+			<cfset next = "">
+
+			<cfif position + 1 LT length>
+				<cfset next = Mid(arguments.sql, position + 2, 1)>
+			</cfif>
 			<cfset end = position + 1>
 			<cfset handled = false>
 
@@ -542,7 +564,7 @@
 
 			<!--- there is no cfcontinue: a placeholder has been put in and the offset set --->
 			<cfif NOT handled>
-				<cfset result = result & substr(arguments.sql, position, end - position)>
+				<cfset result = result & Mid(arguments.sql, position + 1, end - position)>
 				<cfset offset = end>
 			</cfif>
 		</cfloop>
@@ -579,16 +601,23 @@
 		<cfargument name="maxLength" type="numeric" required="yes">
 		<cfset var candidates = ArrayNew(1)>
 		<cfset var colon = arguments.position>
+		<cfset var length = Len(arguments.sql)>
 		<cfset var i = 0>
 
+		<!--- Difference: Find() and Mid(), where the original uses strpos() and substr(). --->
 		<cfloop condition="true">
-			<cfset colon = strpos(arguments.sql, ":", colon + 1)>
+			<cfif colon + 2 GT length>
+				<cfbreak>
+			</cfif>
+
+			<!--- The position from 0 of the next colon, -1 when there is none. --->
+			<cfset colon = Find(":", arguments.sql, colon + 2) - 1>
 
 			<cfif colon EQ -1 OR colon - arguments.position GTE arguments.maxLength>
 				<cfbreak>
 			</cfif>
 
-			<cfset ArrayAppend(candidates, substr(arguments.sql, arguments.position, colon - arguments.position + 1))>
+			<cfset ArrayAppend(candidates, Mid(arguments.sql, arguments.position + 1, colon - arguments.position + 1))>
 		</cfloop>
 
 		<cfloop from="#ArrayLen(candidates)#" to="1" index="i" step="-1">
@@ -665,10 +694,33 @@
 		<cfset var stop = arguments.quote>
 		<cfset var length = Len(arguments.sql)>
 		<cfset var offset = arguments.position + 1>
+		<cfset var found = 0>
 
-		<cfif arguments.backslashEscapes>
-			<cfset stop = arguments.quote & "\">
+		<!---
+		 * Difference: with no backslash escapes the quote is found with
+		 * Find(). The position from 1 of a quote is also the position from 0
+		 * of the character after it.
+		--->
+		<cfif NOT arguments.backslashEscapes>
+			<cfloop condition="offset LT length">
+				<cfset found = Find(arguments.quote, arguments.sql, offset + 1)>
+
+				<cfif found EQ 0>
+					<cfbreak>
+				</cfif>
+
+				<cfif found LT length AND Compare(Mid(arguments.sql, found + 1, 1), arguments.quote) EQ 0>
+					<!--- A doubled quote. --->
+					<cfset offset = found + 1>
+				<cfelse>
+					<cfreturn found>
+				</cfif>
+			</cfloop>
+
+			<cfreturn length>
 		</cfif>
+
+		<cfset stop = arguments.quote & "\">
 
 		<cfloop condition="offset LT length">
 			<cfset offset = offset + strcspn(arguments.sql, stop, offset)>
