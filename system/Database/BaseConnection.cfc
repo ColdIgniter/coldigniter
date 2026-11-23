@@ -1264,7 +1264,8 @@
 		<cfset var alias = "">
 		<cfset var cacheKey = "">
 
-		<cfif NOT is_null(arguments.protectIdentifiers_)>
+		<!--- Difference: is_null() is written out here, as this is run for each identifier and the test costs a tenth of the call of the function. --->
+		<cfif NOT (IsSimpleValue(arguments.protectIdentifiers_) AND arguments.protectIdentifiers_ EQ "")>
 			<cfset protect = arguments.protectIdentifiers_>
 		</cfif>
 

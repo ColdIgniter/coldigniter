@@ -17,6 +17,10 @@
  * resource or an object, so a result is valid when it is an object, a
  * query or a map.
  *
+ * Difference: is_null(x) is written out as (IsSimpleValue(x) AND x EQ "")
+ * in this file, which is the body of is_null() without the call of the
+ * function.
+ *
  * Not ported yet: the result objects of a class (getCustomResultObject()
  * and getCustomRowObject()), as Entity is not ported.
  *
@@ -149,7 +153,7 @@
 			<cfreturn this.resultArray>
 		</cfif>
 
-		<cfif NOT is_null(this.rowData)>
+		<cfif NOT (IsSimpleValue(this.rowData) AND this.rowData EQ "")>
 			<cfset this.dataSeek()>
 		</cfif>
 
@@ -195,7 +199,7 @@
 			<cfreturn this.resultObject>
 		</cfif>
 
-		<cfif NOT is_null(this.rowData)>
+		<cfif NOT (IsSimpleValue(this.rowData) AND this.rowData EQ "")>
 			<cfset this.dataSeek()>
 		</cfif>
 
@@ -349,7 +353,7 @@
 			<cfreturn>
 		</cfif>
 
-		<cfif Len(arguments.key) GT 0 AND NOT is_null(arguments.value)>
+		<cfif Len(arguments.key) GT 0 AND NOT (IsSimpleValue(arguments.value) AND arguments.value EQ "")>
 			<cfset this.rowData[arguments.key] = arguments.value>
 		</cfif>
 	</cffunction>
@@ -454,7 +458,7 @@
 	--->
 	<cffunction name="getNumRows" access="public" returntype="numeric" output="no">
 
-		<cfif NOT is_null(this.numRows)>
+		<cfif NOT (IsSimpleValue(this.numRows) AND this.numRows EQ "")>
 			<cfreturn this.numRows>
 		</cfif>
 
