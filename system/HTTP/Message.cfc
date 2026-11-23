@@ -76,7 +76,7 @@
 	 * Populates the headers with the request headers.
 	--->
 	<cffunction name="populateHeaders" access="public" returntype="void" output="no">
-		<cfset var headers = GetHttpRequestData().headers>
+		<cfset var headers = http_request_data().headers>
 		<cfset var name = "">
 
 		<cfloop collection="#headers#" item="name">

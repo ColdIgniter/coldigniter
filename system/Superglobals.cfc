@@ -146,10 +146,13 @@
 	<cffunction name="getServerArray" access="public" returntype="any" output="no">
 		<cfset var result = CreateObject("java", "java.util.LinkedHashMap").init()>
 		<cfset var key = "">
+		<cfset var value = "">
 
 		<cfloop collection="#CGI#" item="key">
-			<cfif server_value(key) NEQ "">
-				<cfset result[key] = server_value(key)>
+			<cfset value = server_value(key)>
+
+			<cfif value NEQ "">
+				<cfset result[key] = value>
 			</cfif>
 		</cfloop>
 
@@ -546,7 +549,7 @@
 		</cfif>
 
 		<cfif Find("application/x-www-form-urlencoded", contentType) GT 0>
-			<cfset content = GetHttpRequestData().content>
+			<cfset content = http_request_data().content>
 
 			<cfif IsBinary(content)>
 				<cfset content = ToString(content)>

@@ -102,7 +102,7 @@
 
 		<!--- The body of the request is read here, where the original reads the input stream. --->
 		<cfif is_null(arguments.body)>
-			<cfset arguments.body = GetHttpRequestData().content>
+			<cfset arguments.body = http_request_data().content>
 		</cfif>
 
 		<!--- A body that is not text comes as binary data. --->
