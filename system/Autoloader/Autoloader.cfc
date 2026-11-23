@@ -349,9 +349,9 @@
 	 * for a second time in a request (BaseConfig is the parent of every
 	 * config class), the first object serves again and no new one is made.
 	 * That holds only while each property of the parent is a simple value
-	 * or an empty array, which an assignment copies. A structure or an
-	 * object would be one value shared by every child, so a class that has
-	 * one gets a new object each time.
+	 * or an empty array of the engine, which an assignment copies. A
+	 * structure, an object or a list of Java would be one value shared by
+	 * every child, so a class that has one gets a new object each time.
 	 *
 	 * @param class The name of the parent class
 	--->
@@ -378,7 +378,7 @@
 			<cfset variables.parentsShared[arguments.class] = true>
 
 			<cfloop collection="#object#" item="name">
-				<cfif NOT IsCustomFunction(object[name]) AND NOT IsSimpleValue(object[name]) AND NOT (IsArray(object[name]) AND ArrayLen(object[name]) EQ 0)>
+				<cfif NOT IsCustomFunction(object[name]) AND NOT IsSimpleValue(object[name]) AND NOT (IsArray(object[name]) AND ArrayLen(object[name]) EQ 0 AND object[name].getClass().getName() EQ "coldfusion.runtime.Array")>
 					<cfset variables.parentsShared[arguments.class] = false>
 					<cfbreak>
 				</cfif>
