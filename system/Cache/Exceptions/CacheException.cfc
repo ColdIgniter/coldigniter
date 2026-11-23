@@ -14,8 +14,10 @@
 
 	<cffunction name="forUnableToWrite" access="public" returntype="void" output="no">
 		<cfargument name="path" type="string" required="yes">
+		<cfset var parameters = ArrayNew(1)>
 
-		<cfthrow type="ColdIgniter.Cache.Exceptions.CacheException" errorcode="500" message="#lang('Cache.unableToWrite', array_(arguments.path))#">
+		<cfset ArrayAppend(parameters, arguments.path)>
+		<cfthrow type="ColdIgniter.Cache.Exceptions.CacheException" errorcode="500" message="#lang('Cache.unableToWrite', parameters)#">
 	</cffunction>
 
 	<cffunction name="forInvalidHandlers" access="public" returntype="void" output="no">
