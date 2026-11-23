@@ -50,6 +50,7 @@
 <cfinclude template="new_.cfm">
 <cfinclude template="nl2br.cfm">
 <cfinclude template="number_format.cfm">
+<cfinclude template="object_id_.cfm">
 <cfinclude template="parse_str.cfm">
 <cfinclude template="parse_url.cfm">
 <cfinclude template="preg_match.cfm">
