@@ -1,7 +1,7 @@
 <!---
  * Class RouteCollection
  *
- * Not ported yet: route groups, resource and presenter routes, match,
+ * Not ported yet: route groups, match,
  * map, redirects, named routes and reverse routing, group filters, priority,
  * hostname and subdomain limits, the offset option, closures as
  * handlers, route discovery in modules, and environment().
@@ -272,6 +272,20 @@
 
 		<cfset this.defaultNamespace = HTMLEditFormat(strip_tags(arguments.value))>
 		<cfset this.defaultNamespace = REReplace(this.defaultNamespace, "\\+$", "") & "\">
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Sets the default constraint to be used in the system. Typically
+	 * for use with the 'resource' method.
+	--->
+	<cffunction name="setDefaultConstraint" access="public" returntype="any" output="no">
+		<cfargument name="placeholder" type="string" required="yes">
+
+		<cfif StructKeyExists(this.placeholders, arguments.placeholder)>
+			<cfset this.defaultPlaceholder = arguments.placeholder>
+		</cfif>
 
 		<cfreturn this>
 	</cffunction>
@@ -582,6 +596,289 @@
 		<cfargument name="options" type="any" required="no" default="">
 
 		<cfset create("OPTIONS", arguments.from, arguments.to, arguments.options)>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Creates a collection of HTTP-verb based routes for a controller.
+	 *
+	 * Possible Options:
+	 *      'controller'    - Customize the name of the controller used in the 'to' route
+	 *      'placeholder'   - The regex used by the Router. Defaults to '(:any)'
+	 *      'websafe'       - '1' if only GET and POST HTTP verbs are supported
+	 *      'only'          - Limit the routes to these methods (list or array)
+	 *      'except'        - Leave out these methods (list or array)
+	 *
+	 * Example:
+	 *
+	 *      <cfset routes.resource("photos")>
+	 *
+	 *      // Generates the following routes:
+	 *      HTTP Verb | Path        | Action        | Used for...
+	 *      ----------+-------------+---------------+-----------------
+	 *      GET         /photos             index           an array of photo objects
+	 *      GET         /photos/new         new             an empty photo object, with default properties
+	 *      GET         /photos/{id}/edit   edit            a specific photo object, editable properties
+	 *      GET         /photos/{id}        show            a specific photo object, all properties
+	 *      POST        /photos             create          a new photo object, to add to the resource
+	 *      DELETE      /photos/{id}        delete          deletes the specified photo object
+	 *      PUT/PATCH   /photos/{id}        update          replacement properties for existing photo
+	 *
+	 *  If 'websafe' option is present, the following paths are also available:
+	 *
+	 *      POST		/photos/{id}/delete delete
+	 *      POST        /photos/{id}        update
+	 *
+	 * Difference: the methods are kept in a list, which ListFind() checks
+	 * in one call, where the original searches an array for each route.
+	 *
+	 * @param name    The name of the resource/controller to route to.
+	 * @param options A list of possible ways to customize the routing.
+	--->
+	<cffunction name="resource" access="public" returntype="any" output="no">
+		<cfargument name="name" type="string" required="yes">
+		<cfargument name="options" type="any" required="no" default="">
+		<cfset var newName = "">
+		<cfset var id = "">
+		<cfset var methods = "index,show,create,update,delete,new,edit">
+		<cfset var except = "">
+		<cfset var kept = "">
+		<cfset var method = "">
+		<cfset var parts = "">
+		<cfset var i = 0>
+
+		<cfif NOT IsStruct(arguments.options)>
+			<cfset arguments.options = array_()>
+		</cfif>
+
+		<!---
+		 In order to allow customization of the route the
+		 resources are sent to, we need to have a new name
+		 to store the values in.
+		--->
+		<cfset parts = explode("/", arguments.name)>
+		<cfloop from="1" to="#ArrayLen(parts)#" index="i">
+			<cfset parts[i] = ucfirst(parts[i])>
+		</cfloop>
+		<cfset newName = implode("\", parts)>
+
+		<!---
+		 If a new controller is specified, then we replace the
+		 name value with the name of the new controller.
+		--->
+		<cfif StructKeyExists(arguments.options, "controller")>
+			<cfset newName = ucfirst(esc(strip_tags(arguments.options["controller"])))>
+		</cfif>
+
+		<!---
+		 In order to allow customization of allowed id values
+		 we need someplace to store them.
+		--->
+		<cfif StructKeyExists(arguments.options, "placeholder")>
+			<cfset id = arguments.options["placeholder"]>
+		<cfelseif StructKeyExists(this.placeholders, this.defaultPlaceholder)>
+			<cfset id = this.placeholders[this.defaultPlaceholder]>
+		<cfelse>
+			<cfset id = "(:segment)">
+		</cfif>
+
+		<!--- Make sure we capture back-references --->
+		<cfset id = "(" & trim_(id, "()") & ")">
+
+		<cfif StructKeyExists(arguments.options, "only")>
+			<cfif IsArray(arguments.options["only"])>
+				<cfset methods = ArrayToList(arguments.options["only"])>
+			<cfelse>
+				<cfset methods = arguments.options["only"]>
+			</cfif>
+		</cfif>
+
+		<cfif StructKeyExists(arguments.options, "except")>
+			<cfif IsArray(arguments.options["except"])>
+				<cfset except = ArrayToList(arguments.options["except"])>
+			<cfelse>
+				<cfset except = arguments.options["except"]>
+			</cfif>
+
+			<cfloop list="#methods#" index="method">
+				<cfif NOT ListFind(except, method)>
+					<cfset kept = ListAppend(kept, method)>
+				</cfif>
+			</cfloop>
+			<cfset methods = kept>
+		</cfif>
+
+		<cfif ListFind(methods, "index")>
+			<cfset get(arguments.name, newName & "::index", arguments.options)>
+		</cfif>
+		<cfif ListFind(methods, "new")>
+			<cfset get(arguments.name & "/new", newName & "::new", arguments.options)>
+		</cfif>
+		<cfif ListFind(methods, "edit")>
+			<cfset get(arguments.name & "/" & id & "/edit", newName & "::edit/$1", arguments.options)>
+		</cfif>
+		<cfif ListFind(methods, "show")>
+			<cfset get(arguments.name & "/" & id, newName & "::show/$1", arguments.options)>
+		</cfif>
+		<cfif ListFind(methods, "create")>
+			<cfset post(arguments.name, newName & "::create", arguments.options)>
+		</cfif>
+		<cfif ListFind(methods, "update")>
+			<cfset put(arguments.name & "/" & id, newName & "::update/$1", arguments.options)>
+			<cfset patch(arguments.name & "/" & id, newName & "::update/$1", arguments.options)>
+		</cfif>
+		<cfif ListFind(methods, "delete")>
+			<cfset delete(arguments.name & "/" & id, newName & "::delete/$1", arguments.options)>
+		</cfif>
+
+		<!--- Web Safe? delete needs checking before update because of method name --->
+		<cfif StructKeyExists(arguments.options, "websafe")>
+			<cfif ListFind(methods, "delete")>
+				<cfset post(arguments.name & "/" & id & "/delete", newName & "::delete/$1", arguments.options)>
+			</cfif>
+			<cfif ListFind(methods, "update")>
+				<cfset post(arguments.name & "/" & id, newName & "::update/$1", arguments.options)>
+			</cfif>
+		</cfif>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Creates a collections of HTTP-verb based routes for a presenter controller.
+	 *
+	 * Possible Options:
+	 *      'controller'    - Customize the name of the controller used in the 'to' route
+	 *      'placeholder'   - The regex used by the Router. Defaults to '(:any)'
+	 *      'only'          - Limit the routes to these methods (list or array)
+	 *      'except'        - Leave out these methods (list or array)
+	 *
+	 * Example:
+	 *
+	 *      <cfset routes.presenter("photos")>
+	 *
+	 *      // Generates the following routes:
+	 *      HTTP Verb | Path        | Action        | Used for...
+	 *      ----------+-------------+---------------+-----------------
+	 *      GET         /photos             index           showing all array of photo objects
+	 *      GET         /photos/show/{id}   show            showing a specific photo object, all properties
+	 *      GET         /photos/new         new             showing a form for an empty photo object, with default properties
+	 *      POST        /photos/create      create          processing the form for a new photo
+	 *      GET         /photos/edit/{id}   edit            show an editing form for a specific photo object, editable properties
+	 *      POST        /photos/update/{id} update          process the editing form data
+	 *      GET         /photos/remove/{id} remove          show a form to confirm deletion of a specific photo object
+	 *      POST        /photos/delete/{id} delete          deleting the specified photo object
+	 *
+	 * Difference: the methods are kept in a list, which ListFind() checks
+	 * in one call, where the original searches an array for each route.
+	 *
+	 * @param name    The name of the controller to route to.
+	 * @param options A list of possible ways to customize the routing.
+	--->
+	<cffunction name="presenter" access="public" returntype="any" output="no">
+		<cfargument name="name" type="string" required="yes">
+		<cfargument name="options" type="any" required="no" default="">
+		<cfset var newName = "">
+		<cfset var id = "">
+		<cfset var methods = "index,show,new,create,edit,update,remove,delete">
+		<cfset var except = "">
+		<cfset var kept = "">
+		<cfset var method = "">
+		<cfset var parts = "">
+		<cfset var i = 0>
+
+		<cfif NOT IsStruct(arguments.options)>
+			<cfset arguments.options = array_()>
+		</cfif>
+
+		<!---
+		 In order to allow customization of the route the
+		 resources are sent to, we need to have a new name
+		 to store the values in.
+		--->
+		<cfset parts = explode("/", arguments.name)>
+		<cfloop from="1" to="#ArrayLen(parts)#" index="i">
+			<cfset parts[i] = ucfirst(parts[i])>
+		</cfloop>
+		<cfset newName = implode("\", parts)>
+
+		<!---
+		 If a new controller is specified, then we replace the
+		 name value with the name of the new controller.
+		--->
+		<cfif StructKeyExists(arguments.options, "controller")>
+			<cfset newName = ucfirst(esc(strip_tags(arguments.options["controller"])))>
+		</cfif>
+
+		<!---
+		 In order to allow customization of allowed id values
+		 we need someplace to store them.
+		--->
+		<cfif StructKeyExists(arguments.options, "placeholder")>
+			<cfset id = arguments.options["placeholder"]>
+		<cfelseif StructKeyExists(this.placeholders, this.defaultPlaceholder)>
+			<cfset id = this.placeholders[this.defaultPlaceholder]>
+		<cfelse>
+			<cfset id = "(:segment)">
+		</cfif>
+
+		<!--- Make sure we capture back-references --->
+		<cfset id = "(" & trim_(id, "()") & ")">
+
+		<cfif StructKeyExists(arguments.options, "only")>
+			<cfif IsArray(arguments.options["only"])>
+				<cfset methods = ArrayToList(arguments.options["only"])>
+			<cfelse>
+				<cfset methods = arguments.options["only"]>
+			</cfif>
+		</cfif>
+
+		<cfif StructKeyExists(arguments.options, "except")>
+			<cfif IsArray(arguments.options["except"])>
+				<cfset except = ArrayToList(arguments.options["except"])>
+			<cfelse>
+				<cfset except = arguments.options["except"]>
+			</cfif>
+
+			<cfloop list="#methods#" index="method">
+				<cfif NOT ListFind(except, method)>
+					<cfset kept = ListAppend(kept, method)>
+				</cfif>
+			</cfloop>
+			<cfset methods = kept>
+		</cfif>
+
+		<cfif ListFind(methods, "index")>
+			<cfset get(arguments.name, newName & "::index", arguments.options)>
+		</cfif>
+		<cfif ListFind(methods, "show")>
+			<cfset get(arguments.name & "/show/" & id, newName & "::show/$1", arguments.options)>
+		</cfif>
+		<cfif ListFind(methods, "new")>
+			<cfset get(arguments.name & "/new", newName & "::new", arguments.options)>
+		</cfif>
+		<cfif ListFind(methods, "create")>
+			<cfset post(arguments.name & "/create", newName & "::create", arguments.options)>
+		</cfif>
+		<cfif ListFind(methods, "edit")>
+			<cfset get(arguments.name & "/edit/" & id, newName & "::edit/$1", arguments.options)>
+		</cfif>
+		<cfif ListFind(methods, "update")>
+			<cfset post(arguments.name & "/update/" & id, newName & "::update/$1", arguments.options)>
+		</cfif>
+		<cfif ListFind(methods, "remove")>
+			<cfset get(arguments.name & "/remove/" & id, newName & "::remove/$1", arguments.options)>
+		</cfif>
+		<cfif ListFind(methods, "delete")>
+			<cfset post(arguments.name & "/delete/" & id, newName & "::delete/$1", arguments.options)>
+		</cfif>
+		<cfif ListFind(methods, "show")>
+			<cfset get(arguments.name & "/" & id, newName & "::show/$1", arguments.options)>
+		</cfif>
+		<cfif ListFind(methods, "create")>
+			<cfset post(arguments.name, newName & "::create", arguments.options)>
+		</cfif>
 
 		<cfreturn this>
 	</cffunction>
