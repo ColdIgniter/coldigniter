@@ -320,13 +320,13 @@
 		<!--- Send all of our headers --->
 		<cfset headers = this.headers()>
 		<cfloop collection="#headers#" item="name">
-			<cfif name EQ "Content-Type">
-				<cfcontent type="#headers[name]#">
-			<cfelseif IsArray(headers[name])>
+			<cfif IsArray(headers[name])>
 				<!--- several headers of the same name (see addHeader) --->
 				<cfloop from="1" to="#ArrayLen(headers[name])#" index="i">
 					<cfheader name="#name#" value="#headers[name][i]#">
 				</cfloop>
+			<cfelseif name EQ "Content-Type">
+				<cfcontent type="#headers[name]#">
 			<cfelse>
 				<cfheader name="#name#" value="#headers[name]#">
 			</cfif>

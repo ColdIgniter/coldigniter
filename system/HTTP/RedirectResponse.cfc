@@ -170,9 +170,16 @@
 	<cffunction name="withHeaders" access="public" returntype="any" output="no">
 		<cfset var headers = service("response").headers()>
 		<cfset var name = "">
+		<cfset var i = 0>
 
 		<cfloop collection="#headers#" item="name">
-			<cfset setHeader(name, headers[name])>
+			<cfif IsArray(headers[name])>
+				<cfloop from="1" to="#ArrayLen(headers[name])#" index="i">
+					<cfset addHeader(name, headers[name][i])>
+				</cfloop>
+			<cfelse>
+				<cfset setHeader(name, headers[name])>
+			</cfif>
 		</cfloop>
 
 		<cfreturn this>

@@ -101,7 +101,9 @@
 		<cfset populateHeaders()>
 
 		<!--- The body of the request is read here, where the original reads the input stream. --->
+		<!--- The input stream is not available with enctype="multipart/form-data". --->
 		<cfif is_null(arguments.body)
+			AND Find("multipart/form-data", getHeaderLine("Content-Type")) EQ 0
 			AND Val(getHeaderLine("Content-Length")) LTE getPostMaxSize(ini_get("post_max_size"))>
 			<cfset arguments.body = http_request_data().content>
 		</cfif>
@@ -138,15 +140,14 @@
 	 * what ini_set() has kept, as the server has no ini file; an option that was
 	 * not set is an empty string, which is 0 and so unlimited. The unlimited
 	 * value is 9223372036854775807. The prefixes of hex, octal and binary
-	 * (0x, 0, 0b) are read as the original does, with the suffix K, M or G.
-	 * Unlike the original it gives 0 for a value that is not a number.
+	 * (0x, 0, 0b, 0o) are read as the original does, with the suffix K, M or G.
 	 *
 	 * @param postMaxSize
 	--->
 	<cffunction name="getPostMaxSize" access="private" returntype="numeric" output="no">
 		<cfargument name="postMaxSize" type="string" required="yes">
 		<cfset var text = LCase(Trim(arguments.postMaxSize))>
-		<cfset var match = REFind("^([-+]?)(0x[0-9a-f]+|0b[01]+|[0-9]+)([kmg]?)", text, 1, true)>
+		<cfset var match = REFind("^([-+]?)(0x[0-9a-f]+|0b[01]+|0o[0-7]+|[0-9]+)([kmg]?)", text, 1, true)>
 		<cfset var sign = "">
 		<cfset var digits = "">
 		<cfset var suffix = "">
@@ -163,6 +164,9 @@
 
 		<cfif Left(digits, 2) EQ "0x">
 			<cfset radix = 16>
+			<cfset digits = Mid(digits, 3, Len(digits))>
+		<cfelseif Left(digits, 2) EQ "0o">
+			<cfset radix = 8>
 			<cfset digits = Mid(digits, 3, Len(digits))>
 		<cfelseif Left(digits, 2) EQ "0b">
 			<cfset radix = 2>
@@ -450,7 +454,7 @@
 	 * Difference: json_decode() has no assoc, depth or options arguments (an
 	 * object is always a map, the depth is cut at 32), only the option
 	 * JSON_THROW_ON_ERROR (4194304) is read. The text of a number, true,
-	 * false and null comes back as it is written (see json_decode()). The
+	 * false comes back as it is written, and a bare null as an empty string (null), see json_decode(). The
 	 * message of the exception is the one of the language file HTTP, which
 	 * is not ported, written in place.
 	 *
@@ -468,7 +472,7 @@
 		</cfif>
 
 		<cftry>
-			<cfset result = json_decode(this.body)>
+			<cfset result = json_decode(this.body, "", true)>
 
 			<cfcatch type="ColdIgniter.JsonException">
 				<!--- JSON_THROW_ON_ERROR (4194304) keeps the JsonException --->
@@ -518,41 +522,11 @@
 			<cfset data = result>
 		</cfif>
 
-		<!--- Difference: json_decode() gives the text null for a JSON null, which is turned into an empty string (null) here, also inside a nested value. A string "null" is turned too, as the two can not be told apart. --->
-		<cfset data = nullText(data)>
-
 		<!--- Not ported yet: the filters (filter_var, array_walk_recursive) --->
 
 		<!--- Difference: an object is a map whether assoc is set or not (there is no object type), so the conversion with json_decode(json_encode()) is not done. --->
 
 		<cfreturn data>
-	</cffunction>
-
-	<!---
-	 * Turns the text null of a decoded JSON value into an empty string (null),
-	 * in a map or a list too.
-	--->
-	<cffunction name="nullText" access="private" returntype="any" output="no">
-		<cfargument name="value" type="any" required="yes">
-		<cfset var keys = "">
-		<cfset var key = "">
-		<cfset var i = 0>
-
-		<cfif IsArray(arguments.value)>
-			<cfloop from="1" to="#ArrayLen(arguments.value)#" index="i">
-				<cfset arguments.value[i] = nullText(arguments.value[i])>
-			</cfloop>
-		<cfelseif IsStruct(arguments.value)>
-			<cfset keys = arguments.value.keySet().toArray()>
-			<cfloop from="1" to="#ArrayLen(keys)#" index="i">
-				<cfset key = keys[i]>
-				<cfset arguments.value[key] = nullText(arguments.value[key])>
-			</cfloop>
-		<cfelseif IsSimpleValue(arguments.value) AND Compare(arguments.value, "null") EQ 0>
-			<cfreturn "">
-		</cfif>
-
-		<cfreturn arguments.value>
 	</cffunction>
 
 	<!---
