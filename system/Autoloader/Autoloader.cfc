@@ -653,6 +653,58 @@
 			<!--- One call for all of them: the plan only holds functions the class does not have itself. --->
 			<cfset StructAppend(arguments.object, plan.publicFunctions, true)>
 
+			<!---
+			 * A parent object that serves every child (see parentObject())
+			 * is never changed, and each of its properties is a simple
+			 * value, an array of the engine or an empty map that keeps its
+			 * order. So the properties are sorted once: the simple values
+			 * are given in one call, which keeps what the object has
+			 * itself, and nothing is asked about the kind of the others
+			 * again. An array is still assigned by itself, because only an
+			 * assignment copies it.
+			--->
+			<cfif StructKeyExists(variables.parentsShared, arguments.parent.__class) AND variables.parentsShared[arguments.parent.__class]>
+				<cfif NOT StructKeyExists(plan, "simple")>
+					<cfset plan.simple = StructNew()>
+					<cfset plan.arrays = ArrayNew(1)>
+					<cfset plan.maps = ArrayNew(1)>
+
+					<cfloop from="1" to="#ArrayLen(plan.properties)#" index="i">
+						<cfset name = plan.properties[i]>
+
+						<cfif IsSimpleValue(arguments.parent[name])>
+							<cfset plan.simple[name] = arguments.parent[name]>
+						<cfelseif IsArray(arguments.parent[name])>
+							<cfset ArrayAppend(plan.arrays, name)>
+						<cfelse>
+							<cfset ArrayAppend(plan.maps, name)>
+						</cfif>
+					</cfloop>
+				</cfif>
+
+				<cfset StructAppend(arguments.object, plan.simple, false)>
+
+				<cfloop from="1" to="#ArrayLen(plan.arrays)#" index="i">
+					<cfset name = plan.arrays[i]>
+
+					<cfif NOT StructKeyExists(arguments.object, name)>
+						<cfset arguments.object[name] = arguments.parent[name]>
+					</cfif>
+				</cfloop>
+
+				<cfloop from="1" to="#ArrayLen(plan.maps)#" index="i">
+					<cfset name = plan.maps[i]>
+
+					<cfif NOT StructKeyExists(arguments.object, name)>
+						<cfset arguments.object[name] = CreateObject("java", "java.util.LinkedHashMap").init()>
+					</cfif>
+				</cfloop>
+
+				<cfset objectVariables.parent = plan.parent>
+
+				<cfreturn>
+			</cfif>
+
 			<cfloop from="1" to="#ArrayLen(plan.properties)#" index="i">
 				<cfset name = plan.properties[i]>
 
