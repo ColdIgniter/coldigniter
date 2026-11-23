@@ -25,7 +25,7 @@
  *
  * Difference: is_null(x) is written out as (IsSimpleValue(x) AND x EQ "")
  * in this file, which is the body of is_null(). A query passes these tests
- * five times, and the test costs a tenth of the call of the function.
+ * several times, and the test costs a tenth of the call of the function.
 --->
 <cfcomponent output="no" extends="QueryInterface" hint="Query builder">
 
