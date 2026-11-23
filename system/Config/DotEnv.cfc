@@ -24,6 +24,10 @@
  * was kept. The values are kept as data and are never run as code. They
  * are only kept when no environment value is set yet, as a value that is
  * already set changes what the file gives. parse() always reads the file.
+ * Two cases are not seen: a change of the .env file that leaves both its
+ * time and its size as they were (the time is compared to 10
+ * milliseconds), and a .env file that can no longer be read while it
+ * still has its time and size, where parse() would throw.
  *
  * The file that is kept is encrypted (AES, 128 bit, CBC) and signed
  * (HMAC-SHA1 of the vector and the encrypted text, the strongest the
