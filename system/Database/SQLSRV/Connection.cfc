@@ -33,7 +33,15 @@
  * on the same connection of the data source, which 6.1 does not promise.
  * close() rolls back a transaction that is still open. The data source
  * keeps a transaction that a request left open, so a statement outside a
- * transaction first rolls back what is left on its connection.
+ * transaction first rolls back what is left on its connection (see
+ * execute() for the statements that are sent as they are).
+ *
+ * Difference: all the Connection objects of one DSN share the connection
+ * of the data source, so one DSN carries one transaction in a request.
+ * The request remembers that it is open (see transOpen()): a statement of
+ * another object of the same DSN then runs inside that transaction. A
+ * transaction that is opened with query("BEGIN TRANSACTION") is not
+ * known, and the next statement rolls it back: use transBegin().
  *
  * Difference: NULL and an empty string cannot be told apart in a query of
  * 6.1. Both are an empty string (see Result).
@@ -226,6 +234,9 @@
 				<cfcatch type="any">
 				</cfcatch>
 			</cftry>
+
+			<cfset this.transDepth = 0>
+			<cfset setTransOpen(false)>
 		</cfif>
 	</cffunction>
 
@@ -421,6 +432,11 @@
 	 * max_length, nullable (a real boolean) and default. A default that is
 	 * NULL or empty is an empty string.
 	 *
+	 * Difference: the rows are ordered by ORDINAL_POSITION, so the fields
+	 * come in the order of the table. IS_NULLABLE is compared without case
+	 * and without the spaces around it: SQL Server 2000 gives "No" and
+	 * "YES".
+	 *
 	 * @return list<stdClass>
 	 *
 	 * @throws DatabaseException
@@ -511,21 +527,80 @@
 	 * Begin Transaction
 	--->
 	<cffunction name="_transBegin" access="private" returntype="boolean" output="no">
-		<cfreturn transStatement("BEGIN TRANSACTION")>
+		<cfif transStatement("BEGIN TRANSACTION")>
+			<cfset setTransOpen(true)>
+
+			<cfreturn true>
+		</cfif>
+
+		<cfreturn false>
 	</cffunction>
 
 	<!---
 	 * Commit Transaction
 	--->
 	<cffunction name="_transCommit" access="private" returntype="boolean" output="no">
-		<cfreturn transStatement("COMMIT TRANSACTION")>
+		<cfif transStatement("COMMIT TRANSACTION")>
+			<cfset setTransOpen(false)>
+
+			<cfreturn true>
+		</cfif>
+
+		<cfreturn false>
 	</cffunction>
 
 	<!---
 	 * Rollback Transaction
+	 *
+	 * Difference: the server has already rolled back after a deadlock or
+	 * an error that ends the batch, and a ROLLBACK TRANSACTION is an error
+	 * then. So it is only sent when a transaction is open.
 	--->
 	<cffunction name="_transRollback" access="private" returntype="boolean" output="no">
-		<cfreturn transStatement("ROLLBACK TRANSACTION")>
+		<cfif transStatement("IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION")>
+			<cfset setTransOpen(false)>
+
+			<cfreturn true>
+		</cfif>
+
+		<cfreturn false>
+	</cffunction>
+
+	<!---
+	 * Is a transaction of this request open on the DSN?
+	 *
+	 * Not in the original (see the header).
+	--->
+	<cffunction name="transOpen" access="private" returntype="boolean" output="no">
+
+		<cfif NOT StructKeyExists(request, "ColdIgniter") OR NOT StructKeyExists(request.ColdIgniter, "sqlsrvTransactions")>
+			<cfreturn false>
+		</cfif>
+
+		<cfreturn StructKeyExists(request.ColdIgniter.sqlsrvTransactions, this.DSN)>
+	</cffunction>
+
+	<!---
+	 * Remembers for the request that a transaction is open on the DSN.
+	 *
+	 * Not in the original (see the header).
+	--->
+	<cffunction name="setTransOpen" access="private" returntype="void" output="no">
+		<cfargument name="open" type="boolean" required="yes">
+
+		<cfif NOT StructKeyExists(request, "ColdIgniter")>
+			<cfset request.ColdIgniter = StructNew()>
+		</cfif>
+
+		<cfif NOT StructKeyExists(request.ColdIgniter, "sqlsrvTransactions")>
+			<cfset request.ColdIgniter.sqlsrvTransactions = StructNew()>
+		</cfif>
+
+		<cfif arguments.open>
+			<cfset request.ColdIgniter.sqlsrvTransactions[this.DSN] = true>
+		<cfelse>
+			<cfset StructDelete(request.ColdIgniter.sqlsrvTransactions, this.DSN)>
+		</cfif>
 	</cffunction>
 
 	<!---
@@ -643,10 +718,13 @@
 		 The data source hands a connection on to the next request as it is:
 		 a transaction that a request left open is still open there
 		 (verified on the server). So a statement outside a transaction
-		 first rolls back what is left. A statement that must be the first
-		 of its batch (CREATE VIEW and the like) is sent as it is.
+		 first rolls back what is left. Only a statement that starts with
+		 one of the words below gets this line. Any other is sent as it
+		 is: it may have to be the first of its batch (CREATE VIEW, a
+		 procedure that is called by its name alone, a statement after a
+		 comment), and then it runs inside what is left.
 		--->
-		<cfif this.transDepth EQ 0 AND REFindNoCase("^[[:space:]]*(CREATE|ALTER)[[:space:]]+(VIEW|PROC|PROCEDURE|FUNCTION|TRIGGER|DEFAULT|RULE)[[:space:]]", arguments.sql) EQ 0>
+		<cfif this.transDepth EQ 0 AND NOT transOpen() AND (REFindNoCase("^[[:space:]]*(SELECT|INSERT|UPDATE|DELETE|EXEC|EXECUTE|DROP|TRUNCATE|BEGIN|USE|IF|SET|DECLARE)([^[:alnum:]_]|$)", arguments.sql) GT 0 OR REFindNoCase("^[[:space:]]*(CREATE|ALTER)[[:space:]]+(TABLE|INDEX|UNIQUE|CLUSTERED|NONCLUSTERED|DATABASE)[[:space:]]", arguments.sql) GT 0)>
 			<cfset guard = "IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION" & Chr(10)>
 			<cfset batch = guard & arguments.sql>
 		</cfif>
@@ -705,7 +783,8 @@
 			<cfset this.lastAffectedRows = Val(q.ci_affected_rows[1])>
 			<cfset newID = q.ci_insert_id[1]>
 
-			<cfif Len(newID) GT 0>
+			<!--- An INSERT into a table without an identity column gives 0. --->
+			<cfif REFindNoCase("^[[:space:]]*INSERT[[:space:]]", arguments.sql) GT 0>
 				<cfset this.lastInsertID = Int(Val(newID))>
 			</cfif>
 
@@ -739,6 +818,10 @@
 
 	<!---
 	 * Returns a string containing the version of the database being used.
+	 *
+	 * Difference: the original reads SQLServerVersion from the driver,
+	 * which pads the parts ("08.00.0760"). This is the ProductVersion of
+	 * the server ("8.00.760").
 	--->
 	<cffunction name="getVersion" access="public" returntype="string" output="no">
 		<cfset var result = "">
