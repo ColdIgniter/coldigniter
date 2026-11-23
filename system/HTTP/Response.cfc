@@ -305,6 +305,7 @@
 	<cffunction name="sendHeaders" access="public" returntype="any" output="no">
 		<cfset var headers = "">
 		<cfset var name = "">
+		<cfset var i = 0>
 
 		<!--- Have the headers already been sent? --->
 		<cfif this.pretend_>
@@ -321,6 +322,11 @@
 		<cfloop collection="#headers#" item="name">
 			<cfif name EQ "Content-Type">
 				<cfcontent type="#headers[name]#">
+			<cfelseif IsArray(headers[name])>
+				<!--- several headers of the same name (see addHeader) --->
+				<cfloop from="1" to="#ArrayLen(headers[name])#" index="i">
+					<cfheader name="#name#" value="#headers[name][i]#">
+				</cfloop>
 			<cfelse>
 				<cfheader name="#name#" value="#headers[name]#">
 			</cfif>

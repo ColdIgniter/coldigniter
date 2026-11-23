@@ -7,8 +7,10 @@
  * The checks of the Header class (validateName and validateValue) are
  * done here, in setHeader, as the Header constructor does them.
  *
- * Not ported yet: appendHeader, prependHeader, addHeader, the Header
- * class, and headers that have more than one value.
+ * Difference: there is no Header class. The values of one header are kept
+ * as one line, joined with ", " (what getValueLine() gives). Several
+ * headers of the same name (addHeader) are a list of such lines.
+ * appendHeader does not add a value that the line has already.
 --->
 <cfcomponent output="no" hint="An HTTP message">
 
@@ -117,7 +119,11 @@
 	<cffunction name="setHeader" access="public" returntype="any" output="no">
 		<cfargument name="name" type="string" required="yes">
 		<cfargument name="value" type="any" required="yes">
-		<cfset var origName = getHeaderName(arguments.name)>
+		<cfset var origName = "">
+
+		<cfset checkMultipleHeaders(arguments.name)>
+
+		<cfset origName = getHeaderName(arguments.name)>
 
 		<cfif IsArray(arguments.value)>
 			<cfset arguments.value = implode(", ", arguments.value)>
@@ -156,10 +162,142 @@
 	</cffunction>
 
 	<!---
+	 * Returns an array containing all Headers.
+	 *
+	 * @return An array of the headers, by name
+	--->
+	<cffunction name="getHeaders" access="public" returntype="any" output="no">
+		<cfreturn headers()>
+	</cffunction>
+
+	<!---
+	 * Returns a single Header. If multiple headers with the same
+	 * name exist, then will return a list of them.
+	--->
+	<cffunction name="getHeader" access="public" returntype="any" output="no">
+		<cfargument name="name" type="string" required="yes">
+
+		<cfreturn header(arguments.name)>
+	</cffunction>
+
+	<cffunction name="hasMultipleHeaders" access="private" returntype="boolean" output="no">
+		<cfargument name="name" type="string" required="yes">
+		<cfset var origName = getHeaderName(arguments.name)>
+
+		<cfreturn StructKeyExists(this.headers_, origName) AND IsArray(this.headers_[origName])>
+	</cffunction>
+
+	<cffunction name="checkMultipleHeaders" access="private" returntype="void" output="no">
+		<cfargument name="name" type="string" required="yes">
+
+		<cfif hasMultipleHeaders(arguments.name)>
+			<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="The header ""#arguments.name#"" already has multiple headers. You cannot change them. If you really need to change, remove the header first.">
+		</cfif>
+	</cffunction>
+
+	<!---
+	 * Adds an additional header value to any headers that accept
+	 * multiple values.
+	 *
+	 * A value that is an empty string stands for null: nothing is added to
+	 * a header that exists.
+	--->
+	<cffunction name="appendHeader" access="public" returntype="any" output="no">
+		<cfargument name="name" type="string" required="yes">
+		<cfargument name="value" type="any" required="no" default="">
+		<cfset var origName = "">
+		<cfset var line = "">
+
+		<cfset checkMultipleHeaders(arguments.name)>
+
+		<cfset origName = getHeaderName(arguments.name)>
+
+		<cfif NOT StructKeyExists(this.headers_, origName)>
+			<cfset setHeader(arguments.name, arguments.value)>
+			<cfreturn this>
+		</cfif>
+
+		<cfif is_null(arguments.value)>
+			<cfreturn this>
+		</cfif>
+
+		<cfset validateValue(arguments.value)>
+
+		<cfset line = this.headers_[origName]>
+
+		<!--- a value that the line has already is not added again --->
+		<cfif Find(", " & arguments.value & ", ", ", " & line & ", ") EQ 0>
+			<cfset this.headers_[origName] = line & ", " & arguments.value>
+		</cfif>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Adds a header (not a header value) with the same name.
+	 * Use this only when you set multiple headers with the same name,
+	 * typically, for `Set-Cookie`.
+	--->
+	<cffunction name="addHeader" access="public" returntype="any" output="no">
+		<cfargument name="name" type="string" required="yes">
+		<cfargument name="value" type="string" required="yes">
+		<cfset var origName = getHeaderName(arguments.name)>
+		<cfset var line = "">
+
+		<cfif NOT StructKeyExists(this.headers_, origName)>
+			<cfset setHeader(arguments.name, arguments.value)>
+			<cfreturn this>
+		</cfif>
+
+		<cfset validateValue(arguments.value)>
+
+		<cfif NOT hasMultipleHeaders(arguments.name)>
+			<cfset line = this.headers_[origName]>
+			<cfset this.headers_[origName] = ArrayNew(1)>
+			<cfset ArrayAppend(this.headers_[origName], line)>
+		</cfif>
+
+		<cfset ArrayAppend(this.headers_[origName], arguments.value)>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Adds a value in front of the values of a header.
+	 *
+	 * Difference: a header that does not exist is set (the original
+	 * fails on a missing header).
+	--->
+	<cffunction name="prependHeader" access="public" returntype="any" output="no">
+		<cfargument name="name" type="string" required="yes">
+		<cfargument name="value" type="string" required="yes">
+		<cfset var origName = "">
+
+		<cfset checkMultipleHeaders(arguments.name)>
+
+		<cfset origName = getHeaderName(arguments.name)>
+
+		<cfif NOT StructKeyExists(this.headers_, origName)>
+			<cfset setHeader(arguments.name, arguments.value)>
+			<cfreturn this>
+		</cfif>
+
+		<cfset validateValue(arguments.value)>
+
+		<cfset this.headers_[origName] = arguments.value & ", " & this.headers_[origName]>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
 	 * Retrieves a comma-separated string of the values for a single header.
 	--->
 	<cffunction name="getHeaderLine" access="public" returntype="string" output="no">
 		<cfargument name="name" type="string" required="yes">
+
+		<cfif hasMultipleHeaders(arguments.name)>
+			<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="The header ""#arguments.name#"" already has multiple headers. You cannot use getHeaderLine().">
+		</cfif>
 
 		<cfreturn header(arguments.name)>
 	</cffunction>
