@@ -318,6 +318,13 @@
 	<cfset this.aliasedTables = ArrayNew(1)>
 
 	<!---
+	 * Not in the original: the results of protectIdentifiers() for text
+	 * items. A java.util.HashMap, made at the first call, as its keys keep
+	 * their case.
+	--->
+	<cfset this.protectCache_ = "">
+
+	<!---
 	 * Query Class
 	 *
 	 * @var string
@@ -1248,6 +1255,7 @@
 		<cfset var i = 0>
 		<cfset var offset = 0>
 		<cfset var alias = "">
+		<cfset var cacheKey = "">
 
 		<cfif NOT is_null(arguments.protectIdentifiers_)>
 			<cfset protect = arguments.protectIdentifiers_>
@@ -1283,6 +1291,22 @@
 		<cfset item_ = "" & arguments.item>
 
 		<!---
+		 * Difference: the result for a text item is kept in this connection,
+		 * as a request asks for the same names many times. The key has all
+		 * that the result depends on: the flags, the prefixes, the escape
+		 * character, the aliased tables and the item.
+		--->
+		<cfif IsSimpleValue(this.protectCache_)>
+			<cfset this.protectCache_ = CreateObject("java", "java.util.HashMap").init()>
+		</cfif>
+
+		<cfset cacheKey = protect & Chr(1) & arguments.prefixSingle & Chr(1) & arguments.fieldExists_ & Chr(1) & this.DBPrefix & Chr(1) & this.swapPre & Chr(1) & IsArray(this.escapeChar) & Chr(1) & ArrayToList(this.aliasedTables, Chr(2)) & Chr(1) & item_>
+
+		<cfif this.protectCache_.containsKey(cacheKey)>
+			<cfreturn this.protectCache_.get(cacheKey)>
+		</cfif>
+
+		<!---
 		 * This is basically a bug fix for queries that use MAX, MIN, etc.
 		 * If a parenthesis is found we know that we do not need to
 		 * escape the data or add a prefix. There's probably a more graceful
@@ -1292,11 +1316,13 @@
 		 * literal strings.
 		--->
 		<cfif strcspn(item_, "()'") NEQ Len(item_)>
+			<cfset this.protectCache_.put(cacheKey, item_)>
 			<cfreturn item_>
 		</cfif>
 
 		<!--- Do not protect identifiers and do not prefix, no swap prefix, there is nothing to do --->
 		<cfif NOT protect AND NOT arguments.prefixSingle AND Len(this.swapPre) EQ 0>
+			<cfset this.protectCache_.put(cacheKey, item_)>
 			<cfreturn item_>
 		</cfif>
 
@@ -1339,7 +1365,9 @@
 		 * with an alias. While we're at it, we will escape the components
 		--->
 		<cfif Find(".", item_) GT 0>
-			<cfreturn protectDotItem(item_, alias, protect, arguments.fieldExists_)>
+			<cfset item_ = protectDotItem(item_, alias, protect, arguments.fieldExists_)>
+			<cfset this.protectCache_.put(cacheKey, item_)>
+			<cfreturn item_>
 		</cfif>
 
 		<!---
@@ -1364,7 +1392,9 @@
 			<cfset item_ = this.escapeIdentifiers(item_)>
 		</cfif>
 
-		<cfreturn item_ & alias>
+		<cfset item_ = item_ & alias>
+		<cfset this.protectCache_.put(cacheKey, item_)>
+		<cfreturn item_>
 	</cffunction>
 
 	<cffunction name="trimEscapeChar" access="private" returntype="string" output="no">
