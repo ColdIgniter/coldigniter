@@ -203,9 +203,9 @@
 	<cfif StructKeyExists(request.ColdIgniter.env, arguments.key)>
 		<cfset value = request.ColdIgniter.env[arguments.key]>
 		<cfset found = true>
-	<cfelseif server_value(arguments.key) NEQ "">
+	<cfelse>
 		<cfset value = server_value(arguments.key)>
-		<cfset found = true>
+		<cfset found = value NEQ "">
 	</cfif>
 
 	<!--- Not found? Return the default value --->
@@ -793,37 +793,71 @@
 --->
 <cffunction name="server_value" returntype="string" output="no" hint="Returns a value of the server (the CGI scope) unless a request header supplied it">
 	<cfargument name="key" type="string" required="yes">
+	<cfset var store = request.ColdIgniter>
 	<cfset var headers = "">
 	<cfset var name = "">
+	<cfset var value = "">
 
-	<cfif REFindNoCase("^HTTP_[A-Z0-9_]+$", arguments.key) GT 0>
-		<cfreturn CGI[arguments.key]>
-	</cfif>
+	<!---
+	 * Once per request: the names of the server variables and of the
+	 * request headers as keys (a key lookup takes the place of a search of
+	 * the list for every call), and the values that were read. The CGI
+	 * scope does not change within a request, so a value is read once.
+	--->
+	<cfif NOT StructKeyExists(store, "serverValues")>
+		<cfset store.serverNames = StructNew()>
 
-	<cfif ListFindNoCase(server_names(), arguments.key) EQ 0>
-		<cfreturn "">
-	</cfif>
+		<cfloop list="#server_names()#" index="name">
+			<cfset store.serverNames[name] = true>
+		</cfloop>
 
-	<cfif Compare(UCase(arguments.key), "CONTENT_TYPE") EQ 0 OR Compare(UCase(arguments.key), "CONTENT_LENGTH") EQ 0>
-		<cfreturn CGI[arguments.key]>
-	</cfif>
-
-	<!--- The names of the request headers, once per request --->
-	<cfif NOT StructKeyExists(request.ColdIgniter, "headerNames")>
-		<cfset headers = GetHttpRequestData().headers>
-		<cfset request.ColdIgniter.headerNames = StructNew()>
+		<cfset headers = http_request_data().headers>
+		<cfset store.headerNames = StructNew()>
 
 		<cfloop collection="#headers#" item="name">
-			<cfset request.ColdIgniter.headerNames[REReplace(UCase(name), "[^A-Z0-9]", "", "all")] = true>
+			<cfset store.headerNames[REReplace(UCase(name), "[^A-Z0-9]", "", "all")] = true>
 		</cfloop>
+
+		<cfset store.serverValues = StructNew()>
 	</cfif>
 
-	<!--- Difference: names are compared with everything but letters and digits removed, so a header spelled with dashes, dots or doubled separators still counts as the variable --->
-	<cfif StructKeyExists(request.ColdIgniter.headerNames, REReplace(UCase(arguments.key), "[^A-Z0-9]", "", "all"))>
+	<cfif StructKeyExists(store.serverValues, arguments.key)>
+		<cfreturn store.serverValues[arguments.key]>
+	</cfif>
+
+	<cfif Left(arguments.key, 5) EQ "HTTP_" AND REFindNoCase("^HTTP_[A-Z0-9_]+$", arguments.key) GT 0>
+		<cfset value = CGI[arguments.key]>
+	<cfelseif NOT StructKeyExists(store.serverNames, arguments.key)>
 		<cfreturn "">
+	<cfelseif arguments.key EQ "CONTENT_TYPE" OR arguments.key EQ "CONTENT_LENGTH">
+		<cfset value = CGI[arguments.key]>
+	<!--- Difference: names are compared with everything but letters and digits removed, so a header spelled with dashes, dots or doubled separators still counts as the variable (a name of the list has only letters and "_") --->
+	<cfelseif NOT StructKeyExists(store.headerNames, Replace(arguments.key, "_", "", "all"))>
+		<cfset value = CGI[arguments.key]>
 	</cfif>
 
-	<cfreturn CGI[arguments.key]>
+	<cfset store.serverValues[arguments.key] = value>
+
+	<cfreturn value>
+</cffunction>
+
+<!---
+ * The headers and the body of the request, as GetHttpRequestData() gives
+ * them.
+ *
+ * Difference: this has no counterpart in the original. The engine builds
+ * the structure anew for every call (about half a millisecond on the
+ * server), and a request reads it several times, so it is read once and
+ * kept for the request. Cache/FrontPage.cfm reads it first when it runs.
+ *
+ * @return A structure with the keys headers, content, method and protocol
+--->
+<cffunction name="http_request_data" returntype="struct" output="no" hint="The headers and the body of the request, read once per request">
+	<cfif NOT StructKeyExists(request, "ColdIgniterRequestData")>
+		<cfset request.ColdIgniterRequestData = GetHttpRequestData()>
+	</cfif>
+
+	<cfreturn request.ColdIgniterRequestData>
 </cffunction>
 
 <!---
