@@ -50,8 +50,31 @@
 		<cfset var prefix = this.__class>
 		<cfset var shortPrefix = LCase(ListLast(prefix, "\"))>
 		<cfset var i = 0>
+		<cfset var key = "">
+		<cfset var wanted = false>
+		<cfset var shortLength = Len(shortPrefix) + 1>
+		<cfset var prefixLength = Len(prefix) + 1>
 
 		<!--- Not ported yet: static::$moduleConfig and registerProperties() --->
+
+		<!---
+		 * Difference: every name getEnvValue() looks for starts with the
+		 * prefix or the short prefix and then "." or "_". When the
+		 * environment has no name that starts so, no property can get a
+		 * value from it, and the walk over the properties is left out.
+		 * Names are compared without regard to case, as the keys of the
+		 * environment are.
+		--->
+		<cfloop collection="#request.ColdIgniter.env#" item="key">
+			<cfif CompareNoCase(Left(key, shortLength), shortPrefix & ".") EQ 0 OR CompareNoCase(Left(key, shortLength), shortPrefix & "_") EQ 0 OR CompareNoCase(Left(key, prefixLength), prefix & ".") EQ 0 OR CompareNoCase(Left(key, prefixLength), prefix & "_") EQ 0>
+				<cfset wanted = true>
+				<cfbreak>
+			</cfif>
+		</cfloop>
+
+		<cfif NOT wanted>
+			<cfreturn this>
+		</cfif>
 
 		<cfloop collection="#this#" item="property">
 			<cfif Compare(Left(property, 2), "__") NEQ 0 AND NOT IsCustomFunction(this[property])>
@@ -154,7 +177,9 @@
 		<cfset var candidates = ArrayNew(1)>
 		<cfset var i = 0>
 
-		<cfset arguments.shortPrefix = ltrim_(arguments.shortPrefix, "\")>
+		<cfif Left(arguments.shortPrefix, 1) EQ "\">
+			<cfset arguments.shortPrefix = ltrim_(arguments.shortPrefix, "\")>
+		</cfif>
 
 		<!--- $_ENV and $_SERVER are the same struct, so each name is looked up once --->
 		<cfset ArrayAppend(candidates, arguments.shortPrefix & "." & arguments.property)>
