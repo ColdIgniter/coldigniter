@@ -226,8 +226,8 @@
 		<cfelse>
 			<!--- In order to specify a precision, we'll have to modify --->
 			<!--- the pattern used by NumberFormatter. --->
-			<!--- Difference: a number sign is written ## in a string here, so the pattern is ##,###0. --->
-			<cfset pattern = "##,###0." & RepeatString("##", arguments.precision)>
+			<!--- Difference: a number sign is written ## in a string here, so the pattern is ##,####0. --->
+			<cfset pattern = "##,####0." & RepeatString("##", arguments.precision)>
 
 			<cfset formatter.applyPattern(JavaCast("string", pattern))>
 			<cfset output = format_number_java_(formatter, arguments.num)>
