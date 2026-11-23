@@ -11,14 +11,14 @@
  * the same as a missing one: nothing is compiled, so the platform stays empty
  * where the original reports "Unknown Platform" for an empty header.
  *
- * Difference: a platform, a robot and a mobile key is a plain text, so it is
- * found with FindNoCase(), where the original runs a quoted pattern with the
- * i flag; the result is the same. A browser key is a pattern, so it is
- * compiled once to a java.util.regex.Pattern, kept in
- * server.ColdIgniterUserAgentPatterns (a synchronized java.util.Hashtable
- * keyed by the text of the pattern, so the key is case-sensitive). A Pattern
- * is immutable and the entries hold no value of the request, so they are
- * shared by every request.
+ * Difference: a platform and a robot key is a plain text, so it is found
+ * with FindNoCase(), where the original runs a quoted pattern with the i
+ * flag; the result is the same. A browser key is a pattern, so it is
+ * compiled once (always with the i flag) to a java.util.regex.Pattern, kept
+ * in server.ColdIgniterUserAgent[SYSTEMPATH], one synchronized
+ * java.util.Hashtable per install, keyed by the text of the pattern, so the
+ * key is case-sensitive. A Pattern is immutable and the entries hold no
+ * value of the request, so they are shared by every request.
  *
  * Difference: the referrer is "" until it is known, then a boolean.
 --->
@@ -298,6 +298,11 @@
 	<cffunction name="parse" access="public" returntype="void" output="no">
 		<cfargument name="string" type="string" required="yes">
 
+		<!--- an agent that waits to be compiled sets the platform first, as the original did in its constructor --->
+		<cfif arguments.string EQ "">
+			<cfset compile_()>
+		</cfif>
+
 		<!--- Reset values --->
 		<cfset this.isBrowser_ = false>
 		<cfset this.isRobot_ = false>
@@ -471,15 +476,25 @@
 	 * Gives the table of the compiled patterns, made on first use.
 	--->
 	<cffunction name="userAgentPatterns" access="private" returntype="any" output="no">
-		<cfif NOT StructKeyExists(server, "ColdIgniterUserAgentPatterns")>
-			<cflock name="ColdIgniterUserAgentPatterns" type="exclusive" timeout="10">
-				<cfif NOT StructKeyExists(server, "ColdIgniterUserAgentPatterns")>
-					<cfset server.ColdIgniterUserAgentPatterns = CreateObject("java", "java.util.Hashtable").init()>
+		<cfset var path = "">
+
+		<cfif StructKeyExists(request, "SYSTEMPATH")>
+			<cfset path = request.SYSTEMPATH>
+		</cfif>
+
+		<cfif NOT StructKeyExists(server, "ColdIgniterUserAgent") OR NOT StructKeyExists(server.ColdIgniterUserAgent, path)>
+			<cflock name="ColdIgniterUserAgent" type="exclusive" timeout="10">
+				<cfif NOT StructKeyExists(server, "ColdIgniterUserAgent")>
+					<cfset server.ColdIgniterUserAgent = StructNew()>
+				</cfif>
+
+				<cfif NOT StructKeyExists(server.ColdIgniterUserAgent, path)>
+					<cfset server.ColdIgniterUserAgent[path] = CreateObject("java", "java.util.Hashtable").init()>
 				</cfif>
 			</cflock>
 		</cfif>
 
-		<cfreturn server.ColdIgniterUserAgentPatterns>
+		<cfreturn server.ColdIgniterUserAgent[path]>
 	</cffunction>
 
 	<!---
