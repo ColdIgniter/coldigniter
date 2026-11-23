@@ -158,6 +158,23 @@
 	</cffunction>
 
 	<!---
+	 * Leaves out the first rows of the result. The Builder uses it for an
+	 * offset, as SQL Server 2000 has no OFFSET (see Builder).
+	 *
+	 * Not in the original.
+	--->
+	<cffunction name="skipRows" access="public" returntype="void" output="no">
+		<cfargument name="n" type="numeric" required="yes">
+
+		<cfif NOT isValidResultId() OR arguments.n LTE 0>
+			<cfreturn>
+		</cfif>
+
+		<cfset this.fetchPosition = Min(arguments.n, this.resultID.recordCount)>
+		<cfset this.numRows = this.resultID.recordCount - this.fetchPosition>
+	</cffunction>
+
+	<!---
 	 * Returns the result set as an array.
 	 *
 	 * Overridden by driver classes.

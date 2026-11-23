@@ -25,6 +25,8 @@
  * attribute, so execute() adds a select to every INSERT, UPDATE and
  * DELETE statement, in the same batch, that reads @@ROWCOUNT and
  * SCOPE_IDENTITY(). The values wait in lastAffectedRows and lastInsertID.
+ * A batch of the Builder that counts its rows itself declares @ci_rows,
+ * and that variable is read in place of @@ROWCOUNT.
  * When a transaction is open, the same batch stops with an error if the
  * data source connection that runs it has no open transaction.
  *
@@ -63,9 +65,7 @@
  * error is kept in properties (lastErrorState, lastErrorCode and
  * lastErrorMessage) and in the log.
  *
- * Not ported yet: the SQLSRV Builder, Forge and PreparedQuery. The base
- * Builder is used. SQL Server 2000 has no OFFSET or FETCH, no CTE and
- * none of the syntax of 2005 and later: a Builder must not use them.
+ * Not ported yet: the SQLSRV Forge and PreparedQuery.
 --->
 <cfcomponent output="no" parent="ColdIgniter\Database\BaseConnection" hint="Connection for SQLSRV">
 
@@ -707,6 +707,8 @@
 		<cfset var q = "">
 		<cfset var batch = arguments.sql>
 		<cfset var isChange = "false">
+		<cfset var counted = Find("DECLARE @ci_rows INT", arguments.sql) GT 0>
+		<cfset var rowsOf = "@@ROWCOUNT">
 		<cfset var guard = "">
 		<cfset var clean = "">
 		<cfset var state = "">
@@ -743,14 +745,18 @@
 			</cftry>
 		</cfif>
 
-		<cfif REFindNoCase("^[[:space:]]*(INSERT|UPDATE|DELETE)[[:space:]]", arguments.sql) GT 0>
+		<cfif counted OR REFindNoCase("^[[:space:]]*(INSERT|UPDATE|DELETE)[[:space:]]", arguments.sql) GT 0>
 			<cfset isChange = "true">
+
+			<cfif counted>
+				<cfset rowsOf = "@ci_rows">
+			</cfif>
 
 			<cfif this.transDepth GT 0>
 				<cfset guard = "IF @@TRANCOUNT = 0 BEGIN RAISERROR('The transaction is not open on this connection.', 16, 1) RETURN END" & Chr(10)>
 			</cfif>
 
-			<cfset batch = "SET NOCOUNT ON" & Chr(10) & guard & REReplace(arguments.sql, "[;[:space:]]+$", "") & Chr(10) & "SELECT @@ROWCOUNT AS ci_affected_rows, SCOPE_IDENTITY() AS ci_insert_id" & Chr(10) & "SET NOCOUNT OFF">
+			<cfset batch = "SET NOCOUNT ON" & Chr(10) & guard & REReplace(arguments.sql, "[;[:space:]]+$", "") & Chr(10) & "SELECT " & rowsOf & " AS ci_affected_rows, SCOPE_IDENTITY() AS ci_insert_id" & Chr(10) & "SET NOCOUNT OFF">
 		</cfif>
 
 		<cftry>
