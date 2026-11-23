@@ -18,6 +18,7 @@
 	<cfset StructAppend(variables, request.ColdIgniter.functions.__functions(), false)>
 	<cfset request.ColdIgniter.autoloader = "">
 	<cfset request.ColdIgniter.statics = StructNew()>
+	<cfset request.ColdIgniter.instanceofs = StructNew()>
 	<cfset request.ColdIgniter.included = StructNew()>
 	<cfset request.ColdIgniter.helpers = StructNew()>
 	<cfset request.ColdIgniter.ini = StructNew()>
