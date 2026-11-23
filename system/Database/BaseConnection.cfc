@@ -1294,13 +1294,20 @@
 		 * Difference: the result for a text item is kept in this connection,
 		 * as a request asks for the same names many times. The key has all
 		 * that the result depends on: the flags, the prefixes, the escape
-		 * character, the aliased tables and the item.
+		 * character, the reserved identifiers, the aliased tables and the
+		 * item.
 		--->
 		<cfif IsSimpleValue(this.protectCache_)>
 			<cfset this.protectCache_ = CreateObject("java", "java.util.HashMap").init()>
 		</cfif>
 
-		<cfset cacheKey = protect & Chr(1) & arguments.prefixSingle & Chr(1) & arguments.fieldExists_ & Chr(1) & this.DBPrefix & Chr(1) & this.swapPre & Chr(1) & IsArray(this.escapeChar) & Chr(1) & ArrayToList(this.aliasedTables, Chr(2)) & Chr(1) & item_>
+		<cfif IsArray(this.escapeChar)>
+			<cfset cacheKey = "A" & ArrayToList(this.escapeChar, Chr(2))>
+		<cfelse>
+			<cfset cacheKey = "S" & this.escapeChar>
+		</cfif>
+
+		<cfset cacheKey = protect & Chr(1) & arguments.prefixSingle & Chr(1) & arguments.fieldExists_ & Chr(1) & this.DBPrefix & Chr(1) & this.swapPre & Chr(1) & cacheKey & Chr(1) & ArrayToList(this.reservedIdentifiers, Chr(2)) & Chr(1) & ArrayToList(this.aliasedTables, Chr(2)) & Chr(1) & item_>
 
 		<cfif this.protectCache_.containsKey(cacheKey)>
 			<cfreturn this.protectCache_.get(cacheKey)>
