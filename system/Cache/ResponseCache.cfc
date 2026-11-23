@@ -1,10 +1,11 @@
 <!---
  * Web Page Caching
  *
- * Difference: the response is stored as the JSON text of a map {headers,
- * output, status, reason} and not as serialize(); every value comes back
- * as a string. A response header is a single value line here (there are
- * no Header objects), so a header is saved and set as that line.
+ * Difference: the response is handed to the cache as a map {headers,
+ * output, status, reason} and not as serialize() text: the cache handler
+ * stores the map as it is. A response header is a single value line here
+ * (there are no Header objects), so a header is saved and set as that
+ * line.
  *
  * Difference: a cached empty string reads as a miss, as it does in the
  * cache handlers.
@@ -122,7 +123,7 @@
 		<cfset contents.put("status", JavaCast("string", arguments.response.getStatusCode()))>
 		<cfset contents.put("reason", arguments.response.getReasonPhrase())>
 
-		<cfreturn this.cache.save(generateCacheKey(arguments.request_), json_encode(contents), this.ttl)>
+		<cfreturn this.cache.save(generateCacheKey(arguments.request_), contents, this.ttl)>
 	</cffunction>
 
 	<!---
@@ -134,7 +135,6 @@
 		<cfargument name="request_" type="any" required="yes">
 		<cfargument name="response" type="any" required="yes">
 		<cfset var cachedResponse = this.cache.get(generateCacheKey(arguments.request_))>
-		<cfset var ok = true>
 		<cfset var headers = "">
 		<cfset var current = "">
 		<cfset var keys = "">
@@ -143,19 +143,11 @@
 		<cfset var status = 200>
 		<cfset var reason = "">
 
-		<cfif NOT IsSimpleValue(cachedResponse) OR Compare(cachedResponse, "") EQ 0>
+		<cfif IsSimpleValue(cachedResponse) AND Compare(cachedResponse, "") EQ 0>
 			<cfreturn "">
 		</cfif>
 
-		<cftry>
-			<cfset cachedResponse = json_decode(cachedResponse)>
-
-			<cfcatch type="any">
-				<cfset ok = false>
-			</cfcatch>
-		</cftry>
-
-		<cfif NOT ok OR NOT IsStruct(cachedResponse) OR NOT StructKeyExists(cachedResponse, "output") OR NOT StructKeyExists(cachedResponse, "headers") OR NOT IsStruct(cachedResponse["headers"])>
+		<cfif NOT IsStruct(cachedResponse) OR NOT StructKeyExists(cachedResponse, "output") OR NOT StructKeyExists(cachedResponse, "headers") OR NOT IsStruct(cachedResponse["headers"])>
 			<cfthrow type="ColdIgniter.Exceptions.RuntimeException" errorcode="500" message="Error unserializing page cache">
 		</cfif>
 
