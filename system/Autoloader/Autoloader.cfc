@@ -350,9 +350,13 @@
 		 * class are given the whole table in one call, which takes half
 		 * the time. That call replaces what is there, so it is counted
 		 * again: an object that does have such a name after all is thrown
-		 * away and made once more the slow way. The size of the table is
-		 * kept with the class, because a helper that is loaded later can
-		 * bring a name the class has.
+		 * away and made once more the slow way. Then the body of the class
+		 * runs a second time, and a parent that cannot be shared (see
+		 * parentObject()) is made a second time too. The count after the
+		 * call is what keeps the result right. The size of the table is
+		 * kept with the class only to save such a thrown away object: a
+		 * helper that is loaded later can bring a name the class has, and
+		 * with another size the class is looked at again the slow way.
 		--->
 		<cfif NOT StructKeyExists(variables, "apart")>
 			<cfset variables.apart = StructNew()>
@@ -626,6 +630,7 @@
 		<cfset var globalFunctions = "">
 		<cfset var inherited = StructNew()>
 		<cfset var plan = "">
+		<cfset var rest = "">
 		<cfset var member = "">
 		<cfset var name = "">
 		<cfset var i = 0>
@@ -684,9 +689,26 @@
 		 * Functions the parent was given by its own parent class. A global
 		 * function is left out: instantiate() gives the object its own copy
 		 * after this, so a copy from the parent is work for nothing.
+		 *
+		 * Most names in the Variables scope of the parent are the global
+		 * functions it was given itself, so they are taken out of a copy of
+		 * the scope in one call and only the rest is looked at. A function
+		 * of the parent's own parent that has the name of a global function
+		 * is taken out with them, so those are looked at by name after it.
+		 * The functions written in the parent class are the next largest
+		 * group, so that is asked first.
 		--->
-		<cfloop collection="#parentVariables#" item="name">
-			<cfif name NEQ "this" AND name NEQ "parent" AND name NEQ "__variables" AND name NEQ "__member" AND IsCustomFunction(parentVariables[name]) AND NOT StructKeyExists(parentFunctions, name) AND (StructKeyExists(inherited, name) OR NOT StructKeyExists(globalFunctions, name))>
+		<cfset rest = CreateObject("java", "java.util.HashMap").init(parentVariables)>
+		<cfset rest.keySet().removeAll(globalFunctions.keySet())>
+
+		<cfloop collection="#rest#" item="name">
+			<cfif NOT StructKeyExists(parentFunctions, name) AND name NEQ "this" AND name NEQ "parent" AND name NEQ "__variables" AND name NEQ "__member" AND IsCustomFunction(parentVariables[name]) AND (StructKeyExists(inherited, name) OR NOT StructKeyExists(globalFunctions, name))>
+				<cfset parentFunctions[name] = StructKeyExists(arguments.parent, name)>
+			</cfif>
+		</cfloop>
+
+		<cfloop collection="#inherited#" item="name">
+			<cfif NOT StructKeyExists(parentFunctions, name) AND name NEQ "this" AND name NEQ "parent" AND name NEQ "__variables" AND name NEQ "__member" AND StructKeyExists(parentVariables, name) AND IsCustomFunction(parentVariables[name])>
 				<cfset parentFunctions[name] = StructKeyExists(arguments.parent, name)>
 			</cfif>
 		</cfloop>
@@ -739,20 +761,36 @@
 	 * an object and in the classes it extends: the name, and whether the
 	 * function is public. Inherited functions are not in the Variables
 	 * scope, so the names are read from the metadata.
+	 *
+	 * Each entry of the metadata is read once into a variable: asking
+	 * for meta.functions[i] again for the name and the access costs
+	 * about as much as the rest of the loop. The first class has no
+	 * name twice, so nothing is looked up for it.
 	--->
 	<cffunction name="methods" access="private" returntype="struct" output="no">
 		<cfargument name="object" type="any" required="yes">
 		<cfset var result = StructNew()>
 		<cfset var meta = GetMetaData(arguments.object)>
+		<cfset var functions = "">
+		<cfset var entry = "">
+		<cfset var name = "">
+		<cfset var first = true>
 		<cfset var i = 0>
 
 		<cfloop condition="true">
 			<cfif StructKeyExists(meta, "functions")>
-				<cfloop from="1" to="#ArrayLen(meta.functions)#" index="i">
-					<cfif NOT StructKeyExists(result, meta.functions[i].name)>
-						<cfset result[meta.functions[i].name] = NOT StructKeyExists(meta.functions[i], "access") OR meta.functions[i].access NEQ "private">
+				<cfset functions = meta.functions>
+
+				<cfloop from="1" to="#ArrayLen(functions)#" index="i">
+					<cfset entry = functions[i]>
+					<cfset name = entry.name>
+
+					<cfif first OR NOT StructKeyExists(result, name)>
+						<cfset result[name] = NOT StructKeyExists(entry, "access") OR entry.access NEQ "private">
 					</cfif>
 				</cfloop>
+
+				<cfset first = false>
 			</cfif>
 
 			<cfif NOT StructKeyExists(meta, "extends")>
