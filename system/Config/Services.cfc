@@ -306,8 +306,24 @@
 			<cfset arguments.config = variables.config("Config\App")>
 		</cfif>
 
-		<!--- Not ported yet: UserAgent --->
-		<cfreturn new_("ColdIgniter\HTTP\IncomingRequest", arguments.config, static_("Config\Services").get("uri"), "", "")>
+		<cfreturn new_("ColdIgniter\HTTP\IncomingRequest", arguments.config, static_("Config\Services").get("uri"), "", static_("Config\Services").useragent("", false))>
+	</cffunction>
+
+	<!---
+	 * The User Agent class provides a way to work with the user agent
+	 * of the request: browser, platform, robot and mobile.
+	 *
+	 * @param config The Config\UserAgents, or an empty string (null)
+	--->
+	<cffunction name="useragent" access="public" returntype="any" output="no">
+		<cfargument name="config" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("useragent", arguments.config)>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\HTTP\UserAgent", arguments.config)>
 	</cffunction>
 
 	<!---
