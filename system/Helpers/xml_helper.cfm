@@ -11,6 +11,9 @@
  * Difference: the original lists are arrays written as literals; here they
  * are built with ArrayAppend, and a # in a string is written ##.
  *
+ * Difference: the patterns are the framework's own and cannot backtrack, so
+ * preg_replace() is called unguarded (no limit on the length of the text).
+ *
  * @param str
  * @param protectAll
 --->
@@ -24,10 +27,10 @@
 
 	<!--- Replace entities to temporary markers so that --->
 	<!--- ampersands won't get messed up --->
-	<cfset str_ = preg_replace("/&##(\d+);/", temp & "\1;", str_)>
+	<cfset str_ = preg_replace("/&##(\d+);/", temp & "\1;", str_, true)>
 
 	<cfif arguments.protectAll>
-		<cfset str_ = preg_replace("/&(\w+);/", temp & "\1;", str_)>
+		<cfset str_ = preg_replace("/&(\w+);/", temp & "\1;", str_, true)>
 	</cfif>
 
 	<cfset ArrayAppend(original, "&")>
@@ -47,10 +50,10 @@
 	<cfset str_ = str_replace(original, replacement, str_)>
 
 	<!--- Decode the temp markers back to entities --->
-	<cfset str_ = preg_replace("/" & temp & "(\d+);/", "&##\1;", str_)>
+	<cfset str_ = preg_replace("/" & temp & "(\d+);/", "&##\1;", str_, true)>
 
 	<cfif arguments.protectAll>
-		<cfreturn preg_replace("/" & temp & "(\w+);/", "&\1;", str_)>
+		<cfreturn preg_replace("/" & temp & "(\w+);/", "&\1;", str_, true)>
 	</cfif>
 
 	<cfreturn str_>
