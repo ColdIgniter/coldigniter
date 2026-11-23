@@ -26,7 +26,7 @@
 	 * match. Until the object is there the call is made as before. When
 	 * Config\App cannot be loaded or has no regexSubjectLimit, both reads
 	 * fail and the limit is 8192; app/Config/App.cfc sets the value, so
-	 * that costs time only in an application that took it out.
+	 * that costs time only when the setting or Config\App is missing.
 	--->
 	<cftry>
 		<cfset factories = request.ColdIgniter.statics["ColdIgniter\Config\Factories"]>
