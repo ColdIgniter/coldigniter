@@ -145,10 +145,27 @@
 	</cffunction>
 
 	<!---
+	 * The Negotiate class provides the content negotiation features for
+	 * working the request to determine correct language, encoding, charset,
+	 * and more.
+	--->
+	<cffunction name="negotiator" access="public" returntype="any" output="no">
+		<cfargument name="request" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("negotiator", arguments.request)>
+		</cfif>
+
+		<cfif is_null(arguments.request)>
+			<cfset arguments.request = static_("Config\Services").get("request")>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\HTTP\Negotiate", arguments.request)>
+	</cffunction>
+
+	<!---
 	 * The response cache stores whole responses, for the PageCache filter.
-	 *
-	 * Not ported yet: the content negotiator, which comes before this service
-	 * in the original.
 	--->
 	<cffunction name="responsecache" access="public" returntype="any" output="no">
 		<cfargument name="config" type="any" required="no" default="">
