@@ -284,6 +284,10 @@
 		<cfset var info = "">
 		<cfset var found = "">
 		<cfset var object = "">
+		<cfset var table = "">
+		<cfset var scope = "">
+		<cfset var count = 0>
+		<cfset var before = 0>
 
 		<cfif Left(name, 1) EQ "\">
 			<cfset name = REReplace(name, "^\\+", "")>
@@ -336,7 +340,47 @@
 			<cfset extend(object, parentObject(info.parent))>
 		</cfif>
 
+		<!---
+		 * The global functions. Copying them and keeping each name the
+		 * object already has (__inject()) is the slow part of making an
+		 * object, and for most classes no name is kept: the class and its
+		 * parents have no member with the name of a global function. That
+		 * is seen with the first object of a class, whose Variables scope
+		 * then grows by the size of the table. The next objects of the
+		 * class are given the whole table in one call, which takes half
+		 * the time. That call replaces what is there, so it is counted
+		 * again: an object that does have such a name after all is thrown
+		 * away and made once more the slow way. The size of the table is
+		 * kept with the class, because a helper that is loaded later can
+		 * bring a name the class has.
+		--->
+		<cfif NOT StructKeyExists(variables, "apart")>
+			<cfset variables.apart = StructNew()>
+		</cfif>
+
+		<cfset table = request.ColdIgniter.functions.__functions()>
+		<cfset scope = object.__variables()>
+		<cfset count = StructCount(table)>
+		<cfset before = StructCount(scope)>
+
+		<cfif StructKeyExists(variables.apart, name) AND variables.apart[name] EQ count>
+			<cfset object.__member = request.ColdIgniter.functions.__member>
+			<cfset scope.putAll(table)>
+
+			<cfif StructCount(scope) NEQ before + count>
+				<cfset StructDelete(variables.apart, name)>
+
+				<cfreturn instantiate(name)>
+			</cfif>
+
+			<cfreturn object>
+		</cfif>
+
 		<cfset request.ColdIgniter.functions.__inject(object)>
+
+		<cfif StructCount(scope) EQ before + count>
+			<cfset variables.apart[name] = count>
+		</cfif>
 
 		<cfreturn object>
 	</cffunction>
@@ -601,9 +645,8 @@
 
 			<cfset StructAppend(objectVariables, plan.functions, false)>
 
-			<cfloop collection="#plan.publicFunctions#" item="name">
-				<cfset arguments.object[name] = plan.publicFunctions[name]>
-			</cfloop>
+			<!--- One call for all of them: the plan only holds functions the class does not have itself. --->
+			<cfset StructAppend(arguments.object, plan.publicFunctions, true)>
 
 			<cfloop from="1" to="#ArrayLen(plan.properties)#" index="i">
 				<cfset name = plan.properties[i]>
