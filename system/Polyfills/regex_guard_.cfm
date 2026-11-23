@@ -17,12 +17,26 @@
 <cffunction name="regex_guard_" returntype="void" output="no" hint="Refuses a subject that is too long for a developer pattern">
 	<cfargument name="subject" type="string" required="yes">
 	<cfset var limit = 8192>
+	<cfset var factories = "">
 
+	<!---
+	 * The shared Config\App is read straight from where Factories keeps it,
+	 * which is what Factories::get() returns once the object is there. This
+	 * runs before every match, and the two function calls cost more than the
+	 * match. Until the object is there the call is made as before.
+	--->
 	<cftry>
-		<cfset limit = static_("ColdIgniter\Config\Factories").get("config", "Config\App").regexSubjectLimit>
+		<cfset factories = request.ColdIgniter.statics["ColdIgniter\Config\Factories"]>
+		<cfset limit = factories.instances["config"][factories.aliases["config"]["Config\App"]].regexSubjectLimit>
 
 		<cfcatch type="any">
-			<cfset limit = 8192>
+			<cftry>
+				<cfset limit = static_("ColdIgniter\Config\Factories").get("config", "Config\App").regexSubjectLimit>
+
+				<cfcatch type="any">
+					<cfset limit = 8192>
+				</cfcatch>
+			</cftry>
 		</cfcatch>
 	</cftry>
 

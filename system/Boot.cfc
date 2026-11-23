@@ -23,6 +23,8 @@
 	<cfset request.ColdIgniter.ini = StructNew()>
 	<cfset request.ColdIgniter.env = StructNew()>
 	<cfset request.ColdIgniter.output = "">
+	<!--- the patterns that preg_pattern() has compiled in this request --->
+	<cfset request.ColdIgniter.patterns = CreateObject("java", "java.util.HashMap").init()>
 
 	<cfset define("DIRECTORY_SEPARATOR", Right(GetDirectoryFromPath(GetCurrentTemplatePath()), 1))>
 

@@ -8,6 +8,12 @@
  * as the original for the patterns the framework uses. Shared with
  * preg_replace().
  *
+ * Difference: the original keeps its compiled patterns for the life of the
+ * process. Here a compiled pattern is kept for the request only, in
+ * request.ColdIgniter.patterns (a java.util.HashMap, so that the key is
+ * case-sensitive), and compiled once per request. A Pattern is immutable,
+ * so the same one is safe to hand out again.
+ *
  * @return A java.util.regex.Pattern
 --->
 <cffunction name="preg_pattern" returntype="any" output="no" hint="Compiles a pattern written with delimiters and modifiers">
@@ -18,6 +24,17 @@
 	<cfset var modifiers = "">
 	<cfset var flags = 0>
 	<cfset var i = 0>
+	<cfset var compiled = "">
+	<cfset var cached = false>
+
+	<!--- a pattern that was compiled in this request is used again --->
+	<cfif StructKeyExists(request, "ColdIgniter") AND StructKeyExists(request.ColdIgniter, "patterns")>
+		<cfset cached = true>
+
+		<cfif StructKeyExists(request.ColdIgniter.patterns, arguments.pattern)>
+			<cfreturn request.ColdIgniter.patterns[arguments.pattern]>
+		</cfif>
+	</cfif>
 
 	<cfloop from="#Len(arguments.pattern)#" to="2" index="i" step="-1">
 		<cfif Compare(Mid(arguments.pattern, i, 1), delimiter) EQ 0>
@@ -46,7 +63,13 @@
 		<cfset flags = BitOr(flags, 4)>
 	</cfif>
 
-	<cfreturn CreateObject("java", "java.util.regex.Pattern").compile(JavaCast("string", body), JavaCast("int", flags))>
+	<cfset compiled = CreateObject("java", "java.util.regex.Pattern").compile(JavaCast("string", body), JavaCast("int", flags))>
+
+	<cfif cached>
+		<cfset request.ColdIgniter.patterns[arguments.pattern] = compiled>
+	</cfif>
+
+	<cfreturn compiled>
 </cffunction>
 
 <!---
