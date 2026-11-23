@@ -41,8 +41,7 @@
  *
  * Difference: BaseConnection.table() and newQuery() find the builder of the
  * driver (the name of the connection with Builder in place of Connection)
- * and use this class when there is none, as there is no driver builder yet
- * and the mock connection has none.
+ * and use this class when there is none, as the mock connection has none.
  *
  * @see \CodeIgniter\Database\BaseBuilder
 --->
