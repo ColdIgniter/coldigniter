@@ -29,7 +29,8 @@
  *      // register the autoloader
  *      <cfset loader.register()>
  *
- * Not in the original: instantiate(), classInfo() and extend(). A
+ * Not in the original: instantiate(), keptClasses(), classInfo(),
+ * parentClass(), includeComponent(), extend() and methods(). A
  * class file cannot be loaded and kept for later, so the autoloader creates
  * the object itself; new_() and static_() call instantiate().
  *
@@ -271,13 +272,16 @@
 	 *
 	 * What is found out about a class (see classInfo()) is kept, so that
 	 * it is found out once and not for every object. When what was kept
-	 * no longer creates the component, for a file that was moved or
-	 * removed, it is dropped and found out again.
+	 * no longer creates the component, the class is looked up again: a
+	 * different answer (the file was moved or removed) takes the place of
+	 * what was kept, and with the same answer the error is a real one, of
+	 * the class file itself, and is thrown again as it is.
 	--->
 	<cffunction name="instantiate" access="public" returntype="any" output="no">
 		<cfargument name="class" type="string" required="yes">
 		<cfset var name = arguments.class>
 		<cfset var info = "">
+		<cfset var found = "">
 		<cfset var object = "">
 
 		<cfif Left(name, 1) EQ "\">
@@ -294,8 +298,17 @@
 				<cfset object = includeComponent(info.loader, info.component)>
 
 				<cfcatch type="any">
-					<cfset StructDelete(variables.classes, name)>
 					<cfset object = "">
+
+					<cfif IsStruct(info)>
+						<cfset StructDelete(variables.classes, name)>
+						<cfset found = classInfo(name)>
+
+						<cfif found.loader EQ info.loader AND found.component EQ info.component>
+							<cfset variables.classes[name] = info>
+							<cfrethrow>
+						</cfif>
+					</cfif>
 				</cfcatch>
 			</cftry>
 		</cfif>
@@ -332,11 +345,24 @@
 	 * each class, with the class name as key.
 	 *
 	 * In production the map is in the memory of the server
-	 * (server.ColdIgniterClasses), one map per application, so a class is
-	 * looked up once and not once per request. It only holds class names
-	 * and file paths, never a value of the configuration. Anywhere else the
-	 * map only lives as long as this object, so a class file that is added
-	 * or moved is seen on the next request.
+	 * (server.ColdIgniterClasses), so a class is looked up once and not
+	 * once per request. There is one map per application and per list of
+	 * namespaces: the first autoloader, which Boot makes by hand with two
+	 * namespaces, has its own map, so it never answers for the real one.
+	 * Anywhere else the map only lives as long as this object, so a class
+	 * file that is added or moved is seen on the next request.
+	 *
+	 * The map only holds class names and file paths, never a value of the
+	 * configuration. Other applications on the same server can read it,
+	 * and it stays until the server is restarted.
+	 *
+	 * In production, what is kept is used as long as it creates a
+	 * component. So after class files are changed in one of these ways,
+	 * restart the server or run StructDelete(server, "ColdIgniterClasses"):
+	 * the "parent" attribute or "extends" of a class is changed, a class
+	 * file is copied to a new place and the old file stays, or a namespace
+	 * or a folder is added that would now find another file first. A file
+	 * that is moved or removed needs nothing, it is found again.
 	 *
 	 * An entry is written without a lock: it is complete before it is
 	 * stored, and two requests that write the same class at the same time
@@ -349,7 +375,7 @@
 			<cfreturn StructNew()>
 		</cfif>
 
-		<cfset key = request.SYSTEMPATH & "|" & request.APPPATH>
+		<cfset key = request.SYSTEMPATH & "|" & request.APPPATH & "|" & this.prefixes.keySet().toString()>
 
 		<cfif NOT StructKeyExists(server, "ColdIgniterClasses") OR NOT StructKeyExists(server.ColdIgniterClasses, key)>
 			<cflock name="ColdIgniterClasses" type="exclusive" timeout="10">
