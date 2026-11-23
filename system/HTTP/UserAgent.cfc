@@ -118,7 +118,8 @@
 		<cfset var userAgent = "">
 
 		<cfif is_null(arguments.config)>
-			<cfset this.config = config("Config\UserAgents")>
+			<!--- the factory is called directly: config() would resolve to the argument of this name --->
+			<cfset this.config = static_("ColdIgniter\Config\Factories").get("config", "Config\UserAgents")>
 		<cfelse>
 			<cfset this.config = arguments.config>
 		</cfif>
