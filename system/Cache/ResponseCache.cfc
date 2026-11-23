@@ -46,12 +46,29 @@
 	--->
 	<cfset this.cache = "">
 
+	<!---
+	 * Difference: not in the original. Whether a page from the cache is
+	 * also kept for the front controller (the option frontPages of
+	 * Config\Cache, see keepFront()).
+	--->
+	<cfset this.frontPages = false>
+
+	<!---
+	 * The entry in the memory of the cache handler that the last get()
+	 * gave the page from, or an empty string.
+	--->
+	<cfset this.frontEntry = "">
+
 	<cffunction name="__construct" access="public" returntype="any" output="no">
 		<cfargument name="config" type="any" required="yes">
 		<cfargument name="cache" type="any" required="yes">
 
 		<cfset this.cache = arguments.cache>
 		<cfset this.cacheQueryString = arguments.config.cacheQueryString>
+
+		<cfif StructKeyExists(arguments.config, "frontPages") AND IsBoolean(arguments.config.frontPages)>
+			<cfset this.frontPages = arguments.config.frontPages>
+		</cfif>
 
 		<cfreturn this>
 	</cffunction>
@@ -151,8 +168,14 @@
 		<cfset var status = 200>
 		<cfset var reason = "">
 
+		<cfset this.frontEntry = "">
+
 		<cfif method_exists(this.cache, "getShared")>
 			<cfset cachedResponse = this.cache.getShared(key)>
+
+			<cfif StructKeyExists(this.cache, "sharedEntry")>
+				<cfset this.frontEntry = this.cache.sharedEntry>
+			</cfif>
 		<cfelse>
 			<cfset cachedResponse = this.cache.get(key)>
 		</cfif>
@@ -192,6 +215,108 @@
 		<cfset arguments.response.setStatusCode(status, reason)>
 
 		<cfreturn arguments.response>
+	</cffunction>
+
+	<!---
+	 * Difference: not in the original. Keeps the page that get() has just
+	 * given for the front controller, which then serves it from the memory
+	 * of the server before the framework starts (see Cache/FrontPage.cfm).
+	 *
+	 * The caller makes sure that nothing but the page cache has a say in
+	 * the response (see getCachedPage() of ColdIgniter\ColdIgniter). Here:
+	 * the option is on, the front controller has made a signature of the
+	 * request, the page came from the memory of the cache handler, the
+	 * body is text, and the response has no cookies.
+	 *
+	 * The item holds the entry of the cache handler, not a copy, so the
+	 * handler can switch it off. Only the application scope of this site
+	 * is used.
+	--->
+	<cffunction name="keepFront" access="public" returntype="void" output="no">
+		<cfargument name="response" type="any" required="yes">
+		<cfset var page = "">
+		<cfset var pages = "">
+		<cfset var headers = "">
+		<cfset var names = "">
+		<cfset var values = "">
+		<cfset var name = "">
+		<cfset var contentType = "">
+		<cfset var output = "">
+		<cfset var head = "">
+		<cfset var expires = 0>
+		<cfset var limit = 100>
+
+		<cfif NOT this.frontPages OR IsSimpleValue(this.frontEntry) OR NOT StructKeyExists(request, "ColdIgniterFront") OR Len(request.ColdIgniterFront.signature) EQ 0>
+			<cfreturn>
+		</cfif>
+
+		<cftry>
+			<cfset output = arguments.response.getBody()>
+
+			<cfif NOT IsSimpleValue(output) OR ArrayLen(arguments.response.cookieStore.getIterator()) GT 0>
+				<cfreturn>
+			</cfif>
+
+			<!--- What send() of the response does to the body. --->
+			<cfset output = Replace(output, "{csp-style-nonce}", "", "all")>
+			<cfset output = Replace(output, "{csp-script-nonce}", "", "all")>
+
+			<cfset names = CreateObject("java", "java.util.ArrayList").init()>
+			<cfset values = CreateObject("java", "java.util.ArrayList").init()>
+			<cfset headers = arguments.response.headers()>
+
+			<cfloop collection="#headers#" item="name">
+				<cfif name EQ "Content-Type">
+					<cfset contentType = headers[name]>
+				<cfelse>
+					<cfset names.add(JavaCast("string", name))>
+					<cfset values.add(JavaCast("string", headers[name]))>
+				</cfif>
+			</cfloop>
+
+			<cfset head = this.frontEntry["item"]>
+
+			<cfif Val(head["ttl"]) GT 0>
+				<cfset expires = Val(head["time"]) + Val(head["ttl"])>
+			</cfif>
+
+			<cfset page = CreateObject("java", "java.util.HashMap").init()>
+			<cfset page.put("entry", this.frontEntry)>
+			<cfset page.put("expires", expires)>
+			<cfset page.put("status", JavaCast("string", arguments.response.getStatusCode()))>
+			<cfset page.put("reason", JavaCast("string", arguments.response.getReasonPhrase()))>
+			<cfset page.put("contentType", JavaCast("string", contentType))>
+			<cfset page.put("names", names)>
+			<cfset page.put("values", values)>
+			<cfset page.put("output", JavaCast("string", output))>
+			<cfset page.put("elapsed", Find("{elapsed_time}", output) GT 0)>
+			<cfset page.put("memory", Find("{memory_usage}", output) GT 0)>
+
+			<cfif NOT StructKeyExists(application.ColdIgniter, "frontPages")>
+				<cflock scope="application" type="exclusive" timeout="10">
+					<cfif NOT StructKeyExists(application.ColdIgniter, "frontPages")>
+						<cfset application.ColdIgniter.frontPages = CreateObject("java", "java.util.Collections").synchronizedMap(
+							CreateObject("java", "java.util.HashMap").init()
+						)>
+					</cfif>
+				</cflock>
+			</cfif>
+
+			<cfset pages = application.ColdIgniter.frontPages>
+
+			<cfif StructKeyExists(this.cache, "memoryEntries")>
+				<cfset limit = this.cache.memoryEntries>
+			</cfif>
+
+			<!--- Full: start again, the pages come back with their next request. --->
+			<cfif pages.size() GTE limit>
+				<cfset pages.clear()>
+			</cfif>
+
+			<cfset pages.put(request.ColdIgniterFront.signature, page)>
+
+			<cfcatch type="any"></cfcatch>
+		</cftry>
 	</cffunction>
 
 </cfcomponent>

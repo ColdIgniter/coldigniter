@@ -261,6 +261,7 @@
 	<cffunction name="getCachedPage" access="private" returntype="any" output="no">
 		<cfset var filtersConfig = "">
 		<cfset var appConfig = "">
+		<cfset var cached = "">
 
 		<cfif NOT this.enableFilters OR Compare(this.request_.getMethod(), "GET") NEQ 0 OR request.CI_DEBUG>
 			<cfreturn "">
@@ -279,7 +280,14 @@
 			<cfreturn "">
 		</cfif>
 
-		<cfreturn service("responsecache").get(this.request_, service("response"))>
+		<cfset cached = service("responsecache").get(this.request_, service("response"))>
+
+		<!--- The front controller serves the page itself from now on, when the option is on. --->
+		<cfif IsObject(cached)>
+			<cfset service("responsecache").keepFront(cached)>
+		</cfif>
+
+		<cfreturn cached>
 	</cffunction>
 
 	<!---

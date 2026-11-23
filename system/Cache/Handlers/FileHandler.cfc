@@ -76,6 +76,12 @@
 	<cfset this.pageMemoryReady = false>
 
 	<!---
+	 * The entry of the map that the last call of getShared() gave its value
+	 * from, or an empty string. A map {file, modified, item}.
+	--->
+	<cfset this.sharedEntry = "">
+
+	<!---
 	 * Note: Use `CacheFactory::getHandler()` to instantiate.
 	 *
 	 * @throws CacheException
@@ -155,6 +161,8 @@
 		<cfset var item = "">
 		<cfset var modified = 0>
 
+		<cfset this.sharedEntry = "">
+
 		<cfif IsSimpleValue(memory)>
 			<cfset item = getItem(name)>
 
@@ -169,6 +177,8 @@
 
 		<cfif IsDefined("entry") AND IsStruct(entry)>
 			<cfif entry["file"].lastModified() EQ entry["modified"] AND NOT isExpired(entry["item"])>
+				<cfset this.sharedEntry = entry>
+
 				<cfreturn entry["item"]["data"]>
 			</cfif>
 
@@ -600,7 +610,7 @@
 
 				<cfcatch type="any">
 					<!--- the scope is not enabled --->
-					<cfapplication name="ColdIgniter#md5(request.ROOTPATH)#">
+					<cfapplication name="ColdIgniter#md5(request.FCPATH)#">
 				</cfcatch>
 			</cftry>
 
@@ -657,15 +667,22 @@
 		<cfset entry.put("item", arguments.item)>
 
 		<cfset arguments.memory.put(arguments.path, entry)>
+
+		<cfset this.sharedEntry = entry>
 	</cffunction>
 
 	<!---
 	 * Difference: not in the original. Drops an item of the map in the
 	 * application scope, or all of them when the path is empty.
+	 *
+	 * The front controller can hold the entry of a page too (see
+	 * Cache/FrontPage.cfm). A dropped entry gets a modified time that no
+	 * file has, so it is not served from there any more.
 	--->
 	<cffunction name="forget" access="private" returntype="void" output="no">
 		<cfargument name="path" type="string" required="yes">
 		<cfset var memory = getMemory()>
+		<cfset var entry = "">
 
 		<cfif IsSimpleValue(memory)>
 			<cfreturn>
@@ -673,8 +690,16 @@
 
 		<cfif Compare(arguments.path, "") EQ 0>
 			<cfset memory.clear()>
+
+			<cfif StructKeyExists(application.ColdIgniter, "frontPages")>
+				<cfset application.ColdIgniter.frontPages.clear()>
+			</cfif>
 		<cfelse>
-			<cfset memory.remove(arguments.path)>
+			<cfset entry = memory.remove(arguments.path)>
+
+			<cfif IsDefined("entry") AND IsStruct(entry)>
+				<cfset entry.put("modified", -1)>
+			</cfif>
 		</cfif>
 	</cffunction>
 

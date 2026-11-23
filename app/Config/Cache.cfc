@@ -87,6 +87,29 @@
 
 	<!---
 	 * --------------------------------------------------------------------------
+	 * Front pages
+	 * --------------------------------------------------------------------------
+	 *
+	 * Difference: not in the original. When true, a page of the page cache
+	 * (cachePage() in a controller) is also kept in the memory of the
+	 * server, and the front controller serves it from there before the
+	 * framework starts. That is the fastest way to serve a page.
+	 *
+	 * For a page served this way nothing of the framework runs: not the
+	 * pre_system and post_system events, and no filters. It is used only for
+	 * a GET request, outside development mode, with the file handler and
+	 * its memoryEntries above 0, with the stock required filters, and for a
+	 * response without cookies. The page is dropped when its cache file
+	 * changes, is deleted or expires.
+	 *
+	 * After a change of the configuration, clear the cache.
+	 *
+	 * @var boolean
+	--->
+	<cfset this.frontPages = true>
+
+	<!---
+	 * --------------------------------------------------------------------------
 	 * Available Cache Handlers
 	 * --------------------------------------------------------------------------
 	 *
