@@ -262,7 +262,7 @@
 	--->
 	<cffunction name="insertIncludes" access="private" returntype="any" output="no">
 		<cfargument name="data" type="any" required="yes">
-		<cfset var data = "">
+		<cfset var copy = "">
 		<cfset var allowedIncludes = "">
 		<cfset var invalidIncludes = ArrayNew(1)>
 		<cfset var shared = "">
@@ -297,7 +297,7 @@
 		<cfset shared.depth = shared.depth + 1>
 
 		<!--- a shallow copy, so the map that toArray() returned (it may be the resource itself) is not changed --->
-		<cfset data = CreateObject("java", "java.util.LinkedHashMap").init(arguments.data)>
+		<cfset copy = CreateObject("java", "java.util.LinkedHashMap").init(arguments.data)>
 
 		<cftry>
 			<cfloop from="1" to="#ArrayLen(this.includes)#" index="i">
@@ -305,7 +305,7 @@
 				<cfset method = "include" & ucfirst(include)>
 
 				<cfif REFind("^[A-Za-z0-9_]+$", include) AND StructKeyExists(variables, method) AND IsCustomFunction(variables[method])>
-					<cfset data[include] = Evaluate("#method#()")>
+					<cfset copy[include] = Evaluate("#method#()")>
 				<cfelse>
 					<cfset static_("ColdIgniter\API\ApiException").forMissingInclude(include)>
 				</cfif>
@@ -319,7 +319,7 @@
 
 		<cfset shared.depth = shared.depth - 1>
 
-		<cfreturn data>
+		<cfreturn copy>
 	</cffunction>
 
 </cfcomponent>
