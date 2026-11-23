@@ -325,6 +325,13 @@
 	<cfset this.protectCache_ = "">
 
 	<!---
+	 * Not in the original: the java.util.regex patterns of isWriteType(),
+	 * made at the first call. A pattern does not change and can be used
+	 * again for every statement.
+	--->
+	<cfset this.writeTypePatterns_ = "">
+
+	<!---
 	 * Query Class
 	 *
 	 * @var string
@@ -2240,28 +2247,43 @@
 	 * on each side) may start after the end of the keyword. Every pattern
 	 * is searched from a start that moves on by one character, so the
 	 * work is at most about the length of the statement for each match.
+	 *
+	 * The patterns are made once for the connection (writeTypePatterns_):
+	 * this runs for every query, and making the patterns costs more than
+	 * the tests.
 	--->
 	<cffunction name="isWriteType" access="public" returntype="boolean" output="no">
 		<cfargument name="sql" type="string" required="yes">
 		<cfset var keywords = "(?:SET|INSERT|UPDATE|DELETE|REPLACE|CREATE|DROP|TRUNCATE|LOAD|COPY|ALTER|RENAME|GRANT|REVOKE|LOCK|UNLOCK|REINDEX|MERGE)">
 		<cfset var flags = JavaCast("int", 2)>
 		<cfset var text = JavaCast("string", arguments.sql)>
-		<cfset var patternClass = CreateObject("java", "java.util.regex.Pattern")>
+		<cfset var patternClass = "">
+		<cfset var patterns = this.writeTypePatterns_>
 		<cfset var matcher = "">
-		<cfset var returning = patternClass.compile(JavaCast("string", "\sRETURNING\s"), flags).matcher(text)>
+		<cfset var returning = "">
 		<cfset var candidate = "">
 		<cfset var startAt = 0>
 		<cfset var maxEnd = -1>
 		<cfset var lastReturning = -1>
 		<cfset var scanning = "true">
 
+		<cfif IsSimpleValue(patterns)>
+			<cfset patternClass = CreateObject("java", "java.util.regex.Pattern")>
+			<cfset patterns = StructNew()>
+			<cfset patterns.keyword = patternClass.compile(JavaCast("string", "^\s*""?" & keywords & "\s"), flags)>
+			<cfset patterns.returning = patternClass.compile(JavaCast("string", "\sRETURNING\s"), flags)>
+			<cfset patterns.with = patternClass.compile(JavaCast("string", "^\s*WITH\s"), flags)>
+			<cfset patterns.candidate = patternClass.compile(JavaCast("string", "[\s)]""?" & keywords & "\s"), flags)>
+			<cfset this.writeTypePatterns_ = patterns>
+		</cfif>
+
 		<!--- starts with the keyword --->
-		<cfset matcher = patternClass.compile(JavaCast("string", "^\s*""?" & keywords & "\s"), flags).matcher(text)>
+		<cfset matcher = patterns.keyword.matcher(text)>
 
 		<cfif matcher.lookingAt()>
 			<cfset startAt = matcher.end()>
 
-			<cfif returning.find(JavaCast("int", startAt))>
+			<cfif patterns.returning.matcher(text).find(JavaCast("int", startAt))>
 				<cfreturn false>
 			</cfif>
 
@@ -2269,7 +2291,7 @@
 		</cfif>
 
 		<!--- starts with WITH --->
-		<cfset matcher = patternClass.compile(JavaCast("string", "^\s*WITH\s"), flags).matcher(text)>
+		<cfset matcher = patterns.with.matcher(text)>
 
 		<cfif NOT matcher.lookingAt()>
 			<cfreturn false>
@@ -2277,7 +2299,8 @@
 
 		<!--- the keyword after at least one character, the end of the last one is the best --->
 		<cfset startAt = matcher.end() + 1>
-		<cfset candidate = patternClass.compile(JavaCast("string", "[\s)]""?" & keywords & "\s"), flags).matcher(text)>
+		<cfset candidate = patterns.candidate.matcher(text)>
+		<cfset returning = patterns.returning.matcher(text)>
 
 		<cfloop condition="scanning">
 			<cfif startAt GT Len(text)>
