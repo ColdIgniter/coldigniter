@@ -25,7 +25,9 @@
  * orderBy(), limit(), groupStart() and the others. They return the model
  * itself when the builder returns a builder, and the result otherwise, as the
  * original __call() does. The same is done for the usual methods of the
- * connection (query(), transStart(), tableExists() and the others). The
+ * connection (query(), transStart(), tableExists(), getLastQuery(),
+ * prefixTable() and the others). insertID() is not one of them, as the
+ * property insertID has that name: use getInsertID(). The
  * arguments of these methods are passed by position, not by name. For any
  * other method of the builder or the connection, and for the properties, call
  * __call(name, listOfArguments), __get(name) and __isset(name) by name.
@@ -611,6 +613,12 @@
 		<cfset builder = this.builder()>
 		<cfset total = builder.countAllResults(false)>
 
+		<!---
+		 * The rows are read from the shared builder without a reset (see the
+		 * header), so after an error of the callback the builder is reset
+		 * here, and the next query of the model starts clean.
+		--->
+		<cftry>
 		<cfloop condition="offset LT total AND NOT stop">
 			<cfset rows = builder.get(arguments.size, offset, false)>
 
@@ -628,13 +636,20 @@
 					<cfset row = rows[i]>
 					<cfset outcome = Evaluate("cbObject.#cbName#(row)")>
 
-					<cfif IsSimpleValue(outcome) AND Compare(outcome, "false") EQ 0>
+					<!--- a boolean of an expression reads NO, so the text is not compared; a number is not a boolean --->
+					<cfif IsDefined("outcome") AND IsSimpleValue(outcome) AND IsBoolean(outcome) AND NOT IsNumeric(outcome) AND NOT outcome>
 						<cfset stop = "true">
 						<cfbreak>
 					</cfif>
 				</cfloop>
 			</cfif>
 		</cfloop>
+
+			<cfcatch type="any">
+				<cfset builder.resetQuery()>
+				<cfrethrow>
+			</cfcatch>
+		</cftry>
 
 		<cfset builder.resetQuery()>
 	</cffunction>
@@ -1579,6 +1594,31 @@
 	<cffunction name="fieldExists" access="public" returntype="any" output="no">
 
 		<cfreturn callDb_("fieldExists", arguments)>
+	</cffunction>
+
+	<cffunction name="getLastQuery" access="public" returntype="any" output="no">
+
+		<cfreturn callDb_("getLastQuery", arguments)>
+	</cffunction>
+
+	<cffunction name="showLastQuery" access="public" returntype="any" output="no">
+
+		<cfreturn callDb_("showLastQuery", arguments)>
+	</cffunction>
+
+	<cffunction name="error" access="public" returntype="any" output="no">
+
+		<cfreturn callDb_("error", arguments)>
+	</cffunction>
+
+	<cffunction name="prefixTable" access="public" returntype="any" output="no">
+
+		<cfreturn callDb_("prefixTable", arguments)>
+	</cffunction>
+
+	<cffunction name="getPrefix" access="public" returntype="any" output="no">
+
+		<cfreturn callDb_("getPrefix", arguments)>
 	</cffunction>
 
 </cfcomponent>

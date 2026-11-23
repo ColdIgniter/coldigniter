@@ -753,6 +753,11 @@
 	<!---
 	 * Fetches all results, while optionally limiting them.
 	 *
+	 * Difference: the arguments are limit_ and offset_ (and set_ in the
+	 * batch methods), as limit(), offset() and set() are methods of a
+	 * model. An argument passed by name must use these names: another
+	 * name is ignored without an error.
+	 *
 	 * @param limit_  An empty string, or omitted, is null
 	 * @param offset_ The offset
 	 *
@@ -1728,6 +1733,7 @@
 	 * Sets the timestamp or current timestamp if null value is passed.
 	 *
 	 * @param userDate An optional Unix timestamp to be converted, or omitted
+	 *                 (an empty string counts as omitted)
 	 *
 	 * @return int|string
 	 *
@@ -1736,11 +1742,18 @@
 	<cffunction name="setDate" access="private" returntype="any" output="no">
 		<cfargument name="userDate" type="any" required="no">
 
-		<cfif NOT StructKeyExists(arguments, "userDate") AND Compare(this.dateFormat, "datetime") EQ 0>
+		<cfset var given = StructKeyExists(arguments, "userDate")>
+
+		<!--- an empty string is a null, as everywhere --->
+		<cfif given AND IsSimpleValue(arguments.userDate) AND Len(arguments.userDate) EQ 0>
+			<cfset given = false>
+		</cfif>
+
+		<cfif NOT given AND Compare(this.dateFormat, "datetime") EQ 0>
 			<cfreturn timeToDate(Now())>
 		</cfif>
 
-		<cfif StructKeyExists(arguments, "userDate")>
+		<cfif given>
 			<cfreturn intToDate(arguments.userDate)>
 		</cfif>
 
@@ -2574,7 +2587,8 @@
 			<cfreturn false>
 		</cfif>
 
-		<cfreturn IsSimpleValue(arguments.eventData["returnData"]) AND Compare(arguments.eventData["returnData"], "true") EQ 0>
+		<!--- a boolean of an expression reads YES, so the text is not compared; a number is not a boolean --->
+		<cfreturn IsSimpleValue(arguments.eventData["returnData"]) AND IsBoolean(arguments.eventData["returnData"]) AND NOT IsNumeric(arguments.eventData["returnData"]) AND arguments.eventData["returnData"]>
 	</cffunction>
 
 	<!--- (array) $value: a map is a map, an object is read, a null is an empty map --->

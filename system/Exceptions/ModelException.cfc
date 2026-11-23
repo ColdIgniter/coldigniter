@@ -8,9 +8,8 @@
  *
  * The messages come from the language file Language/en/Database.cfm.
  *
- * Difference: the original extends DatabaseException (through
- * FrameworkException), so a catch of that type finds it; here the type is
- * its own.
+ * Difference: the original extends FrameworkException, so a catch of
+ * that type finds it; here the type is its own.
 --->
 <cfcomponent output="no" hint="Model exceptions">
 
