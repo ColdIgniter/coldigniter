@@ -642,7 +642,7 @@
 
 		<!--- Do we need to match locales against broader locales? --->
 		<cfif arguments.matchLocales>
-			<cfreturn matchLocales(arguments.acceptable, arguments.supported)>
+			<cfreturn this.matchLocales(arguments.acceptable, arguments.supported)>
 		</cfif>
 
 		<cfreturn false>
