@@ -22,8 +22,7 @@
  * - Deserialized body binds
  *
  * Not ported yet: the filters of the input values (see RequestTrait and
- * getJsonVar), file uploads, old input (needs the session) and the
- * UserAgent class.
+ * getJsonVar), file uploads and old input (needs the session).
 --->
 <cfcomponent output="no" extends="Request" hint="Represents an incoming, server-side HTTP request">
 
@@ -94,7 +93,7 @@
 		<cfargument name="body" type="any" required="no" default="">
 		<cfargument name="userAgent" type="any" required="no" default="">
 
-		<cfif is_null(arguments.uri)>
+		<cfif is_null(arguments.uri) OR is_null(arguments.userAgent)>
 			<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="You must supply the parameters: uri, userAgent.">
 		</cfif>
 
@@ -709,8 +708,7 @@
 	<!---
 	 * Fetch the user agent string
 	 *
-	 * Not ported yet: the UserAgent class, so this is an empty string
-	 * (null) until it is. The header is in getHeaderLine("User-Agent").
+	 * @return UserAgent
 	--->
 	<cffunction name="getUserAgent" access="public" returntype="any" output="no">
 		<cfreturn this.userAgent>
