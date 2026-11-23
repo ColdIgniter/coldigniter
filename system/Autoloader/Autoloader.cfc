@@ -29,8 +29,9 @@
  *      // register the autoloader
  *      <cfset loader.register()>
  *
- * Not in the original: instantiate(), keptClasses(), classInfo(),
- * parentClass(), includeComponent(), extend() and methods(). A
+ * Not in the original: instantiate(), parentObject(), copiedProperty(),
+ * emptyMap(), keptClasses(), classInfo(), parentClass(),
+ * includeComponent(), extend() and methods(). A
  * class file cannot be loaded and kept for later, so the autoloader creates
  * the object itself; new_() and static_() call instantiate().
  *
@@ -348,10 +349,12 @@
 	 * as they are, and its constructor never runs. So when a class is asked
 	 * for a second time in a request (BaseConfig is the parent of every
 	 * config class), the first object serves again and no new one is made.
-	 * That holds only while each property of the parent is a simple value
-	 * or an empty array of the engine, which an assignment copies. A
-	 * structure, an object or a list of Java would be one value shared by
-	 * every child, so a class that has one gets a new object each time.
+	 * That holds only while each property of the parent is a simple
+	 * value, an array of the engine with simple values (an assignment
+	 * copies it) or an empty map that keeps its order (extend() gives each
+	 * child a new one). A structure, a map with entries, an object or a
+	 * list of Java would be one value shared by every child, so a class
+	 * that has one gets a new object each time.
 	 *
 	 * @param class The name of the parent class
 	--->
@@ -378,7 +381,7 @@
 			<cfset variables.parentsShared[arguments.class] = true>
 
 			<cfloop collection="#object#" item="name">
-				<cfif NOT IsCustomFunction(object[name]) AND NOT IsSimpleValue(object[name]) AND NOT (IsArray(object[name]) AND ArrayLen(object[name]) EQ 0 AND object[name].getClass().getName() EQ "coldfusion.runtime.Array")>
+				<cfif NOT IsCustomFunction(object[name]) AND NOT IsSimpleValue(object[name]) AND NOT copiedProperty(object[name])>
 					<cfset variables.parentsShared[arguments.class] = false>
 					<cfbreak>
 				</cfif>
@@ -390,6 +393,45 @@
 		</cfif>
 
 		<cfreturn instantiate(arguments.class)>
+	</cffunction>
+
+	<!---
+	 * Not in the original. Tells whether extend() gives a child its own
+	 * copy of a property of the parent that is not a simple value: an
+	 * array of the engine that holds only simple values (an assignment
+	 * copies it), or an empty map that keeps its order (extend() makes a
+	 * new one).
+	--->
+	<cffunction name="copiedProperty" access="private" returntype="boolean" output="no">
+		<cfargument name="value" type="any" required="yes">
+		<cfset var i = 0>
+
+		<cfif IsArray(arguments.value)>
+			<cfif arguments.value.getClass().getName() NEQ "coldfusion.runtime.Array">
+				<cfreturn false>
+			</cfif>
+
+			<cfloop from="1" to="#ArrayLen(arguments.value)#" index="i">
+				<cfif NOT IsSimpleValue(arguments.value[i])>
+					<cfreturn false>
+				</cfif>
+			</cfloop>
+
+			<cfreturn true>
+		</cfif>
+
+		<cfreturn emptyMap(arguments.value)>
+	</cffunction>
+
+	<!---
+	 * Not in the original. Tells whether a value is an empty map that
+	 * keeps its order (what array_() without arguments gives). A component
+	 * is asked for first: it has no getClass().
+	--->
+	<cffunction name="emptyMap" access="private" returntype="boolean" output="no">
+		<cfargument name="value" type="any" required="yes">
+
+		<cfreturn IsStruct(arguments.value) AND NOT IsObject(arguments.value) AND arguments.value.getClass().getName() EQ "java.util.LinkedHashMap" AND arguments.value.isEmpty()>
 	</cffunction>
 
 	<!---
@@ -534,13 +576,62 @@
 		<cfargument name="object" type="any" required="yes">
 		<cfargument name="parent" type="any" required="yes">
 		<cfset var objectVariables = arguments.object.__variables()>
-		<cfset var parentVariables = arguments.parent.__variables()>
-		<cfset var objectFunctions = methods(arguments.object)>
-		<cfset var parentFunctions = methods(arguments.parent)>
-		<cfset var globalFunctions = request.ColdIgniter.functions.__functions()>
+		<cfset var parentVariables = "">
+		<cfset var objectFunctions = "">
+		<cfset var parentFunctions = "">
+		<cfset var globalFunctions = "">
 		<cfset var inherited = StructNew()>
+		<cfset var plan = "">
 		<cfset var member = "">
 		<cfset var name = "">
+		<cfset var i = 0>
+
+		<cfif NOT StructKeyExists(variables, "plans")>
+			<cfset variables.plans = StructNew()>
+		</cfif>
+
+		<!---
+		 * What a class is given by its parent is the same for each object of
+		 * the class, so it is worked out for the first object and kept for the
+		 * request: the functions for the Variables scope, the public ones, the
+		 * names of the properties and the "parent" table.
+		--->
+		<cfif StructKeyExists(variables.plans, arguments.object.__class)>
+			<cfset plan = variables.plans[arguments.object.__class]>
+
+			<cfset StructAppend(objectVariables, plan.functions, false)>
+
+			<cfloop collection="#plan.publicFunctions#" item="name">
+				<cfset arguments.object[name] = plan.publicFunctions[name]>
+			</cfloop>
+
+			<cfloop from="1" to="#ArrayLen(plan.properties)#" index="i">
+				<cfset name = plan.properties[i]>
+
+				<!--- An empty map of the parent is not given to the child: the child gets a new one, so the object of the parent stays as it was created and can serve again (see parentObject()). --->
+				<cfif NOT StructKeyExists(arguments.object, name)>
+					<cfif NOT IsSimpleValue(arguments.parent[name]) AND IsStruct(arguments.parent[name]) AND NOT IsObject(arguments.parent[name]) AND arguments.parent[name].getClass().getName() EQ "java.util.LinkedHashMap" AND arguments.parent[name].isEmpty()>
+						<cfset arguments.object[name] = CreateObject("java", "java.util.LinkedHashMap").init()>
+					<cfelse>
+						<cfset arguments.object[name] = arguments.parent[name]>
+					</cfif>
+				</cfif>
+			</cfloop>
+
+			<cfset objectVariables.parent = plan.parent>
+
+			<cfreturn>
+		</cfif>
+
+		<cfset parentVariables = arguments.parent.__variables()>
+		<cfset objectFunctions = methods(arguments.object)>
+		<cfset parentFunctions = methods(arguments.parent)>
+		<cfset globalFunctions = request.ColdIgniter.functions.__functions()>
+
+		<cfset plan = StructNew()>
+		<cfset plan.functions = StructNew()>
+		<cfset plan.publicFunctions = StructNew()>
+		<cfset plan.properties = ArrayNew(1)>
 
 		<cfif StructKeyExists(parentVariables, "parent")>
 			<cfset inherited = parentVariables.parent>
@@ -567,10 +658,12 @@
 
 			<cfif NOT StructKeyExists(objectFunctions, name) AND NOT StructKeyExists(objectVariables, name)>
 				<cfset objectVariables[name] = member>
+				<cfset plan.functions[name] = member>
 
 				<!--- parentFunctions[name] tells whether the function is public --->
 				<cfif parentFunctions[name]>
 					<cfset arguments.object[name] = member>
+					<cfset plan.publicFunctions[name] = member>
 				</cfif>
 			</cfif>
 
@@ -578,12 +671,24 @@
 		</cfloop>
 
 		<cfloop collection="#arguments.parent#" item="name">
-			<cfif NOT StructKeyExists(arguments.object, name) AND NOT IsCustomFunction(arguments.parent[name])>
-				<cfset arguments.object[name] = arguments.parent[name]>
+			<cfif NOT IsCustomFunction(arguments.parent[name])>
+				<cfset ArrayAppend(plan.properties, name)>
+
+				<!--- An empty map of the parent is not given to the child: the child gets a new one, so the object of the parent stays as it was created and can serve again (see parentObject()). --->
+				<cfif NOT StructKeyExists(arguments.object, name)>
+					<cfif NOT IsSimpleValue(arguments.parent[name]) AND IsStruct(arguments.parent[name]) AND NOT IsObject(arguments.parent[name]) AND arguments.parent[name].getClass().getName() EQ "java.util.LinkedHashMap" AND arguments.parent[name].isEmpty()>
+						<cfset arguments.object[name] = CreateObject("java", "java.util.LinkedHashMap").init()>
+					<cfelse>
+						<cfset arguments.object[name] = arguments.parent[name]>
+					</cfif>
+				</cfif>
 			</cfif>
 		</cfloop>
 
 		<cfset objectVariables.parent = parentFunctions>
+
+		<cfset plan.parent = parentFunctions>
+		<cfset variables.plans[arguments.object.__class] = plan>
 	</cffunction>
 
 	<!---
