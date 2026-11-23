@@ -7,8 +7,10 @@
  * (there are no Header objects), so a header is saved and set as that
  * line.
  *
- * Difference: a cached empty string reads as a miss, as it does in the
- * cache handlers.
+ * Difference: the cache handler in use must store a map and give it back
+ * as a map. The file and dummy handlers do. A cached empty string reads
+ * as a miss, as it does in the cache handlers. Any other cached value
+ * that is not such a map is an error, as invalid data is in the original.
  *
  * Not ported yet: the CLI request (CLIRequest), so only IncomingRequest.
 --->
