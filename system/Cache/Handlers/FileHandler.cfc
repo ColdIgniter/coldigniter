@@ -1,19 +1,21 @@
 <!---
  * File system cache handler.
  *
- * Difference: the stored file holds the JSON text of a map {time, ttl, data}
- * (json_encode) and not serialize(). A string, a map (a struct) and an
- * array of those come back as they went in, but every scalar comes back as
- * a string (a number, true, false and null are text), a map keeps the order
- * of its keys, and the nesting is cut at 32 levels. A component cannot be
- * cached: save() returns false. The file never holds tag text, because the
- * encoder escapes "<", ">", "&" and the quote as \uXXXX.
+ * Difference: the stored file holds a map {time, ttl, data} as a Java
+ * object stream (ObjectOutputStream) and not serialize(). It is the form
+ * the server writes and reads fastest, and a value comes back as it went
+ * in: a string, a number, a map (a struct, which keeps its kind and so
+ * the order of its keys), an array and a query. A component cannot be
+ * cached, also not inside a map or an array: save() returns false. The
+ * file is read with readObject(), so, as with unserialize(), the cache
+ * directory must be writable by the application only.
  *
  * Difference: a file is read, written and deleted under a named exclusive
  * lock (cflock) of its full path. A file is not written to a temporary name
  * and renamed, as a rename over an existing file fails on Windows with the
  * Java of the server, so a file that is cut short by a crash is read as a
- * miss (its JSON does not parse).
+ * miss (the stream cannot be read). A file of an earlier version (JSON
+ * text) is a miss too.
  *
  * Difference: a key that the file system could not take as a file name
  * (a character of * ? " < > | / \ : or below a space, a name of "." or "..", a
@@ -107,7 +109,6 @@
 		<cfargument name="value" type="any" required="yes">
 		<cfargument name="ttl" type="numeric" required="no" default="60">
 		<cfset var contents = CreateObject("java", "java.util.LinkedHashMap").init()>
-		<cfset var text = "">
 
 		<cfif IsObject(arguments.value)>
 			<cfreturn false>
@@ -119,9 +120,7 @@
 		<cfset contents.put("ttl", JavaCast("string", Int(arguments.ttl)))>
 		<cfset contents.put("data", arguments.value)>
 
-		<cfset text = json_encode(contents)>
-
-		<cfreturn writeFile(this.path & arguments.key, text)>
+		<cfreturn writeFile(this.path & arguments.key, contents)>
 	</cffunction>
 
 	<cffunction name="delete" access="public" returntype="boolean" output="no">
@@ -203,10 +202,10 @@
 
 		<!---
 		 if (! is_int($value))
-		 Difference: the stored JSON does not keep the type, so a string of
-		 digits such as "5" counts as an integer here.
+		 Difference: a string of digits such as "5" counts as an integer
+		 here, as a number and its text are the same value in CFML.
 		--->
-		<cfif NOT IsSimpleValue(value) OR NOT CreateObject("java", "java.lang.String").init(value).matches("-?[0-9]+")>
+		<cfif NOT IsSimpleValue(value) OR NOT CreateObject("java", "java.lang.String").init(JavaCast("string", value)).matches("-?[0-9]+")>
 			<cfreturn false>
 		</cfif>
 
@@ -334,7 +333,7 @@
 	<cffunction name="getItem" access="private" returntype="any" output="no">
 		<cfargument name="filename" type="string" required="yes">
 		<cfset var file_ = CreateObject("java", "java.io.File").init(this.path & arguments.filename)>
-		<cfset var content = "">
+		<cfset var raw = "">
 		<cfset var data = "">
 		<cfset var ok = true>
 		<cfset var integer = CreateObject("java", "java.lang.String")>
@@ -345,10 +344,21 @@
 
 		<cftry>
 			<cflock name="ColdIgniterCache#md5(this.path & arguments.filename)#" type="exclusive" timeout="10">
-				<cffile action="read" file="#this.path##arguments.filename#" variable="content" charset="utf-8">
-			</cflock>
+				<cfset raw = CreateObject("java", "java.io.FileInputStream").init(this.path & arguments.filename)>
 
-			<cfset data = json_decode(content)>
+				<!--- There is no finally: the file is closed in both ways out. --->
+				<cftry>
+					<cfset data = CreateObject("java", "java.io.ObjectInputStream").init(
+						CreateObject("java", "java.io.BufferedInputStream").init(raw)
+					).readObject()>
+					<cfset raw.close()>
+
+					<cfcatch type="any">
+						<cfset raw.close()>
+						<cfrethrow>
+					</cfcatch>
+				</cftry>
+			</cflock>
 
 			<cfcatch type="any">
 				<cfset ok = false>
@@ -386,18 +396,39 @@
 	 * Writes a file to disk, or returns false if not successful.
 	 *
 	 * @param path Path to the file
-	 * @param data The text to write
+	 * @param data The value to write (Difference: not text, see the header)
 	 * @param mode Not used, the file is always written whole
 	--->
 	<cffunction name="writeFile" access="private" returntype="boolean" output="no">
 		<cfargument name="path" type="string" required="yes">
-		<cfargument name="data" type="string" required="yes">
+		<cfargument name="data" type="any" required="yes">
 		<cfargument name="mode" type="string" required="no" default="wb">
 		<cfset var ok = true>
+		<cfset var raw = "">
+		<cfset var out = "">
 
 		<cftry>
 			<cflock name="ColdIgniterCache#md5(arguments.path)#" type="exclusive" timeout="10">
-				<cffile action="write" file="#arguments.path#" output="#arguments.data#" addnewline="no" charset="utf-8">
+				<cfset raw = CreateObject("java", "java.io.FileOutputStream").init(arguments.path)>
+
+				<!---
+				 There is no finally: the file is closed in both ways out.
+				 A file with a part of the value (a component inside it
+				 cannot be written) is of no use, so it is deleted.
+				--->
+				<cftry>
+					<cfset out = CreateObject("java", "java.io.ObjectOutputStream").init(
+						CreateObject("java", "java.io.BufferedOutputStream").init(raw)
+					)>
+					<cfset out.writeObject(arguments.data)>
+					<cfset out.close()>
+
+					<cfcatch type="any">
+						<cfset raw.close()>
+						<cfset CreateObject("java", "java.io.File").init(arguments.path).delete()>
+						<cfrethrow>
+					</cfcatch>
+				</cftry>
 			</cflock>
 
 			<cfcatch type="any">
