@@ -31,7 +31,9 @@
  * Difference: a transaction is a BEGIN, COMMIT or ROLLBACK TRANSACTION
  * statement. It relies on ColdFusion running the queries of one request
  * on the same connection of the data source, which 6.1 does not promise.
- * close() rolls back a transaction that is still open.
+ * close() rolls back a transaction that is still open. The data source
+ * keeps a transaction that a request left open, so a statement outside a
+ * transaction first rolls back what is left on its connection.
  *
  * Difference: NULL and an empty string cannot be told apart in a query of
  * 6.1. Both are an empty string (see Result).
@@ -469,7 +471,7 @@
 				<cfset maxLength = pick_(row, "NUMERIC_PRECISION")>
 			</cfif>
 
-			<cfset obj = array_("name", pick_(row, "COLUMN_NAME"), "type", pick_(row, "DATA_TYPE"), "max_length", maxLength, "nullable", JavaCast("boolean", Compare(pick_(row, "IS_NULLABLE"), "NO") NEQ 0), "default", normalizeDefault(pick_(row, "COLUMN_DEFAULT")))>
+			<cfset obj = array_("name", pick_(row, "COLUMN_NAME"), "type", pick_(row, "DATA_TYPE"), "max_length", maxLength, "nullable", JavaCast("boolean", CompareNoCase(trim_(pick_(row, "IS_NULLABLE")), "NO") NEQ 0), "default", normalizeDefault(pick_(row, "COLUMN_DEFAULT")))>
 
 			<cfset ArrayAppend(retVal, obj)>
 		</cfloop>
@@ -599,7 +601,7 @@
 			<cfset this.initialize_()>
 		</cfif>
 
-		<cfif NOT identical_(execute("USE " & this._escapeString(name)), "false")>
+		<cfif NOT identical_(execute("USE " & _escapeString(name)), "false")>
 			<cfset this.database = name>
 			<cfset this.dataCache = CreateObject("java", "java.util.LinkedHashMap").init()>
 
@@ -636,6 +638,18 @@
 		<cfset this.lastErrorCode = "">
 		<cfset this.lastErrorMessage = "">
 		<cfset this.lastAffectedRows = 0>
+
+		<!---
+		 The data source hands a connection on to the next request as it is:
+		 a transaction that a request left open is still open there
+		 (verified on the server). So a statement outside a transaction
+		 first rolls back what is left. A statement that must be the first
+		 of its batch (CREATE VIEW and the like) is sent as it is.
+		--->
+		<cfif this.transDepth EQ 0 AND REFindNoCase("^[[:space:]]*(CREATE|ALTER)[[:space:]]+(VIEW|PROC|PROCEDURE|FUNCTION|TRIGGER|DEFAULT|RULE)[[:space:]]", arguments.sql) EQ 0>
+			<cfset guard = "IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION" & Chr(10)>
+			<cfset batch = guard & arguments.sql>
+		</cfif>
 
 		<cfif REFindNoCase("^[[:space:]]*(INSERT|UPDATE|DELETE)[[:space:]]", arguments.sql) GT 0>
 			<cfset isChange = "true">
@@ -678,6 +692,14 @@
 				<cfreturn "false">
 			</cfcatch>
 		</cftry>
+
+		<!---
+		 A statement without a record set (DROP TABLE, CREATE TABLE) takes
+		 the variable of the query away (verified on the server).
+		--->
+		<cfif NOT IsDefined("q")>
+			<cfreturn "true">
+		</cfif>
 
 		<cfif isChange AND IsQuery(q)>
 			<cfset this.lastAffectedRows = Val(q.ci_affected_rows[1])>

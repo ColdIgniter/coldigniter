@@ -4,8 +4,9 @@
  *
  * Difference: the return values are the text "true" and "false" for a
  * boolean. The ConnectionInterface and ResultInterface types are "any".
- * Settings (listDatabases, optimizeTable, repairTable) that are false
- * in the original hold the text "false".
+ * Settings (listDatabases_, optimizeTable_, repairTable_) that are false
+ * in the original hold the text "false". They end in an underscore, as
+ * a property cannot have the name of a method.
  *
  * Difference: getXMLFromResult() converts the text of a value with a
  * private method (xmlConvert_), which changes & < > ' and ". The original
@@ -31,21 +32,21 @@
 	 *
 	 * @var false|string
 	--->
-	<cfset this.listDatabases = "false">
+	<cfset this.listDatabases_ = "false">
 
 	<!---
 	 * OPTIMIZE TABLE statement
 	 *
 	 * @var false|string
 	--->
-	<cfset this.optimizeTable = "false">
+	<cfset this.optimizeTable_ = "false">
 
 	<!---
 	 * REPAIR TABLE statement
 	 *
 	 * @var false|string
 	--->
-	<cfset this.repairTable = "false">
+	<cfset this.repairTable_ = "false">
 
 	<!---
 	 * @param db BaseConnection
@@ -77,7 +78,7 @@
 			<cfreturn this.db.dataCache["db_names"]>
 		</cfif>
 
-		<cfif identical_(this.listDatabases, "false")>
+		<cfif identical_(this.listDatabases_, "false")>
 			<cfif this.db.DBDebug>
 				<cfthrow type="ColdIgniter.Database.Exceptions.DatabaseException" message="Unsupported feature of the database platform you are using.">
 			</cfif>
@@ -87,7 +88,7 @@
 
 		<cfset this.db.dataCache["db_names"] = names>
 
-		<cfset query_ = this.db.query(this.listDatabases)>
+		<cfset query_ = this.db.query(this.listDatabases_)>
 
 		<cfif identical_(query_, "false")>
 			<cfreturn names>
@@ -137,7 +138,7 @@
 		<cfargument name="tableName" type="string" required="yes">
 		<cfset var query_ = "">
 
-		<cfif identical_(this.optimizeTable, "false")>
+		<cfif identical_(this.optimizeTable_, "false")>
 			<cfif this.db.DBDebug>
 				<cfthrow type="ColdIgniter.Database.Exceptions.DatabaseException" message="Unsupported feature of the database platform you are using.">
 			</cfif>
@@ -145,7 +146,7 @@
 			<cfreturn "false">
 		</cfif>
 
-		<cfset query_ = this.db.query(str_replace("%s", this.db.escapeIdentifiers(arguments.tableName), this.optimizeTable))>
+		<cfset query_ = this.db.query(str_replace("%s", this.db.escapeIdentifiers(arguments.tableName), this.optimizeTable_))>
 
 		<cfif identical_(query_, "false")>
 			<cfreturn "false">
@@ -172,7 +173,7 @@
 		<cfset var i = 0>
 		<cfset var j = 0>
 
-		<cfif identical_(this.optimizeTable, "false")>
+		<cfif identical_(this.optimizeTable_, "false")>
 			<cfif this.db.DBDebug>
 				<cfthrow type="ColdIgniter.Database.Exceptions.DatabaseException" message="Unsupported feature of the database platform you are using.">
 			</cfif>
@@ -183,7 +184,7 @@
 		<cfset tables = this.db.listTables()>
 
 		<cfloop from="1" to="#ArrayLen(tables)#" index="i">
-			<cfset res = this.db.query(str_replace("%s", this.db.escapeIdentifiers(tables[i]), this.optimizeTable))>
+			<cfset res = this.db.query(str_replace("%s", this.db.escapeIdentifiers(tables[i]), this.optimizeTable_))>
 
 			<cfif identical_(res, "true") OR identical_(res, "false")>
 				<cfreturn res>
@@ -225,7 +226,7 @@
 		<cfset var query_ = "">
 		<cfset var rows = "">
 
-		<cfif identical_(this.repairTable, "false")>
+		<cfif identical_(this.repairTable_, "false")>
 			<cfif this.db.DBDebug>
 				<cfthrow type="ColdIgniter.Database.Exceptions.DatabaseException" message="Unsupported feature of the database platform you are using.">
 			</cfif>
@@ -233,7 +234,7 @@
 			<cfreturn "false">
 		</cfif>
 
-		<cfset query_ = this.db.query(str_replace("%s", this.db.escapeIdentifiers(arguments.tableName), this.repairTable))>
+		<cfset query_ = this.db.query(str_replace("%s", this.db.escapeIdentifiers(arguments.tableName), this.repairTable_))>
 
 		<!--- Postgre & SQLite3 returns empty array --->
 		<cfif identical_(query_, "true") OR identical_(query_, "false")>

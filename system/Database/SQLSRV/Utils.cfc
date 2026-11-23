@@ -16,12 +16,12 @@
 	<!---
 	 * @var bool|string
 	--->
-	<cfset this.listDatabases = "EXEC sp_helpdb">
+	<cfset this.listDatabases_ = "EXEC sp_helpdb">
 
 	<!---
 	 * @var bool|string
 	--->
-	<cfset this.optimizeTable = "UPDATE STATISTICS %s">
+	<cfset this.optimizeTable_ = "UPDATE STATISTICS %s">
 
 	<!---
 	 * @param db Connection
@@ -31,7 +31,7 @@
 
 		<cfset parent.__construct(arguments.db)>
 
-		<cfset this.optimizeTable = "UPDATE STATISTICS " & this.db.schema & ".%s">
+		<cfset this.optimizeTable_ = "UPDATE STATISTICS " & this.db.schema & ".%s">
 
 		<cfreturn this>
 	</cffunction>

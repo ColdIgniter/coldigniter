@@ -8,9 +8,9 @@
  * components are located").
  *
  * Difference: a row is a map (see array_()) with the column names in the
- * case of the database. They come from the Java method getColumnNames()
- * of the query. If that fails, they are in upper case, as columnList
- * gives them.
+ * case of the database. They come from the metadata of the query
+ * (getMetaData()). If that fails, they are in upper case, as
+ * getColumnNames() gives them.
  *
  * Difference: a NULL and an empty string are the same in a query of 6.1.
  * A NULL is an empty string, and its key is in the row. A value of a date
@@ -19,7 +19,8 @@
  * Difference: getFieldData() reads the metadata of the query with
  * getMetaData(). The type is the JDBC type code, type_name is the name of
  * the type in lower case and max_length is the precision. A value the
- * metadata does not give is an empty string. The type constants of the
+ * metadata does not give is an empty string: the metadata of a query of
+ * 6.1 has no precision, so max_length is empty (verified on the server). The type constants of the
  * original (SQLSRV_SQLTYPE_*) do not exist.
  *
  * Difference: fetchObject() returns a map for the class stdClass and
@@ -36,6 +37,15 @@
 	 * @var int
 	--->
 	<cfset this.fetchPosition = 0>
+
+	<!---
+	 * The names of the columns, once they were read (see columnNames()).
+	 *
+	 * Not in the original.
+	 *
+	 * @var list<string>|string
+	--->
+	<cfset this.columnNames_ = "">
 
 	<!---
 	 * Gets the number of fields in the result set.
@@ -218,20 +228,31 @@
 	--->
 	<cffunction name="columnNames" access="private" returntype="array" output="no">
 		<cfset var names = ArrayNew(1)>
-		<cfset var raw = "">
+		<cfset var meta = "">
 		<cfset var i = 0>
 
-		<cftry>
-			<cfset raw = this.resultID.getColumnNames()>
+		<cfif IsArray(this.columnNames_)>
+			<cfreturn this.columnNames_>
+		</cfif>
 
-			<cfloop from="1" to="#ArrayLen(raw)#" index="i">
-				<cfset ArrayAppend(names, raw[i])>
+		<!---
+		 The metadata of the query has the names as the database wrote them.
+		 getColumnNames() and columnList give upper case (verified on the
+		 server).
+		--->
+		<cftry>
+			<cfset meta = this.resultID.getMetaData()>
+
+			<cfloop from="1" to="#meta.getColumnCount()#" index="i">
+				<cfset ArrayAppend(names, meta.getColumnLabel(JavaCast("int", i)))>
 			</cfloop>
 
 			<cfcatch type="any">
-				<cfset names = ListToArray(this.resultID.columnList)>
+				<cfset names = this.resultID.getColumnNames()>
 			</cfcatch>
 		</cftry>
+
+		<cfset this.columnNames_ = names>
 
 		<cfreturn names>
 	</cffunction>
