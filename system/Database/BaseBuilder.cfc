@@ -869,7 +869,8 @@
 		<cfset var op = "">
 		<cfset var i = 0>
 
-		<cfif instanceof_(arguments.key, "RawSql")>
+		<!--- IsObject() is asked first here and below: only a component can be an instance, and the test costs far less than the call --->
+		<cfif IsObject(arguments.key) AND instanceof_(arguments.key, "RawSql")>
 			<cfif arguments.valueGiven>
 				<cfset keyValue[arguments.key.__toString()] = arguments.value>
 			<cfelse>
@@ -900,7 +901,7 @@
 			<cfset v = keyValue[k]>
 
 			<!--- a NullValue is the null, as well as an omitted value --->
-			<cfset isNullEntry = isNullValue OR isNullMarker_(v)>
+			<cfset isNullEntry = isNullValue OR (IsObject(v) AND isNullMarker_(v))>
 
 			<cfif rawSqlOnly>
 				<cfset k = "">
@@ -923,7 +924,8 @@
 					<cfset op = " =">
 				</cfif>
 
-				<cfif isSubquery(v)>
+				<!--- a simple value is never a subquery --->
+				<cfif NOT IsSimpleValue(v) AND isSubquery(v)>
 					<cfset v = buildSubquery(v, "true")>
 				<cfelse>
 					<cfset bind = setBind(k, v, escape_)>
@@ -952,7 +954,7 @@
 				</cfif>
 			</cfif>
 
-			<cfif instanceof_(v, "RawSql")>
+			<cfif IsObject(v) AND instanceof_(v, "RawSql")>
 				<cfset entry = array_("condition", v.with(prefix & k & op & v.__toString()), "escape", escape_)>
 			<cfelse>
 				<cfset entry = array_("condition", prefix & k & op & v, "escape", escape_)>
@@ -3913,6 +3915,8 @@
 		<cfset var m5 = "">
 		<cfset var protect = "">
 		<cfset var head = "">
+		<cfset var lead = "">
+		<cfset var n = 0>
 		<cfset var i = 0>
 		<cfset var j = 0>
 
@@ -3925,10 +3929,29 @@
 
 			<!--- a string or a RawSql was compiled before --->
 			<cfif NOT IsSimpleValue(item) AND NOT instanceof_(item, "RawSql")>
-				<cfif instanceof_(item["condition"], "RawSql")>
+				<cfif IsObject(item["condition"]) AND instanceof_(item["condition"], "RawSql")>
 					<cfset items[i] = item["condition"]>
 				<cfelseif NOT item["escape"]>
 					<cfset items[i] = item["condition"]>
+				<cfelseif isPlainCondition_(item["condition"])>
+					<!---
+					 * Difference: the condition that where("id", 5) leaves, a
+					 * name, a comparison and a bind ("AND id = :id:"), is put
+					 * together from its words. The steps below give the same
+					 * text for it: the split gives the AND or OR and the rest,
+					 * the operator is the comparison, and of the name and the
+					 * bind only the name is an identifier. They take about a
+					 * millisecond a condition, in Java calls.
+					--->
+					<cfset condition = item["condition"]>
+					<cfset n = ListLen(condition, " ")>
+					<cfset lead = "">
+
+					<cfif n EQ 4>
+						<cfset lead = ListFirst(condition, " ") & " ">
+					</cfif>
+
+					<cfset items[i] = lead & this.db_.protectIdentifiers(ListGetAt(condition, n - 2, " ")) & " " & ListGetAt(condition, n - 1, " ") & " " & ListLast(condition, " ")>
 				<cfelse>
 					<!--- split multiple conditions --->
 					<cfset conditions = splitConditions_(item["condition"])>
@@ -4266,6 +4289,15 @@
 	<cffunction name="getOperatorFromWhereKey" access="private" returntype="array" output="no">
 		<cfargument name="whereKey" type="string" required="yes">
 		<cfset var pregOperators = ArrayNew(1)>
+
+		<!---
+		 * Difference: every operator below has a white space character (what
+		 * \s matches) or one of < > = in it, so a key with none of them,
+		 * which a plain column name is, has no operator and is not searched.
+		--->
+		<cfif REFind("[" & Chr(9) & Chr(10) & Chr(11) & Chr(12) & Chr(13) & " <>=]", arguments.whereKey) EQ 0>
+			<cfreturn pregOperators>
+		</cfif>
 
 		<cfset ArrayAppend(pregOperators, "\s*(?:<|>|!)?=")>
 		<cfset ArrayAppend(pregOperators, "\s*<>?")>
@@ -4719,6 +4751,35 @@
 		</cfif>
 
 		<cfreturn out>
+	</cffunction>
+
+	<!---
+	 * true for a condition that is a name, a comparison and a bind, with
+	 * single spaces and at most an "AND " or an "OR " in front:
+	 * "id = :id:", "AND t.name != :t.name.1:". compileWhereHaving() puts
+	 * such a condition together without the patterns. A name that is AND or
+	 * OR is left to the patterns, which read it as the conjunction.
+	--->
+	<cffunction name="isPlainCondition_" access="private" returntype="boolean" output="no">
+		<cfargument name="condition" type="any" required="yes">
+		<cfset var name = "">
+
+		<cfif NOT IsSimpleValue(arguments.condition)>
+			<cfreturn false>
+		</cfif>
+
+		<cfif REFind("^(AND |OR )?[A-Za-z_][A-Za-z0-9_.]* (=|[!<>]=|<>|<|>) :[A-Za-z0-9_.]+:$", arguments.condition) NEQ 1>
+			<cfreturn false>
+		</cfif>
+
+		<!--- the $ of the pattern also matches before a line break at the end --->
+		<cfif Compare(Right(arguments.condition, 1), ":") NEQ 0>
+			<cfreturn false>
+		</cfif>
+
+		<cfset name = ListGetAt(arguments.condition, ListLen(arguments.condition, " ") - 2, " ")>
+
+		<cfreturn CompareNoCase(name, "AND") NEQ 0 AND CompareNoCase(name, "OR") NEQ 0>
 	</cffunction>
 
 	<!--- the list of a clause that is named by its property --->
