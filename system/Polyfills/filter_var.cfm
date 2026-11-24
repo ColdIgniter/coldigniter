@@ -161,20 +161,23 @@
  * Difference: null is an empty string here, so a failure with
  * FILTER_NULL_ON_FAILURE gives an empty string.
  *
- * Difference: a number is a double here. An integer above 2^53 loses its
- * last digits (it still passes the range check of a 64-bit integer).
+ * Difference: a number is a double here. FILTER_VALIDATE_INT gives the digits
+ * as text, so all 64 bits are kept, but "min_range" and "max_range" compare
+ * as doubles, so a limit above 2^53 is not exact. A float is a double.
  *
- * Difference: the original strips and encodes bytes. Here a character
- * above 127 counts for FILTER_FLAG_STRIP_HIGH, and the URL encoding is made
- * of the UTF-8 bytes of it, as the original gives for UTF-8 text.
+ * Difference: the original strips and encodes bytes. Here FILTER_FLAG_STRIP_HIGH
+ * counts characters, not bytes: one character above 127 is removed once,
+ * where the original removes each of its bytes. The URL encoding is made of
+ * the UTF-8 bytes of it, as the original gives for UTF-8 text.
  *
  * Difference: FILTER_SANITIZE_FULL_SPECIAL_CHARS is htmlspecialchars with
- * quotes: a text that is encoded already is encoded again, and a character
- * above 127 stays as it is.
+ * quotes. The original is htmlentities-like and does not encode twice, so
+ * here a text that is encoded already (&amp;) is encoded again (&amp;amp;),
+ * and a character above 127 stays as it is instead of becoming an entity.
  *
- * Difference: for an IPv6 address the reserved ranges of FILTER_FLAG_NO_RES_RANGE
- * are ::/128, ::1/128, ::ffff:0:0/96 and fe80::/10, and the private range of
- * FILTER_FLAG_NO_PRIV_RANGE is fc00::/7.
+ * The IPv6 ranges are those of the original: FILTER_FLAG_NO_RES_RANGE refuses
+ * ::/128, ::1/128, 5f00::/8, fe80::/10, 2001:db8::/32, 2001:10::/28 and
+ * 3ff3::/16, and FILTER_FLAG_NO_PRIV_RANGE refuses fc00::/7.
  *
  * @param leaf true for an item of an array: the flags about arrays are not read
 --->
@@ -214,20 +217,32 @@
 		<cfset bits = Int(arguments.flags)>
 	</cfif>
 
+	<!--- an empty filter is null here, and the original takes FILTER_UNSAFE_RAW then; a name is a TypeError there --->
 	<cfif IsNumeric(arguments.filter)>
 		<cfset kind = Int(arguments.filter)>
+	<cfelseif Len(arguments.filter) GT 0>
+		<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="filter_var(): Argument ##2 ($filter) must be of type ?int, string given">
 	</cfif>
 
+	<!--- a failure about the array flags gives false at once: the option "default" and FILTER_FORCE_ARRAY do not apply --->
 	<cfif NOT arguments.leaf>
 		<cfif NOT IsSimpleValue(arguments.value)>
 			<!--- an array needs FILTER_REQUIRE_ARRAY or FILTER_FORCE_ARRAY --->
 			<cfif BitAnd(bits, 83886080) EQ 0>
-				<cfset failed = true>
+				<cfif BitAnd(bits, 134217728) NEQ 0>
+					<cfreturn "">
+				</cfif>
+
+				<cfreturn false>
 			<cfelse>
 				<cfreturn filter_walk_(arguments.value, arguments.filter, arguments.flags, true)>
 			</cfif>
 		<cfelseif BitAnd(bits, 16777216) NEQ 0>
-			<cfset failed = true>
+			<cfif BitAnd(bits, 134217728) NEQ 0>
+				<cfreturn "">
+			</cfif>
+
+			<cfreturn false>
 		</cfif>
 	</cfif>
 
@@ -282,11 +297,12 @@
 
 					<cfif NOT failed>
 						<!--- the digits as text keep all 64 bits, a number would round --->
-							<cfset result = digits>
+						<cfset result = digits>
 
-							<cfif Compare(Left(jt, 1), "-") EQ 0 AND Compare(digits, "0") NEQ 0>
-								<cfset result = "-" & digits>
-							</cfif>
+						<cfif Compare(Left(jt, 1), "-") EQ 0 AND Compare(digits, "0") NEQ 0>
+							<cfset result = "-" & digits>
+						</cfif>
+
 						<cfif IsStruct(options)>
 							<cfif StructKeyExists(options, "min_range") AND result LT options["min_range"]>
 								<cfset failed = true>
@@ -658,7 +674,7 @@
 	<cfargument name="bits" type="numeric" required="yes">
 	<cfset var first = 0>
 	<cfset var second = 0>
-	<cfset var lower = "">
+	<cfset var groups = "">
 
 	<cfif BitAnd(arguments.bits, 12582912) EQ 0>
 		<cfreturn true>
@@ -683,31 +699,79 @@
 		<cfreturn true>
 	</cfif>
 
-	<cfset lower = JavaCast("string", arguments.value).toLowerCase()>
+	<cfset groups = filter_ipv6_groups_(arguments.value)>
 
+	<!--- fc00::/7 --->
 	<cfif BitAnd(arguments.bits, 8388608) NEQ 0>
-		<!--- fc00::/7 --->
-		<cfif REFind("^f[cd][0-9a-f][0-9a-f]:", lower) GT 0>
+		<cfif groups[1] GTE 64512 AND groups[1] LTE 65023>
 			<cfreturn false>
 		</cfif>
 	</cfif>
 
+	<!--- ::/128, ::1/128, 5f00::/8, fe80::/10, 2001:db8::/32, 2001:10::/28 and 3ff3::/16 --->
 	<cfif BitAnd(arguments.bits, 4194304) NEQ 0>
-		<!--- ::/128, ::1/128, ::ffff:0:0/96 and fe80::/10 --->
-		<cfif REFind("^[0:]+$", lower) GT 0 OR REFind("^[0:]*:0*1$", lower) GT 0>
+		<cfif groups[1] EQ 0 AND groups[2] EQ 0 AND groups[3] EQ 0 AND groups[4] EQ 0 AND groups[5] EQ 0 AND groups[6] EQ 0 AND groups[7] EQ 0 AND groups[8] LTE 1>
 			<cfreturn false>
 		</cfif>
 
-		<cfif JavaCast("string", lower).matches("^((0{1,4}:){5}|::|(0{1,4}:){1,4}:)ffff:.*")>
+		<cfif groups[1] EQ 95 OR (groups[1] GTE 65152 AND groups[1] LTE 65215) OR groups[1] EQ 16371>
 			<cfreturn false>
 		</cfif>
 
-		<cfif REFind("^fe[89ab][0-9a-f]:", lower) GT 0>
+		<cfif groups[1] EQ 8193 AND (groups[2] EQ 3512 OR (groups[2] GTE 16 AND groups[2] LTE 31))>
 			<cfreturn false>
 		</cfif>
 	</cfif>
 
 	<cfreturn true>
+</cffunction>
+
+<!---
+ * Gives the eight 16-bit groups of a valid IPv6 address as numbers, with the
+ * "::" filled with zeros and an IPv4 tail as the last two groups.
+--->
+<cffunction name="filter_ipv6_groups_" returntype="any" output="no" hint="Splits an IPv6 address into eight numbers">
+	<cfargument name="value" type="string" required="yes">
+	<cfset var text = JavaCast("string", arguments.value).toLowerCase()>
+	<cfset var groups = ArrayNew(1)>
+	<cfset var leftPart = ArrayNew(1)>
+	<cfset var rightPart = ArrayNew(1)>
+	<cfset var tail = "">
+	<cfset var pos = 0>
+	<cfset var i = 0>
+
+	<!--- an IPv4 tail is two groups --->
+	<cfif Find(".", text) GT 0>
+		<cfset tail = ListLast(text, ":")>
+		<cfset text = Left(text, Len(text) - Len(tail)) & FormatBaseN(ListGetAt(tail, 1, ".") * 256 + ListGetAt(tail, 2, "."), 16) & ":" & FormatBaseN(ListGetAt(tail, 3, ".") * 256 + ListGetAt(tail, 4, "."), 16)>
+	</cfif>
+
+	<cfset pos = Find("::", text)>
+
+	<cfif pos GT 0>
+		<cfset leftPart = ListToArray(Left(text, pos - 1), ":")>
+		<cfset rightPart = ListToArray(Mid(text, pos + 2, Len(text)), ":")>
+
+		<cfloop from="1" to="#ArrayLen(leftPart)#" index="i">
+			<cfset ArrayAppend(groups, InputBaseN(leftPart[i], 16))>
+		</cfloop>
+
+		<cfloop from="1" to="#8 - ArrayLen(leftPart) - ArrayLen(rightPart)#" index="i">
+			<cfset ArrayAppend(groups, 0)>
+		</cfloop>
+
+		<cfloop from="1" to="#ArrayLen(rightPart)#" index="i">
+			<cfset ArrayAppend(groups, InputBaseN(rightPart[i], 16))>
+		</cfloop>
+	<cfelse>
+		<cfset leftPart = ListToArray(text, ":")>
+
+		<cfloop from="1" to="#ArrayLen(leftPart)#" index="i">
+			<cfset ArrayAppend(groups, InputBaseN(leftPart[i], 16))>
+		</cfloop>
+	</cfif>
+
+	<cfreturn groups>
 </cffunction>
 
 <!---

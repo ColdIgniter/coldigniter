@@ -216,7 +216,14 @@
  * as it was sent, with no other cost than one check.
  *
  * Difference: a value that is not there is an empty string (null), and it is
- * not filtered. A value that is there and is an empty string is filtered.
+ * not filtered. A value that is there and is an empty string is filtered,
+ * except for a server value that is read by name outside the saved
+ * globals (a request header): the live read gives an empty string for both
+ * a missing and an empty value, so it is not filtered.
+ *
+ * A failed filter gives the text "false" (or an empty string with
+ * FILTER_NULL_ON_FAILURE). On MX 6.1 "0 EQ false" is true, so test a failure
+ * with IsBoolean(x) AND NOT IsNumeric(x) AND NOT x, never with EQ.
  *
  * @param name   Superglobal name (lowercase): cookie, get, post, request or server
  * @param index  A name, an array of names, or an empty string (null) for all values
