@@ -1,8 +1,5 @@
 <!---
  * Handle a redirect response
- *
- * Not ported yet: the multi-value branch of withHeaders (a header here
- * is a single line, see Message::headers()).
 --->
 <cfcomponent output="no" extends="Response" hint="Handle a redirect response">
 
@@ -175,10 +172,10 @@
 		<cfloop collection="#headers#" item="name">
 			<cfif IsArray(headers[name])>
 				<cfloop from="1" to="#ArrayLen(headers[name])#" index="i">
-					<cfset addHeader(name, headers[name][i])>
+					<cfset addHeader(name, headers[name][i].getValue())>
 				</cfloop>
 			<cfelse>
-				<cfset setHeader(name, headers[name])>
+				<cfset setHeader(name, headers[name].getValue())>
 			</cfif>
 		</cfloop>
 

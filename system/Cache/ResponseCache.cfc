@@ -132,6 +132,8 @@
 		<cfset var headers = CreateObject("java", "java.util.LinkedHashMap").init()>
 		<cfset var all = arguments.response.headers()>
 		<cfset var name = "">
+		<cfset var lines = "">
+		<cfset var i = 0>
 		<cfset var contents = CreateObject("java", "java.util.LinkedHashMap").init()>
 
 		<cfif this.ttl EQ 0>
@@ -139,7 +141,18 @@
 		</cfif>
 
 		<cfloop collection="#all#" item="name">
-			<cfset headers.put(name, all[name])>
+			<cfif IsArray(all[name])>
+				<!--- several headers of the same name: a list of lines --->
+				<cfset lines = ArrayNew(1)>
+
+				<cfloop from="1" to="#ArrayLen(all[name])#" index="i">
+					<cfset ArrayAppend(lines, all[name][i].getValueLine())>
+				</cfloop>
+
+				<cfset headers.put(name, lines)>
+			<cfelse>
+				<cfset headers.put(name, all[name].getValueLine())>
+			</cfif>
 		</cfloop>
 
 		<cfset contents.put("headers", headers)>
@@ -295,18 +308,18 @@
 			<cfset headers = arguments.response.headers()>
 
 			<cfloop collection="#headers#" item="name">
-				<cfif name EQ "Content-Type">
-					<cfset contentType = headers[name]>
+				<cfif name EQ "Content-Type" AND NOT IsArray(headers[name])>
+					<cfset contentType = headers[name].getValueLine()>
 				<cfelse>
 					<cfif IsArray(headers[name])>
 						<!--- one entry for each of several headers of the same name --->
 						<cfloop index="i" from="1" to="#ArrayLen(headers[name])#">
 							<cfset names.add(JavaCast("string", name))>
-							<cfset values.add(JavaCast("string", headers[name][i]))>
+							<cfset values.add(JavaCast("string", headers[name][i].getValueLine()))>
 						</cfloop>
 					<cfelse>
 						<cfset names.add(JavaCast("string", name))>
-						<cfset values.add(JavaCast("string", headers[name]))>
+						<cfset values.add(JavaCast("string", headers[name].getValueLine()))>
 					</cfif>
 				</cfif>
 			</cfloop>
