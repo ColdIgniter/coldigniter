@@ -9,7 +9,7 @@
  * map of settings is made with array_(), and md5() takes the place of the
  * md5() of the original over the json_encode() of the settings.
  *
- * Not ported yet: utils() and seeder() (BaseUtils and Seeder).
+ * Not ported yet: utils() (BaseUtils).
 --->
 <cfcomponent output="no" parent="ColdIgniter\Config\BaseConfig" hint="Database configuration and connection manager">
 
@@ -123,13 +123,11 @@
 
 	<!---
 	 * Returns a new instance of the Database Seeder.
-	 *
-	 * Not ported yet: Seeder.
 	--->
 	<cffunction name="seeder" access="public" returntype="any" output="no">
 		<cfargument name="group" type="string" required="no" default="">
 
-		<cfthrow type="ColdIgniter.LogicException" message="Not ported yet: Seeder.">
+		<cfreturn new_("ColdIgniter\Database\Seeder", variables.config("Config\Database"), this.connect(arguments.group))>
 	</cffunction>
 
 	<!---

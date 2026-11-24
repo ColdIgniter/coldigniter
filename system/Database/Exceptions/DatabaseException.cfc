@@ -13,7 +13,7 @@
 
 	<cffunction name="getExitCode" access="public" returntype="numeric" output="no">
 
-		<cfreturn EXIT_DATABASE>
+		<cfreturn request.EXIT_DATABASE>
 	</cffunction>
 
 </cfcomponent>
