@@ -23,8 +23,7 @@
  *
  * Not ported yet: Kint (a value that is not a string is shown with
  * print_r()), the session data (there is no session), the XML format,
- * the content security policy (the nonce of the script and the style, and
- * the image source data:), the peak memory (the memory is what the Java
+ * the peak memory (the memory is what the Java
  * runtime has in use), the downloads (there is no DownloadResponse) and
  * the check of the headers that are already sent (see hasNativeHeaderConflict()).
 --->
@@ -209,7 +208,7 @@
 
 		<cfset data["config"] = static_("ColdIgniter\Debug\Toolbar\Collectors\Config").display()>
 
-		<!--- Not ported yet: response.getCSP().addImageSrc("data:") --->
+		<cfset arguments.response.getCSP().addImageSrc("data:")>
 
 		<cfreturn data>
 	</cffunction>
@@ -760,13 +759,13 @@
 			<cfreturn>
 		</cfif>
 
-		<!--- Not ported yet: the Kint script, and the nonce of the content security policy. --->
+		<!--- Not ported yet: the Kint script. --->
 		<cfset script = Chr(10)
-			& "<script id=""debugbar_loader"" "
+			& "<script " & csp_script_nonce() & " id=""debugbar_loader"" "
 			& "data-time=""" & stamp & """ "
 			& "src=""" & site_url() & "?debugbar""></script>"
-			& "<script id=""debugbar_dynamic_script""></script>"
-			& "<style id=""debugbar_dynamic_style""></style>"
+			& "<script " & csp_script_nonce() & " id=""debugbar_dynamic_script""></script>"
+			& "<style " & csp_style_nonce() & " id=""debugbar_dynamic_style""></style>"
 			& Chr(10)>
 
 		<cfset body = arguments.response.getBody()>

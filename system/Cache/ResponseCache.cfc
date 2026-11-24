@@ -286,6 +286,16 @@
 			<cfreturn>
 		</cfif>
 
+		<!---
+		 Difference: a page is not kept in front when the policy is on. The
+		 front page is served without send(), so it would go out with no
+		 policy header and with the nonce tags taken out; upstream runs
+		 finalize() again for a cached response, to make fresh nonces.
+		--->
+		<cfif config("Config\App").CSPEnabled>
+			<cfreturn>
+		</cfif>
+
 		<cftry>
 			<cfset events = static_("ColdIgniter\Events\Events")>
 
@@ -299,7 +309,7 @@
 				<cfreturn>
 			</cfif>
 
-			<!--- What send() of the response does to the body. --->
+			<!--- What send() of the response does to the body, with the policy off. --->
 			<cfset output = Replace(output, "{csp-style-nonce}", "", "all")>
 			<cfset output = Replace(output, "{csp-script-nonce}", "", "all")>
 
