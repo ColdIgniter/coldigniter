@@ -650,8 +650,12 @@
 	 *
 	 * Difference: the engine keeps one value for a field name that comes
 	 * more than once (docs[] with two files), the path of the last file, so
-	 * only that file is seen (see the probe Filestest for the check that no
-	 * other way to the first ones exists).
+	 * only that file is seen, as a list of one. cffile would give the client
+	 * name of the first part with the content of the last, so for a name that
+	 * comes more than once cffile is not used: the name is the name of the
+	 * temp file, the type application/octet-stream, and the size is read from
+	 * the file. The names are counted in the field names list of the form
+	 * scope.
 	--->
 	<cffunction name="readFiles" access="private" returntype="any" output="no">
 		<cfset var raw = CreateObject("java", "java.util.LinkedHashMap").init()>
@@ -668,6 +672,7 @@
 		<cfset var field = "">
 		<cfset var holder = "">
 		<cfset var entry = "">
+		<cfset var count = 0>
 		<cfset var i = 0>
 
 		<cfif server_value("REQUEST_METHOD") NEQ "POST" OR Find("multipart/form-data", LCase(CGI.CONTENT_TYPE)) EQ 0>
@@ -689,12 +694,15 @@
 					<cfset isList = true>
 				</cfif>
 
-				<cfif ArrayLen(paths) GT 1>
+				<!--- the form scope lists a name once for each part, but keeps one value --->
+				<cfset count = Max(ArrayLen(paths), ListValueCount(form.FIELDNAMES, key))>
+
+				<cfif count GT 1>
 					<cfset isList = true>
 				</cfif>
 
 				<cfloop from="1" to="#ArrayLen(paths)#" index="i">
-					<cfset info = fileInfo(key, paths[i], ArrayLen(paths))>
+					<cfset info = fileInfo(key, paths[i], count)>
 
 					<cfif NOT StructKeyExists(raw, name)>
 						<cfset raw[name] = CreateObject("java", "java.util.LinkedHashMap").init()>
@@ -903,12 +911,10 @@
 			<cfset parent = LCase(file.getParentFile().getPath() & "")>
 
 			<cfif NOT file.isFile()>
-				<cfset uploadLog("not a file " & arguments.path)>
 				<cfreturn false>
 			</cfif>
 
 			<cfif CompareNoCase(Right(name, 4), ".tmp") NEQ 0>
-				<cfset uploadLog("not tmp " & name)>
 				<cfreturn false>
 			</cfif>
 
@@ -918,29 +924,10 @@
 				</cfif>
 			</cfloop>
 
-			<cfset uploadLog("parent [" & parent & "] not in " & ArrayLen(dirs) & " dirs: " & ArrayToList(dirs, "|"))>
-
-			<cfcatch type="any">
-				<cfset uploadLog("THROWN " & cfcatch.message & " " & cfcatch.detail)>
-			</cfcatch>
+			<cfcatch type="any"></cfcatch>
 		</cftry>
 
 		<cfreturn false>
-	</cffunction>
-
-	<!---
-	 * Keeps the reason a temp-looking value was refused, for the probe.
-	 *
-	 * Not in the original.
-	--->
-	<cffunction name="uploadLog" access="private" returntype="void" output="no">
-		<cfargument name="text" type="string" required="yes">
-
-		<cfif NOT StructKeyExists(request.ColdIgniter, "uploadLog")>
-			<cfset request.ColdIgniter.uploadLog = ArrayNew(1)>
-		</cfif>
-
-		<cfset ArrayAppend(request.ColdIgniter.uploadLog, arguments.text)>
 	</cffunction>
 
 	<!---
