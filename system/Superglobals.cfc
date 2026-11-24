@@ -564,6 +564,7 @@
 		<cfset var contentType = LCase(CGI.CONTENT_TYPE)>
 		<cfset var content = "">
 		<cfset var query = "">
+		<cfset var parsed = "">
 		<cfset var key = "">
 
 		<cfif server_value("REQUEST_METHOD") NEQ "POST">
@@ -588,7 +589,20 @@
 				</cfif>
 			</cfloop>
 
-			<cfreturn parse_str(query)>
+			<!---
+			 Difference: the names are upper case and their case is gone, so
+			 the map is a CFML structure, whose names are found without regard
+			 to case: getPost("title") finds TITLE. The order of the fields is
+			 not kept.
+			--->
+			<cfset parsed = parse_str(query)>
+			<cfset content = StructNew()>
+
+			<cfloop collection="#parsed#" item="key">
+				<cfset content[key] = parsed[key]>
+			</cfloop>
+
+			<cfreturn content>
 		</cfif>
 
 		<cfreturn CreateObject("java", "java.util.LinkedHashMap").init()>
@@ -874,33 +888,59 @@
 	<cffunction name="isTempUpload" access="private" returntype="boolean" output="no">
 		<cfargument name="path" type="string" required="yes">
 		<cfset var file = "">
+		<cfset var name = "">
 		<cfset var parent = "">
 		<cfset var dirs = uploadTempDirs()>
 		<cfset var i = 0>
 
-		<cfif Len(arguments.path) LT 5 OR Len(arguments.path) GT 400 OR Find(Chr(0), arguments.path) GT 0>
+		<cfif Len(arguments.path) LT 5 OR Len(arguments.path) GT 400>
 			<cfreturn false>
 		</cfif>
 
 		<cftry>
 			<cfset file = CreateObject("java", "java.io.File").init(JavaCast("string", arguments.path)).getCanonicalFile()>
+			<cfset name = file.getName() & "">
+			<cfset parent = LCase(file.getParentFile().getPath() & "")>
 
-			<cfif NOT file.isFile() OR CompareNoCase(Right(file.getName(), 4), ".tmp") NEQ 0>
+			<cfif NOT file.isFile()>
+				<cfset uploadLog("not a file " & arguments.path)>
 				<cfreturn false>
 			</cfif>
 
-			<cfset parent = LCase(file.getParentFile().getPath())>
+			<cfif CompareNoCase(Right(name, 4), ".tmp") NEQ 0>
+				<cfset uploadLog("not tmp " & name)>
+				<cfreturn false>
+			</cfif>
 
 			<cfloop from="1" to="#ArrayLen(dirs)#" index="i">
-				<cfif Compare(parent, dirs[i]) EQ 0>
+				<cfif Compare(parent, dirs[i] & "") EQ 0>
 					<cfreturn true>
 				</cfif>
 			</cfloop>
 
-			<cfcatch type="any"></cfcatch>
+			<cfset uploadLog("parent [" & parent & "] not in " & ArrayLen(dirs) & " dirs: " & ArrayToList(dirs, "|"))>
+
+			<cfcatch type="any">
+				<cfset uploadLog("THROWN " & cfcatch.message & " " & cfcatch.detail)>
+			</cfcatch>
 		</cftry>
 
 		<cfreturn false>
+	</cffunction>
+
+	<!---
+	 * Keeps the reason a temp-looking value was refused, for the probe.
+	 *
+	 * Not in the original.
+	--->
+	<cffunction name="uploadLog" access="private" returntype="void" output="no">
+		<cfargument name="text" type="string" required="yes">
+
+		<cfif NOT StructKeyExists(request.ColdIgniter, "uploadLog")>
+			<cfset request.ColdIgniter.uploadLog = ArrayNew(1)>
+		</cfif>
+
+		<cfset ArrayAppend(request.ColdIgniter.uploadLog, arguments.text)>
 	</cffunction>
 
 	<!---
