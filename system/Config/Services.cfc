@@ -165,6 +165,26 @@
 	</cffunction>
 
 	<!---
+	 * The Migrations class runs the migrations of the database. It is
+	 * called from code (there is no command line).
+	--->
+	<cffunction name="migrations" access="public" returntype="any" output="no">
+		<cfargument name="config" type="any" required="no" default="">
+		<cfargument name="db" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("migrations", arguments.config, arguments.db)>
+		</cfif>
+
+		<cfif is_null(arguments.config)>
+			<cfset arguments.config = variables.config("Config\Migrations")>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\Database\MigrationRunner", arguments.config, arguments.db)>
+	</cffunction>
+
+	<!---
 	 * The Negotiate class provides the content negotiation features for
 	 * working the request to determine correct language, encoding, charset,
 	 * and more.
