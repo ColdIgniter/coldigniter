@@ -193,6 +193,10 @@
 			<cfset parts = parse_url(arguments.uri)>
 
 			<cfif StructCount(parts) EQ 0>
+				<cfif this.silent>
+					<cfreturn this>
+				</cfif>
+
 				<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Unable to parse URI: ""#arguments.uri#""">
 			</cfif>
 
@@ -472,6 +476,10 @@
 			<cfreturn this>
 		</cfif>
 
+		<cfif this.silent>
+			<cfreturn this>
+		</cfif>
+
 		<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Invalid port given: #arguments.port#">
 	</cffunction>
 
@@ -503,6 +511,10 @@
 		<cfargument name="query" type="string" required="yes">
 
 		<cfif Find("##", arguments.query) GT 0>
+			<cfif this.silent>
+				<cfreturn this>
+			</cfif>
+
 			<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Query strings may not include URI fragments.">
 		</cfif>
 

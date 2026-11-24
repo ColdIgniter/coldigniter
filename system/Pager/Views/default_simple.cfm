@@ -1,3 +1,4 @@
+<!--- Difference: every href goes through esc(..., "attr"). The original leaves it, because its URI percent-encodes the path; this URI does not yet. --->
 <cfset pager.setSurroundCount(0)>
 <cfset previous_ = pager.getPrevious()>
 <cfset next_ = pager.getNext()>
@@ -11,12 +12,12 @@
 <nav>
 	<ul class="pager">
 		<li <cfif NOT pager.hasPrevious()>class="disabled"</cfif>>
-			<a href="#previous_#" aria-label="#lang("Pager.previous")#">
+			<a href="#esc(previous_, "attr")#" aria-label="#lang("Pager.previous")#">
 				<span aria-hidden="true">#lang("Pager.newer")#</span>
 			</a>
 		</li>
 		<li <cfif NOT pager.hasNext()>class="disabled"</cfif>>
-			<a href="#next_#" aria-label="#lang("Pager.next")#">
+			<a href="#esc(next_, "attr")#" aria-label="#lang("Pager.next")#">
 				<span aria-hidden="true">#lang("Pager.older")#</span>
 			</a>
 		</li>
