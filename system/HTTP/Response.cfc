@@ -120,6 +120,16 @@
 	<cfset this.cookieStore = "">
 
 	<!---
+	 * Content security policy (a ContentSecurityPolicy).
+	 *
+	 * Difference: the original makes it in the constructor, as the policy
+	 * has to be there even when it is off. Here it is made by getCSP() on
+	 * the first call, so a request with the policy off pays nothing for it.
+	 * An empty string until then.
+	--->
+	<cfset this.CSP = "">
+
+	<!---
 	 * Constructor
 	 *
 	 * @param config
@@ -134,8 +144,6 @@
 		 Also ensures that a Cache-control header exists.
 		--->
 		<cfset noCache()>
-
-		<!--- Not ported yet: the CSP object --->
 
 		<cfset this.cookieStore = new_("ColdIgniter\Cookie\CookieStore", ArrayNew(1))>
 
@@ -283,11 +291,17 @@
 	--->
 	<cffunction name="send" access="public" returntype="any" output="no">
 		<!---
-		 Not ported yet: the Content Security Policy.
-		 The policy is the one that takes the nonce tags out of the body
-		 when it is turned off, so that part is done here.
+		 If we're enforcing a Content Security Policy,
+		 we need to give it a chance to build out it's headers.
+
+		 Difference: the policy object is not made when the policy is off.
+		 The default nonce tags are taken out of the body here then, after
+		 a single Find() that tells if there is one; a tag the config renamed
+		 is only taken out when the policy object exists.
 		--->
-		<cfif IsSimpleValue(this.body)>
+		<cfif IsObject(this.CSP) OR variables.config("Config\App").CSPEnabled>
+			<cfset getCSP().finalize(this)>
+		<cfelseif IsSimpleValue(this.body) AND Find("{csp-", this.body) GT 0>
 			<cfset this.body = Replace(this.body, "{csp-style-nonce}", "", "all")>
 			<cfset this.body = Replace(this.body, "{csp-script-nonce}", "", "all")>
 		</cfif>
@@ -451,6 +465,20 @@
 		<cfset this.cookieStore = this.cookieStore.put(cookie_)>
 
 		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Returns the current Content Security Policy object, made on the first call.
+	 *
+	 * We need the object even if the policy is not enabled, to avoid
+	 * calls to non existing methods.
+	--->
+	<cffunction name="getCSP" access="public" returntype="any" output="no">
+		<cfif NOT IsObject(this.CSP)>
+			<cfset this.CSP = service("csp")>
+		</cfif>
+
+		<cfreturn this.CSP>
 	</cffunction>
 
 	<!---
