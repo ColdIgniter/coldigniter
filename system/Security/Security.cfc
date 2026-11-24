@@ -391,7 +391,7 @@
 
 		<!--- 2. Check header data next. --->
 		<cfif arguments.request_.hasHeader(headerName)>
-			<cfset token = arguments.request_.header(headerName)>
+			<cfset token = arguments.request_.header(headerName).getValue()>
 
 			<cfif isNonEmptyTokenString(token)>
 				<cfreturn token>

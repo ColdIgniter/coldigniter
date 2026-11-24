@@ -85,6 +85,11 @@
 	 *
 	 * @return A map of the headers, by name: a Header, or an array of
 	 *         Headers for a header that was added more than once
+	 *
+	 * Difference: the original calls populateHeaders() when no header is
+	 * set. Here it does not: IncomingRequest populates its headers in the
+	 * constructor, and on a response the call would fill an empty header
+	 * map with the request headers (ResponseCache empties it first).
 	--->
 	<cffunction name="headers" access="public" returntype="any" output="no">
 		<cfreturn this.headers_>
