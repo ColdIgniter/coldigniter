@@ -108,14 +108,19 @@
 		<cfset var generator = "">
 		<cfset var host = "">
 
-		<cfif NOT StructKeyExists(server, "ColdIgniterDotEnvKeys")>
+		<!--- a struct of an older version of this file has no id yet --->
+		<cfif NOT StructKeyExists(server, "ColdIgniterDotEnvKeys") OR NOT StructKeyExists(server.ColdIgniterDotEnvKeys, "id")>
 			<cflock name="ColdIgniterDotEnvKeys" type="exclusive" timeout="10">
-				<cfif NOT StructKeyExists(server, "ColdIgniterDotEnvKeys")>
-					<cfset keys = StructNew()>
-					<cfset generator = CreateObject("java", "javax.crypto.KeyGenerator").getInstance("AES")>
-					<cfset generator.init(JavaCast("int", 128))>
-					<cfset keys.cipher = generator.generateKey()>
-					<cfset keys.mac = CreateObject("java", "javax.crypto.KeyGenerator").getInstance("HmacSHA1").generateKey()>
+				<cfif NOT StructKeyExists(server, "ColdIgniterDotEnvKeys") OR NOT StructKeyExists(server.ColdIgniterDotEnvKeys, "id")>
+					<cfif StructKeyExists(server, "ColdIgniterDotEnvKeys")>
+						<cfset keys = server.ColdIgniterDotEnvKeys>
+					<cfelse>
+						<cfset keys = StructNew()>
+						<cfset generator = CreateObject("java", "javax.crypto.KeyGenerator").getInstance("AES")>
+						<cfset generator.init(JavaCast("int", 128))>
+						<cfset keys.cipher = generator.generateKey()>
+						<cfset keys.mac = CreateObject("java", "javax.crypto.KeyGenerator").getInstance("HmacSHA1").generateKey()>
+					</cfif>
 					<!--- the identity of this server, for the name of the file --->
 					<cftry>
 						<cfset host = CreateObject("java", "java.net.InetAddress").getLocalHost().getHostName()>
