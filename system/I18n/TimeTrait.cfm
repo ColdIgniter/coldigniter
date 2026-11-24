@@ -1674,6 +1674,7 @@
 	<cfset var dow = 0>
 	<cfset var month = 0>
 	<cfset var quarter = 0>
+	<cfset var yearRun = 0>
 
 	<cfif is_null(pattern)>
 		<cfset pattern = this.toStringFormat>
@@ -1735,6 +1736,42 @@
 				</cfif>
 
 				<cfset i = i + run>
+			</cfif>
+		</cfloop>
+
+		<cfset pattern = out>
+	</cfif>
+
+	<!--- Difference: ICU gives the full year for a y run that is not yy, SimpleDateFormat only for yyyy --->
+	<cfif Find("y", pattern) GT 0>
+		<cfset out = "">
+		<cfset i = 1>
+		<cfset inQuote = false>
+
+		<cfloop condition="i LTE Len(pattern)">
+			<cfset ch = Mid(pattern, i, 1)>
+
+			<cfif Compare(ch, "'") EQ 0>
+				<cfset inQuote = NOT inQuote>
+				<cfset out = out & ch>
+				<cfset i = i + 1>
+			<cfelseif inQuote OR Compare(ch, "y") NEQ 0>
+				<cfset out = out & ch>
+				<cfset i = i + 1>
+			<cfelse>
+				<cfset yearRun = 1>
+
+				<cfloop condition="i + yearRun LTE Len(pattern) AND Compare(Mid(pattern, i + yearRun, 1), ""y"") EQ 0">
+					<cfset yearRun = yearRun + 1>
+				</cfloop>
+
+				<cfif yearRun EQ 2>
+					<cfset out = out & "yy">
+				<cfelse>
+					<cfset out = out & "yyyy">
+				</cfif>
+
+				<cfset i = i + yearRun>
 			</cfif>
 		</cfloop>
 
