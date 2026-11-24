@@ -524,7 +524,8 @@
 	<!---
 	 * Returns the primary key value of a row, or an empty string (null).
 	 *
-	 * Difference: Entity is not ported yet, so an object is read as a map.
+	 * Difference: an object is read by its key, then with __isset() and
+	 * __get() (the magic methods of an Entity are written out).
 	--->
 	<cffunction name="getIdValue" access="public" returntype="any" output="no">
 		<cfargument name="row" type="any" required="yes">
@@ -534,6 +535,13 @@
 				<cfif NOT isNullMarker_(arguments.row[this.primaryKey])>
 					<cfreturn arguments.row[this.primaryKey]>
 				</cfif>
+			</cfif>
+		</cfif>
+
+		<!--- an Entity keeps its values in its attributes: isset() and the property go through __isset() and __get() --->
+		<cfif IsObject(arguments.row) AND NOT isNullMarker_(arguments.row) AND method_exists(arguments.row, "__isset")>
+			<cfif arguments.row.__isset(this.primaryKey)>
+				<cfreturn arguments.row.__get(this.primaryKey)>
 			</cfif>
 		</cfif>
 
