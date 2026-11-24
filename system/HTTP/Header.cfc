@@ -396,6 +396,11 @@
 			<cfreturn>
 		</cfif>
 
+		<!--- a component passes IsStruct, so an object is turned away first --->
+		<cfif IsObject(arguments.value)>
+			<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="The header value must be a string or an array.">
+		</cfif>
+
 		<cfif IsArray(arguments.value)>
 			<cfloop from="1" to="#ArrayLen(arguments.value)#" index="i">
 				<cfset validateValue(arguments.value[i])>
