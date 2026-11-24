@@ -7,10 +7,11 @@
  * getRealPath() and the file size. getRealPath() gives an empty string, not
  * false, for a file that does not exist.
  *
- * Difference: there is no fileinfo extension, so getMimeType() gives the
- * type the file came with (what the original does when finfo_open() is
- * missing), or application/octet-stream. For an uploaded file that is the
- * type the client sent, and it cannot be trusted.
+ * Difference: client-supplied, not trusted. There is no fileinfo extension,
+ * so getMimeType() gives the type the file came with (what the original does
+ * when finfo_open() is missing), or application/octet-stream. For an uploaded
+ * file that is the type the client sent. Config\Mimes is only used to guess
+ * the extension from that type.
  *
  * Difference: a file is moved with cffile action="move" (a rename does not
  * cross a volume), and the permissions are not set, as they follow the

@@ -593,7 +593,8 @@
 			 Difference: the names are upper case and their case is gone, so
 			 the map is a CFML structure, whose names are found without regard
 			 to case: getPost("title") finds TITLE. The order of the fields is
-			 not kept.
+			 not kept. Only the top level ignores case: the maps of a name with
+			 brackets, a[b], stay case-sensitive (a[B]).
 			--->
 			<cfset parsed = parse_str(query)>
 			<cfset content = StructNew()>
@@ -641,8 +642,7 @@
 	 *
 	 * Difference: cffile saves one file for a field name, so with several
 	 * files under the same name (docs[]) only the paths of the temp files are
-	 * known: the name is the name of the temp file, the type is
-	 * application/octet-stream and the size is read from the file.
+	 * known; the client name and type are dropped (see below).
 	 *
 	 * Not ported yet: the client name of such a file.
 	 *
@@ -652,9 +652,8 @@
 	 * more than once (docs[] with two files), the path of the last file, so
 	 * only that file is seen, as a list of one. cffile would give the client
 	 * name of the first part with the content of the last, so for a name that
-	 * comes more than once cffile is not used: the name is the name of the
-	 * temp file, the type application/octet-stream, and the size is read from
-	 * the file. The names are counted in the field names list of the form
+	 * comes more than once the client name and type are dropped: the name is
+	 * the name of the saved file, the type application/octet-stream. The names are counted in the field names list of the form
 	 * scope.
 	--->
 	<cffunction name="readFiles" access="private" returntype="any" output="no">
@@ -737,9 +736,10 @@
 
 	<!---
 	 * What is known of one upload: a structure with the keys of an entry
-	 * of the files array. The file is saved by cffile when it is the only
-	 * one of its field (see readFiles()); otherwise, or when cffile fails,
-	 * the temp file itself is used.
+	 * of the files array. A path is an upload (error 0) only when cffile
+	 * saved it in the folder of this request; in every other case the error
+	 * is 7 and there is no path, so a text field that holds the path of a
+	 * file of the temp folder is never a valid upload.
 	 *
 	 * Not in the original.
 	 *
@@ -752,70 +752,60 @@
 		<cfargument name="path" type="string" required="yes">
 		<cfargument name="count" type="numeric" required="yes">
 		<cfset var info = StructNew()>
-		<cfset var dir = "">
+		<cfset var dir = uploadDir()>
 		<cfset var saved = "">
 		<cfset var file = "">
 		<cfset var folder = "">
 		<cfset var ok = false>
 
-		<cfset info.name = basename(arguments.path)>
-		<cfset info.full_path = info.name>
+		<!--- error 7 and no path, unless cffile saved the file in the folder of this request --->
+		<cfset info.name = "">
+		<cfset info.full_path = "">
 		<cfset info.type = "application/octet-stream">
-		<cfset info.tmp_name = arguments.path>
-		<cfset info.error = 0>
-		<cfset info.size = "">
+		<cfset info.tmp_name = "">
+		<cfset info.error = 7>
+		<cfset info.size = 0>
 
-		<cfif arguments.count EQ 1>
-			<cfset dir = uploadDir()>
+		<cftry>
+			<cffile action="upload" filefield="#arguments.field#" destination="#dir#" nameconflict="makeunique">
 
-			<cftry>
-				<cffile action="upload" filefield="#arguments.field#" destination="#dir#" nameconflict="makeunique">
-
+			<cfif arguments.count EQ 1>
 				<cfset info.name = cffile.clientFile>
 				<cfset info.full_path = cffile.clientFile>
 				<cfset info.type = cffile.contentType & "/" & cffile.contentSubType>
-				<cfset info.size = cffile.fileSize>
-				<cfset saved = cffile.serverDirectory & request.DIRECTORY_SEPARATOR & cffile.serverFile>
-				<cfset ok = true>
+			</cfif>
 
-				<cfcatch type="any">
-					<!--- the temp file is still where the form scope says, unless cffile got to move it --->
-					<cfset ok = false>
-				</cfcatch>
-			</cftry>
+			<cfset saved = cffile.serverDirectory & request.DIRECTORY_SEPARATOR & cffile.serverFile>
+			<cfset ok = true>
 
-			<cfif ok>
-				<cfset file = CreateObject("java", "java.io.File").init(JavaCast("string", saved))>
-				<cfset folder = CreateObject("java", "java.io.File").init(JavaCast("string", dir))>
+			<cfcatch type="any">
+				<cfset ok = false>
+			</cfcatch>
+		</cftry>
 
-				<!--- the saved file must be in the folder made for it --->
-				<cfif file.isFile() AND Compare(LCase(file.getCanonicalFile().getParentFile().getPath()), LCase(folder.getCanonicalPath())) EQ 0>
-					<cfset info.tmp_name = file.getCanonicalPath()>
-				<cfelse>
-					<cfset info.error = 7>
-					<cfset info.tmp_name = "">
+		<cfif ok>
+			<cfset file = CreateObject("java", "java.io.File").init(JavaCast("string", saved))>
+			<cfset folder = CreateObject("java", "java.io.File").init(JavaCast("string", dir))>
+
+			<!--- the saved file must be in the folder made for it --->
+			<cfif file.isFile() AND Compare(LCase(file.getCanonicalFile().getParentFile().getPath() & ""), LCase(folder.getCanonicalPath() & "")) EQ 0>
+				<cfset info.tmp_name = file.getCanonicalPath() & "">
+				<cfset info.error = 0>
+				<cfset info.size = file.length()>
+
+				<!--- a name that comes more than once: cffile pairs the first name with the last content, so the name is not used --->
+				<cfif arguments.count GT 1>
+					<cfset info.name = file.getName() & "">
+					<cfset info.full_path = info.name>
 				</cfif>
-			<cfelseif NOT CreateObject("java", "java.io.File").init(JavaCast("string", arguments.path)).isFile()>
-				<cfset info.error = 7>
-				<cfset info.tmp_name = "">
+
+				<!--- only a path in this list is an upload (see UploadedFile.isValid()) --->
+				<cfif NOT StructKeyExists(request.ColdIgniter, "uploads")>
+					<cfset request.ColdIgniter.uploads = StructNew()>
+				</cfif>
+
+				<cfset request.ColdIgniter.uploads[LCase(info.tmp_name)] = info.tmp_name>
 			</cfif>
-		</cfif>
-
-		<cfif info.size EQ "" AND info.tmp_name NEQ "">
-			<cfset info.size = CreateObject("java", "java.io.File").init(JavaCast("string", info.tmp_name)).length()>
-		</cfif>
-
-		<cfif info.size EQ "">
-			<cfset info.size = 0>
-		</cfif>
-
-		<cfif info.error EQ 0 AND info.tmp_name NEQ "">
-			<!--- only a path in this list is an upload (see UploadedFile.isValid()) --->
-			<cfif NOT StructKeyExists(request.ColdIgniter, "uploads")>
-				<cfset request.ColdIgniter.uploads = StructNew()>
-			</cfif>
-
-			<cfset request.ColdIgniter.uploads[LCase(info.tmp_name)] = info.tmp_name>
 		</cfif>
 
 		<cfreturn info>
@@ -846,7 +836,52 @@
 
 		<cfset request.ColdIgniter.uploadDirs[LCase(dir)] = dir>
 
+		<cfset sweepUploadDirs(dir)>
+
 		<cfreturn dir>
+	</cffunction>
+
+	<!---
+	 * Removes the upload folders (ciup_ and a UUID) of earlier requests that
+	 * Boot could not clean, as a request that timed out or was aborted does
+	 * not get to it: folders in the temp folder that are older than an hour.
+	 * Only folders of that name, and only the files in them, are removed. It
+	 * runs when the first upload folder of a request is made, never on a
+	 * request without an upload.
+	 *
+	 * Not in the original.
+	 *
+	 * @param current The folder of this request, which is left alone
+	--->
+	<cffunction name="sweepUploadDirs" access="private" returntype="void" output="no">
+		<cfargument name="current" type="string" required="yes">
+		<cfset var folders = "">
+		<cfset var files = "">
+		<cfset var path = "">
+
+		<cftry>
+			<cfdirectory action="list" directory="#GetTempDirectory()#" name="folders" filter="ciup_*">
+
+			<cfloop query="folders">
+				<cfif folders.type EQ "Dir" AND Len(folders.name) EQ 40 AND Left(folders.name, 5) EQ "ciup_" AND DateDiff("n", folders.dateLastModified, Now()) GT 60>
+					<cfset path = GetTempDirectory() & folders.name & request.DIRECTORY_SEPARATOR>
+
+					<cfif CompareNoCase(path, arguments.current) NEQ 0>
+						<cfdirectory action="list" directory="#path#" name="files">
+
+						<cfloop query="files">
+							<cfif files.type EQ "File">
+								<cffile action="delete" file="#path##files.name#">
+							</cfif>
+						</cfloop>
+
+						<cfdirectory action="delete" directory="#path#">
+					</cfif>
+				</cfif>
+			</cfloop>
+
+			<cfcatch type="any"></cfcatch>
+		</cftry>
 	</cffunction>
 
 	<!---
@@ -887,7 +922,7 @@
 
 	<!---
 	 * Whether a path is the temp file of an upload: a file with the
-	 * extension tmp in a temp folder of the engine, after the path is made
+	 * extension tmp and a name that starts with neotmp (the engine's names) in a temp folder of the engine, after the path is made
 	 * canonical (so a ".." in a text field names no other folder).
 	 *
 	 * Not in the original. An engine that names its temp files otherwise
@@ -914,7 +949,7 @@
 				<cfreturn false>
 			</cfif>
 
-			<cfif CompareNoCase(Right(name, 4), ".tmp") NEQ 0>
+			<cfif CompareNoCase(Right(name, 4), ".tmp") NEQ 0 OR CompareNoCase(Left(name, 6), "neotmp") NEQ 0>
 				<cfreturn false>
 			</cfif>
 

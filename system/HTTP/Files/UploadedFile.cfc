@@ -18,8 +18,17 @@
  * Difference: a name that move() takes from the client is cleaned of a colon
  * too (an alternate data stream on NTFS), and a name that is then empty, a
  * dot or two dots gets a random name. A name given to move() may hold a
- * folder, but not a ".." part: that throws the invalid file exception, so a
- * file is never written outside of the target path.
+ * folder, but the destination must stay inside the target path (checked on
+ * the canonical paths), else the invalid file exception is thrown.
+ *
+ * Difference: setPath() is private (protected in the original), as nothing
+ * outside this component calls it.
+ *
+ * Difference: the media type is the one the client sent (see File), so
+ * guessExtension(), getExtension() and with them the random name of store()
+ * come from the client type and the client extension, as upstream does when
+ * the file is not read: Mimes.guessExtensionFromType(clientType, clientExt),
+ * else the client extension. Do not trust either.
  *
  * Difference: the chmod after a move is not done.
 --->
@@ -126,8 +135,8 @@
 		<cfset var destination = "">
 		<cfset var target = "">
 		<cfset var message = "">
-		<cfset var segments = "">
-		<cfset var i = 0>
+		<cfset var base = "">
+		<cfset var parent = "">
 
 		<cfset arguments.targetPath = rtrim_(arguments.targetPath, "/") & "/">
 		<cfset arguments.targetPath = setPath(arguments.targetPath)><!--- set the target path --->
@@ -147,21 +156,25 @@
 			<cfif ListFind(".,..", Trim(arguments.name)) GT 0 OR Trim(arguments.name) EQ "">
 				<cfset arguments.name = getRandomName()>
 			</cfif>
-		<cfelse>
-			<!--- a ".." part of a name would leave the target path --->
-			<cfset segments = explode("/", Replace(arguments.name, "\", "/", "all"))>
-
-			<cfloop from="1" to="#ArrayLen(segments)#" index="i">
-				<cfif Trim(segments[i]) EQ "..">
-					<cfset static_("ColdIgniter\HTTP\Exceptions\HTTPException").forInvalidFile()>
-				</cfif>
-			</cfloop>
 		</cfif>
 
 		<cfif arguments.overwrite>
 			<cfset destination = arguments.targetPath & arguments.name>
 		<cfelse>
 			<cfset destination = getDestination(arguments.targetPath & arguments.name)>
+		</cfif>
+
+		<!---
+		 Difference: the destination must be inside the target path, whatever
+		 the name holds (a "..", a trailing dot or space): the canonical
+		 folder of the destination is the canonical target path or below it,
+		 compared without regard to case, with a separator at the boundary.
+		--->
+		<cfset base = LCase(CreateObject("java", "java.io.File").init(JavaCast("string", arguments.targetPath)).getCanonicalPath() & "")>
+		<cfset parent = LCase(CreateObject("java", "java.io.File").init(JavaCast("string", destination)).getCanonicalFile().getParentFile().getPath() & "")>
+
+		<cfif Compare(parent, base) NEQ 0 AND Compare(Left(parent, Len(base) + 1), base & request.DIRECTORY_SEPARATOR) NEQ 0>
+			<cfset static_("ColdIgniter\HTTP\Exceptions\HTTPException").forInvalidFile()>
 		</cfif>
 
 		<cftry>
@@ -197,7 +210,7 @@
 	 *
 	 * @return The path set or created.
 	--->
-	<cffunction name="setPath" access="public" returntype="string" output="no">
+	<cffunction name="setPath" access="private" returntype="string" output="no">
 		<cfargument name="path" type="string" required="yes">
 		<cfset var directory = CreateObject("java", "java.io.File").init(JavaCast("string", arguments.path))>
 
