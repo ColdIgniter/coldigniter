@@ -144,6 +144,16 @@
 		--->
 		<cfset noCache()>
 
+		<!---
+		 Difference: the setting is read once here, as upstream does, so
+		 that send() does not look at the config on each request.
+		--->
+		<cfif IsObject(arguments.config)>
+			<cfset variables.CSPEnabled = arguments.config.CSPEnabled>
+		<cfelse>
+			<cfset variables.CSPEnabled = variables.config("Config\App").CSPEnabled>
+		</cfif>
+
 		<cfset this.cookieStore = new_("ColdIgniter\Cookie\CookieStore", ArrayNew(1))>
 
 		<cfset cookieStatic.setDefaults(cookieConfig)>
@@ -298,7 +308,7 @@
 		 a single Find() that tells if there is one; a tag the config renamed
 		 is only taken out when the policy object exists.
 		--->
-		<cfif IsObject(this.CSP) OR variables.config("Config\App").CSPEnabled>
+		<cfif IsObject(this.CSP) OR variables.CSPEnabled>
 			<cfset getCSP().finalize(this)>
 		<cfelseif IsSimpleValue(this.body) AND Find("{csp-", this.body) GT 0>
 			<cfset this.body = Replace(this.body, "{csp-style-nonce}", "", "all")>

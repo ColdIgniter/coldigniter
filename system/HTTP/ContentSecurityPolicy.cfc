@@ -642,7 +642,7 @@
 	 * @param target            the name of the property
 	 * @param explicitReporting whether to report or enforce; an empty string (null) uses reportOnly
 	--->
-	<cffunction name="addOption" access="public" returntype="void" output="no">
+	<cffunction name="addOption" access="private" returntype="void" output="no">
 		<cfargument name="options" type="any" required="yes">
 		<cfargument name="target" type="string" required="yes">
 		<cfargument name="explicitReporting" type="any" required="no" default="">
@@ -687,7 +687,7 @@
 	 * it in place of their placeholders. When the policy is off the
 	 * placeholders are removed.
 	--->
-	<cffunction name="generateNonces" access="public" returntype="void" output="no">
+	<cffunction name="generateNonces" access="private" returntype="void" output="no">
 		<cfargument name="response" type="any" required="yes">
 		<cfset var body = "">
 		<cfset var changed = false>
@@ -742,7 +742,7 @@
 		<cfset var attr = 'nonce="' & arguments.nonce & '"'>
 
 		<!--- Escape quotes for JSON responses to prevent corrupting the JSON body --->
-		<cfif FindNoCase("json", arguments.response.getHeaderLine("Content-Type")) GT 0>
+		<cfif Find("json", arguments.response.getHeaderLine("Content-Type")) GT 0>
 			<cfset attr = Replace(attr, '"', '\"', "all")>
 		</cfif>
 
@@ -754,7 +754,7 @@
 	 * Content-Security-Policy and Content-Security-Policy-Report-Only headers
 	 * with their values to the response object.
 	--->
-	<cffunction name="buildHeaders" access="public" returntype="void" output="no">
+	<cffunction name="buildHeaders" access="private" returntype="void" output="no">
 		<cfargument name="response" type="any" required="yes">
 		<cfset var i = 0>
 		<cfset var name = "">
@@ -820,7 +820,7 @@
 	 * @param name   the name of the directive
 	 * @param values a string, an empty list or a map of the source to the flag
 	--->
-	<cffunction name="addToHeader" access="public" returntype="void" output="no">
+	<cffunction name="addToHeader" access="private" returntype="void" output="no">
 		<cfargument name="name" type="string" required="yes">
 		<cfargument name="values" type="any" required="yes">
 		<cfset var sources = ArrayNew(1)>

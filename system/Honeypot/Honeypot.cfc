@@ -1,8 +1,5 @@
 <!---
  * class Honeypot
- *
- * Not ported yet: the Content Security Policy parts (the id of the
- * container and the style tag with a nonce), as the Response has no CSP.
 --->
 <cfcomponent output="no" hint="Honeypot">
 
@@ -73,15 +70,40 @@
 		<cfargument name="response" type="any" required="yes">
 		<cfset var bodyBefore = arguments.response.getBody()>
 		<cfset var prepField = "">
+		<cfset var bodyAfter = "">
+		<cfset var cspOn = "">
+		<cfset var style = "">
 
 		<cfif is_null(bodyBefore)>
 			<cfreturn>
 		</cfif>
 
+		<!---
+		 Difference: the config is looked at first, so that the policy object
+		 is not made for a request when the policy is off.
+		--->
+		<cfset cspOn = false>
+		<cfif config("Config\App").CSPEnabled>
+			<cfset cspOn = arguments.response.getCSP().enabled()>
+		</cfif>
+
+		<cfif cspOn>
+			<!--- Add id attribute to the container tag. --->
+			<cfset this.config.container = ReplaceNoCase(this.config.container, ">{template}", " id=""" & this.config.containerId & """>{template}", "ALL")>
+		</cfif>
+
 		<cfset prepField = prepareTemplate(this.config.template)>
 
 		<!--- ReplaceNoCase scans the body once, with no backtracking --->
-		<cfset arguments.response.setBody(ReplaceNoCase(bodyBefore, "</form>", prepField & "</form>", "ALL"))>
+		<cfset bodyAfter = ReplaceNoCase(bodyBefore, "</form>", prepField & "</form>", "ALL")>
+
+		<cfif cspOn AND Compare(bodyBefore, bodyAfter) NEQ 0>
+			<!--- Add style tag for the container tag in the head tag. --->
+			<cfset style = "<style " & csp_style_nonce() & ">##" & this.config.containerId & " { display:none }</style>">
+			<cfset bodyAfter = ReplaceNoCase(bodyAfter, "</head>", style & "</head>", "ALL")>
+		</cfif>
+
+		<cfset arguments.response.setBody(bodyAfter)>
 	</cffunction>
 
 	<!---
