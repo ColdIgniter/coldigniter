@@ -13,8 +13,7 @@
  * method, so send() leaves the body in request.ColdIgniter.output and
  * the front controller writes it.
  *
- * Not ported yet: the Content Security Policy,
- * download, setJSON, setXML, setDate, setLastModified and setCache.
+ * Not ported yet: download, setJSON, setXML, setDate, setLastModified and setCache.
 --->
 <cfcomponent output="no" extends="Message" hint="Representation of an outgoing, server-side response">
 
