@@ -633,6 +633,11 @@
 	 * Not ported yet: the client name of such a file.
 	 *
 	 * Only one level of brackets is read (docs[] or docs[key]).
+	 *
+	 * Difference: the engine keeps one value for a field name that comes
+	 * more than once (docs[] with two files), the path of the last file, so
+	 * only that file is seen (see the probe Filestest for the check that no
+	 * other way to the first ones exists).
 	--->
 	<cffunction name="readFiles" access="private" returntype="any" output="no">
 		<cfset var raw = CreateObject("java", "java.util.LinkedHashMap").init()>
@@ -648,6 +653,7 @@
 		<cfset var index = "">
 		<cfset var field = "">
 		<cfset var holder = "">
+		<cfset var entry = "">
 		<cfset var i = 0>
 
 		<cfif server_value("REQUEST_METHOD") NEQ "POST" OR Find("multipart/form-data", LCase(CGI.CONTENT_TYPE)) EQ 0>
@@ -681,14 +687,16 @@
 					</cfif>
 
 					<cfloop list="#fields#" index="field">
+						<cfset entry = raw[name]>
+
 						<cfif NOT isList>
-							<cfset raw[name][field] = info[field]>
+							<cfset entry[field] = info[field]>
 						<cfelse>
-							<cfif NOT StructKeyExists(raw[name], field)>
-								<cfset raw[name][field] = CreateObject("java", "java.util.LinkedHashMap").init()>
+							<cfif NOT StructKeyExists(entry, field)>
+								<cfset entry[field] = CreateObject("java", "java.util.LinkedHashMap").init()>
 							</cfif>
 
-							<cfset holder = raw[name][field]>
+							<cfset holder = entry[field]>
 							<cfset index = sub>
 
 							<cfif index EQ "" OR ArrayLen(paths) GT 1>
