@@ -25,9 +25,12 @@
 			<cfreturn result>
 		</cfif>
 
-		<!--- (array) of a scalar --->
+		<!--- (array) of a scalar, and (array) of a null is an empty array --->
 		<cfset list = ArrayNew(1)>
-		<cfset ArrayAppend(list, result)>
+
+		<cfif NOT is_null(result)>
+			<cfset ArrayAppend(list, result)>
+		</cfif>
 
 		<cfreturn list>
 	</cffunction>

@@ -524,24 +524,35 @@
 	<!---
 	 * Returns the primary key value of a row, or an empty string (null).
 	 *
-	 * Difference: an object is read by its key, then with __isset() and
-	 * __get() (the magic methods of an Entity are written out).
+	 * Difference: an object that is not an Entity is read by its key (there
+	 * is no isset() of a property), and the magic methods of an Entity are
+	 * written out (__get()).
 	--->
 	<cffunction name="getIdValue" access="public" returntype="any" output="no">
 		<cfargument name="row" type="any" required="yes">
+		<cfset var cast = "">
+		<cfset var primaryKey = "">
 
 		<cfif IsObject(arguments.row) AND NOT isNullMarker_(arguments.row)>
-			<cfif StructKeyExists(arguments.row, this.primaryKey) AND NOT IsCustomFunction(arguments.row[this.primaryKey])>
+			<!--- get the raw or mapped primary key value of the Entity --->
+			<cfif instanceof_(arguments.row, "Entity")>
+				<cfif NOT is_null(arguments.row.__get(this.primaryKey))>
+					<cfset cast = arguments.row.cast()>
+
+					<!--- disable Entity casting, because raw primary key value is needed for database --->
+					<cfset arguments.row.cast(false)>
+
+					<cfset primaryKey = arguments.row.__get(this.primaryKey)>
+
+					<!--- restore Entity casting setting --->
+					<cfset arguments.row.cast(cast)>
+
+					<cfreturn primaryKey>
+				</cfif>
+			<cfelseif StructKeyExists(arguments.row, this.primaryKey) AND NOT IsCustomFunction(arguments.row[this.primaryKey])>
 				<cfif NOT isNullMarker_(arguments.row[this.primaryKey])>
 					<cfreturn arguments.row[this.primaryKey]>
 				</cfif>
-			</cfif>
-		</cfif>
-
-		<!--- an Entity keeps its values in its attributes: isset() and the property go through __isset() and __get() --->
-		<cfif IsObject(arguments.row) AND NOT isNullMarker_(arguments.row) AND method_exists(arguments.row, "__isset")>
-			<cfif arguments.row.__isset(this.primaryKey)>
-				<cfreturn arguments.row.__get(this.primaryKey)>
 			</cfif>
 		</cfif>
 

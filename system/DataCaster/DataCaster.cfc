@@ -174,7 +174,7 @@
 		<cfset found = REFind("^(.+)\[(.+)\]$", type, 1, true)>
 
 		<cfif found.pos[1] GT 0>
-			<cfset parts = ListToArray(Mid(type, found.pos[3], found.len[3]))>
+			<cfset parts = explode(",", Mid(type, found.pos[3], found.len[3]))>
 			<cfset type = Mid(type, found.pos[2], found.len[2])>
 
 			<cfloop from="1" to="#ArrayLen(parts)#" index="i">

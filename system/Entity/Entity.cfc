@@ -779,7 +779,7 @@
 
 		<cfset dbColumn = mapProperty(arguments.key)>
 
-		<cfset this.attributes.remove(JavaCast("string", dbColumn))>
+		<cfset StructDelete(this.attributes, dbColumn)>
 
 		<cfreturn this>
 	</cffunction>
