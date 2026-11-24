@@ -23,11 +23,19 @@
  * Difference: the prefix is the name of the class as the server knows it,
  * for a class of the application "Config\Logger".
  *
+ * Difference: the keys of an Encryption class (the properties key and
+ * previousKeys) are parsed for the prefixes hex2bin: and base64:, and
+ * are byte arrays then (see random_bytes()), as a binary string is. A
+ * previousKeys of text is cut at the commas, and an empty element is
+ * dropped (a list function skips it). The class is found by its name
+ * (the short prefix is "encryption"), as there is no instanceof of a
+ * class that may not be loaded. A base64: key that is not valid base64
+ * is an error, where the original has a TypeError. The message never has
+ * the key.
+ *
  * Not ported yet: the registrars (registrars, override, didDiscovery,
- * registerProperties, setModules and reset), the config cache
- * (__set_state), and the keys of an Encryption class (parseEncryptionKey
- * with the hex2bin: and base64: prefixes), the Encryption config is not
- * ported yet.
+ * registerProperties, setModules and reset), and the config cache
+ * (__set_state).
 --->
 <cfcomponent output="no" hint="The base class for any config code">
 
@@ -54,6 +62,9 @@
 		<cfset var wanted = false>
 		<cfset var shortLength = Len(shortPrefix) + 1>
 		<cfset var prefixLength = Len(prefix) + 1>
+		<cfset var keysArray = "">
+		<cfset var parsedKeys = "">
+		<cfset var j = 0>
 
 		<!--- Not ported yet: static::$moduleConfig and registerProperties() --->
 
@@ -85,10 +96,76 @@
 		<cfloop from="1" to="#ArrayLen(properties)#" index="i">
 			<cfset this[properties[i]] = initEnvValue(this[properties[i]], properties[i], prefix, shortPrefix)>
 
-			<!--- Not ported yet: the keys of an Encryption class, parseEncryptionKey() --->
+			<cfif Compare(shortPrefix, "encryption") EQ 0>
+				<cfif CompareNoCase(properties[i], "key") EQ 0>
+					<cfset this[properties[i]] = parseEncryptionKey(this[properties[i]])>
+				<cfelseif CompareNoCase(properties[i], "previousKeys") EQ 0>
+					<cfif IsBinary(this[properties[i]])>
+						<cfset keysArray = ArrayNew(1)>
+						<cfset ArrayAppend(keysArray, this[properties[i]])>
+					<cfelseif IsSimpleValue(this[properties[i]])>
+						<cfset keysArray = ListToArray(this[properties[i]], ",")>
+
+						<cfloop from="1" to="#ArrayLen(keysArray)#" index="j">
+							<cfset keysArray[j] = Trim(keysArray[j])>
+						</cfloop>
+					<cfelse>
+						<cfset keysArray = this[properties[i]]>
+					</cfif>
+
+					<cfset parsedKeys = ArrayNew(1)>
+
+					<cfloop from="1" to="#ArrayLen(keysArray)#" index="j">
+						<cfset ArrayAppend(parsedKeys, parseEncryptionKey(keysArray[j]))>
+					</cfloop>
+
+					<cfset this[properties[i]] = parsedKeys>
+				</cfif>
+			</cfif>
 		</cfloop>
 
 		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Parse encryption key with hex2bin: or base64: prefix
+	 *
+	 * @param key The key, as text or a byte array
+	 *
+	 * @return A byte array for a prefixed key, the key as it is otherwise
+	--->
+	<cffunction name="parseEncryptionKey" access="private" returntype="any" output="no">
+		<cfargument name="key" type="any" required="yes">
+		<cfset var encoded = "">
+
+		<cfif IsBinary(arguments.key)>
+			<cfreturn arguments.key>
+		</cfif>
+
+		<cfif Compare(Left(arguments.key, 8), "hex2bin:") EQ 0>
+			<cfreturn hex2bin(Mid(arguments.key, 9, Len(arguments.key)))>
+		</cfif>
+
+		<cfif Compare(Left(arguments.key, 7), "base64:") EQ 0>
+			<cfset encoded = Mid(arguments.key, 8, Len(arguments.key))>
+
+			<cfif Len(encoded) EQ 0>
+				<cfreturn "">
+			</cfif>
+
+			<!--- the strict mode of the original: only the base64 characters, padded or not --->
+			<cfif REFind("^[A-Za-z0-9+/]+={0,2}$", encoded) EQ 0 OR (Len(encoded) MOD 4 EQ 1)>
+				<cfthrow type="ColdIgniter.ErrorException" message="base64_decode(): The encryption key is not valid base64">
+			</cfif>
+
+			<cfif Len(encoded) MOD 4 NEQ 0>
+				<cfset encoded = encoded & Left("===", 4 - (Len(encoded) MOD 4))>
+			</cfif>
+
+			<cfreturn ToBinary(encoded)>
+		</cfif>
+
+		<cfreturn arguments.key>
 	</cffunction>
 
 	<!---
