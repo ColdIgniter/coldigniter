@@ -379,6 +379,7 @@
 		<cfset var stream = "">
 		<cfset var readers = "">
 		<cfset var reader = "">
+		<cfset var size = "">
 
 		<cftry>
 			<cfset stream = imageIO.createImageInputStream(CreateObject("java", "java.io.File").init(JavaCast("string", arguments.path)))>
@@ -389,19 +390,32 @@
 				<cfif readers.hasNext()>
 					<cfset reader = readers.next()>
 					<cfset reader.setInput(stream)>
-					<cfset result = StructNew()>
-					<cfset result.width = reader.getWidth(JavaCast("int", 0))>
-					<cfset result.height = reader.getHeight(JavaCast("int", 0))>
-					<cfset reader.dispose()>
+					<cfset size = StructNew()>
+					<cfset size.width = reader.getWidth(JavaCast("int", 0))>
+					<cfset size.height = reader.getHeight(JavaCast("int", 0))>
+					<cfset result = size>
 				</cfif>
-
-				<cfset stream.close()>
 			</cfif>
 
 			<cfcatch type="any">
 				<cfset result = "">
 			</cfcatch>
 		</cftry>
+
+		<!--- there is no cffinally on 6.1: release the reader and the stream here, so a truncated image does not keep the file open --->
+		<cfif NOT IsSimpleValue(reader)>
+			<cftry>
+				<cfset reader.dispose()>
+				<cfcatch type="any"></cfcatch>
+			</cftry>
+		</cfif>
+
+		<cfif NOT IsSimpleValue(stream)>
+			<cftry>
+				<cfset stream.close()>
+				<cfcatch type="any"></cfcatch>
+			</cftry>
+		</cfif>
 
 		<cfreturn result>
 	</cffunction>

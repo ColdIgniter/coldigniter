@@ -87,14 +87,14 @@
 		<cfset setCookieArray(arguments.cookie)>
 		<cfset setFilesArray(arguments.files)>
 
-		<!--- Difference: the files of the request are read when they are first asked for. --->
-		<cfset this.filesPending = filesPending>
-
 		<cfif is_null(arguments.request_)>
 			<cfset arguments.request_ = getRequestData()>
 		</cfif>
 
 		<cfset setRequestArray(arguments.request_)>
+
+		<!--- Difference: the files of the request are read when they are first asked for (after the request array, as its accessors read them). --->
+		<cfset this.filesPending = filesPending>
 
 		<cfreturn this>
 	</cffunction>

@@ -281,7 +281,13 @@
 				<cfelse>
 					<cfset extension = "." & Right(base, position - 1)>
 				</cfif>
-				<cfset filename = Left(base, Len(base) - position)>
+
+				<!--- Difference: Left() cannot take 0, so a dotfile has the filename "" --->
+				<cfif Len(base) GT position>
+					<cfset filename = Left(base, Len(base) - position)>
+				<cfelse>
+					<cfset filename = "">
+				</cfif>
 			</cfif>
 
 			<cfif Find(arguments.delimiter, filename) GT 0>
