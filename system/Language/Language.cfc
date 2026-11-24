@@ -289,7 +289,7 @@
 		<cfset text = arguments.message>
 
 		<!--- Difference: the plural form {n, plural, =1{# one} other{# many}} is resolved with the English rule (one for 1, else other), a # is the number --->
-		<cfif Find(", plural,", text) GT 0>
+		<cfif REFind(", *plural *,", text) GT 0>
 			<cfset matcher = CreateObject("java", "java.util.regex.Pattern").compile("\{([^{},]+), *plural, *=1\{([^{}]*)\} *other\{([^{}]*)\}\}").matcher(JavaCast("string", text))>
 			<cfset buffer = CreateObject("java", "java.lang.StringBuffer").init()>
 
@@ -305,9 +305,10 @@
 					<cfset count = arguments.args[Val(name) + 1]>
 				</cfif>
 
-				<cfif Len(count) EQ 0>
+				<!--- only a number is put in, any other value is left as written (and not read again by the {name} pass) --->
+				<cfif Len(count) EQ 0 OR NOT IsNumeric(count)>
 					<cfset buffer.append(matcher.group(0))>
-				<cfelseif IsNumeric(count) AND count EQ 1>
+				<cfelseif count EQ 1>
 					<cfset buffer.append(JavaCast("string", Replace(matcher.group(2), Chr(35), count, "all")))>
 				<cfelse>
 					<cfset buffer.append(JavaCast("string", Replace(matcher.group(3), Chr(35), count, "all")))>
