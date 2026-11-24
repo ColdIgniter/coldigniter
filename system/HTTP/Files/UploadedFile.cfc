@@ -372,6 +372,11 @@
 			<cfreturn "">
 		</cfif>
 
+		<!--- Difference: a name that ends in a dot has the extension "", and Right() cannot take 0 --->
+		<cfif position EQ 1>
+			<cfreturn "">
+		</cfif>
+
 		<cfreturn Right(base, position - 1)>
 	</cffunction>
 

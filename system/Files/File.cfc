@@ -101,6 +101,11 @@
 			<cfreturn "">
 		</cfif>
 
+		<!--- Difference: a name that ends in a dot has the extension "", and Right() cannot take 0 --->
+		<cfif position EQ 1>
+			<cfreturn "">
+		</cfif>
+
 		<cfreturn Right(name, position - 1)>
 	</cffunction>
 
@@ -270,7 +275,12 @@
 			<cfset filename = base>
 
 			<cfif position GT 0>
-				<cfset extension = "." & Right(base, position - 1)>
+				<!--- Difference: Right() cannot take 0, so a name that ends in a dot has the extension "." --->
+				<cfif position EQ 1>
+					<cfset extension = ".">
+				<cfelse>
+					<cfset extension = "." & Right(base, position - 1)>
+				</cfif>
 				<cfset filename = Left(base, Len(base) - position)>
 			</cfif>
 
