@@ -14,17 +14,16 @@
 	 *
 	 * A map (see array_()) of strings, or of lists of strings.
 	 *
-	 * Not ported yet: honeypot and performance.
-	 * The performance metrics are done inline in ColdIgniter.cfc and
-	 * honeypot has no class yet. Cors is not ported yet either.
+	 * Not ported yet: performance.
+	 * The performance metrics are done inline in ColdIgniter.cfc.
 	--->
 	<cfset this.aliases = CreateObject("java", "java.util.LinkedHashMap").init()>
 	<cfset this.aliases["csrf"] = "ColdIgniter\Filters\CSRF">
 	<cfset this.aliases["toolbar"] = "ColdIgniter\Filters\DebugToolbar">
-	<!--- Not ported yet: honeypot --->
+	<cfset this.aliases["honeypot"] = "ColdIgniter\Filters\Honeypot">
 	<cfset this.aliases["invalidchars"] = "ColdIgniter\Filters\InvalidChars">
 	<cfset this.aliases["secureheaders"] = "ColdIgniter\Filters\SecureHeaders">
-	<!--- Not ported yet: cors --->
+	<cfset this.aliases["cors"] = "ColdIgniter\Filters\Cors">
 	<cfset this.aliases["forcehttps"] = "ColdIgniter\Filters\ForceHTTPS">
 	<cfset this.aliases["pagecache"] = "ColdIgniter\Filters\PageCache">
 	<!--- Not ported yet: performance --->
@@ -59,9 +58,9 @@
 	--->
 	<cfset this.globals = CreateObject("java", "java.util.LinkedHashMap").init()>
 	<cfset this.globals["before"] = ArrayNew(1)>
-	<!--- 'honeypot' (not ported yet), 'csrf', 'invalidchars' --->
+	<!--- 'honeypot', 'csrf', 'invalidchars' --->
 	<cfset this.globals["after"] = ArrayNew(1)>
-	<!--- 'honeypot' (not ported yet), 'secureheaders' --->
+	<!--- 'honeypot', 'secureheaders' --->
 
 	<!---
 	 * List of filter aliases that works on a
