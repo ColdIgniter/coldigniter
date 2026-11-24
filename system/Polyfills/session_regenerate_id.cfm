@@ -20,7 +20,11 @@
 		<cfset state.handler.write(old, packet)>
 	</cfif>
 
+	<!--- as the original does: close the old session, open and read the new one, which takes the lock again --->
+	<cfset state.handler.close()>
 	<cfset state.id = session_create_id()>
+	<cfset state.handler.open(ini_get("session.save_path"), ini_get("session.name"))>
+	<cfset state.handler.read(state.id)>
 
 	<cfreturn true>
 </cffunction>

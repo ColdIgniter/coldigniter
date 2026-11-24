@@ -485,13 +485,15 @@
 	 * that never asks for it has no session, sends no session cookie and
 	 * writes no file.
 	 *
-	 * Not ported yet: the DatabaseHandler, the MemcachedHandler and the
-	 * RedisHandler, and the check that the driver is a session handler (any
-	 * component that can be created is used; a handler is checked by the
-	 * name of its base only).
+	 * Not ported yet: the MemcachedHandler and the RedisHandler, and the
+	 * check that the driver is a session handler (any component that can be
+	 * created is used; a handler is checked by the name of its base only).
 	 *
 	 * Difference: the Cache-Control header of the response is kept, as no
 	 * engine sets one of its own for the session.
+	 *
+	 * Difference: the platform SQLSRV is also supported for the
+	 * DatabaseHandler (SQLSRVHandler), as it is the only database here.
 	--->
 	<cffunction name="session" access="public" returntype="any" output="no">
 		<cfargument name="config" type="any" required="no" default="">
@@ -500,6 +502,8 @@
 		<cfset var driverName = "">
 		<cfset var driver = "">
 		<cfset var session_ = "">
+		<cfset var DBGroup = "">
+		<cfset var driverPlatform = "">
 
 		<cfif arguments.getShared>
 			<cfreturn getSharedInstance("session", arguments.config)>
@@ -513,7 +517,26 @@
 
 		<cfset driverName = arguments.config.driver>
 
-		<!--- Not ported yet: DatabaseHandler (and its MySQLi and Postgre variants) --->
+		<cfif Compare(driverName, "ColdIgniter\Session\Handlers\DatabaseHandler") EQ 0>
+			<cfset DBGroup = arguments.config.DBGroup>
+
+			<cfif is_null(DBGroup)>
+				<cfset DBGroup = variables.config("Config\Database").defaultGroup>
+			</cfif>
+
+			<cfset driverPlatform = db_connect(DBGroup).getPlatform()>
+
+			<cfif Compare(driverPlatform, "MySQLi") EQ 0>
+				<cfset driverName = "ColdIgniter\Session\Handlers\Database\MySQLiHandler">
+			<cfelseif Compare(driverPlatform, "Postgre") EQ 0>
+				<cfset driverName = "ColdIgniter\Session\Handlers\Database\PostgreHandler">
+			<cfelseif Compare(driverPlatform, "SQLSRV") EQ 0>
+				<!--- Difference: the original supports MySQLi and Postgre only --->
+				<cfset driverName = "ColdIgniter\Session\Handlers\Database\SQLSRVHandler">
+			<cfelse>
+				<cfthrow type="ColdIgniter.InvalidArgumentException" errorcode="500" message="Invalid session database handler ""#driverPlatform#"" provided. Only ""MySQLi"", ""Postgre"" and ""SQLSRV"" are supported.">
+			</cfif>
+		</cfif>
 
 		<cfif NOT class_exists(driverName)>
 			<cfthrow type="ColdIgniter.InvalidArgumentException" errorcode="500" message="Invalid session handler ""#driverName#"" provided.">

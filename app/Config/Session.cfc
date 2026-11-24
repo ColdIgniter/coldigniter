@@ -1,9 +1,9 @@
 <!---
  * Session configuration.
  *
- * Not ported yet: the Database, Memcached and Redis handlers (the driver
- * list names the ones that exist), and so DBGroup, lockRetryInterval and
- * lockMaxRetries, which only those handlers use.
+ * Not ported yet: the Memcached and Redis handlers (the driver list names
+ * the ones that exist), and so lockRetryInterval and lockMaxRetries, which
+ * only those handlers use.
 --->
 <cfcomponent output="no" parent="ColdIgniter\Config\BaseConfig" hint="Session configuration">
 
@@ -15,6 +15,7 @@
 	 * The session storage driver to use:
 	 * - `ColdIgniter\Session\Handlers\ArrayHandler` (for testing)
 	 * - `ColdIgniter\Session\Handlers\FileHandler`
+	 * - `ColdIgniter\Session\Handlers\DatabaseHandler`
 	 *
 	 * @var class-string<BaseHandler>
 	--->
@@ -53,6 +54,9 @@
 	 * For the 'files' driver, it's a path to a writable directory.
 	 * WARNING: Only absolute paths are supported!
 	 *
+	 * For the 'database' driver, it's a table name.
+	 * Please read up the manual for the format with other session drivers.
+	 *
 	 * IMPORTANT: You are REQUIRED to set a valid save path!
 	 *
 	 * @var string
@@ -65,6 +69,9 @@
 	 * --------------------------------------------------------------------------
 	 *
 	 * Whether to match the user's IP address when reading the session data.
+	 *
+	 * WARNING: If you're using the database driver, don't forget to update
+	 *          your session table's PRIMARY KEY when changing this setting.
 	 *
 	 * @var bool
 	--->
@@ -93,5 +100,17 @@
 	 * @var bool
 	--->
 	<cfset this.regenerateDestroy = false>
+
+	<!---
+	 * --------------------------------------------------------------------------
+	 * Session Database Group
+	 * --------------------------------------------------------------------------
+	 *
+	 * DB Group for the database session. An empty string is null: the
+	 * default group of Config\Database is used.
+	 *
+	 * @var string|null
+	--->
+	<cfset this.DBGroup = "">
 
 </cfcomponent>
