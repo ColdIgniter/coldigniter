@@ -61,6 +61,35 @@
 	</cffunction>
 
 	<!---
+	 * The Encryption class provides two-way encryption.
+	 *
+	 * Difference: getShared is false by default, as in the original. The
+	 * handler is returned as it is made: a KeyRotationDecorator when the
+	 * config has previous keys.
+	 *
+	 * @param config The Config\Encryption, or an empty string (null)
+	 *
+	 * @return EncrypterInterface Encryption handler
+	--->
+	<cffunction name="encrypter" access="public" returntype="any" output="no">
+		<cfargument name="config" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="false">
+		<cfset var encryption = "">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("encrypter", arguments.config)>
+		</cfif>
+
+		<cfif is_null(arguments.config)>
+			<cfset arguments.config = variables.config("Config\Encryption")>
+		</cfif>
+
+		<cfset encryption = new_("ColdIgniter\Encryption\Encryption", arguments.config)>
+
+		<cfreturn encryption.initialize_(arguments.config)>
+	</cffunction>
+
+	<!---
 	 * The Exceptions class holds the Exception handler.
 	--->
 	<cffunction name="exceptions" access="public" returntype="any" output="no">

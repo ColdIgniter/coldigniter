@@ -26,6 +26,8 @@
 <cfinclude template="fnmatch.cfm">
 <cfinclude template="gmdate.cfm">
 <cfinclude template="hash_equals.cfm">
+<cfinclude template="hash_hkdf.cfm">
+<cfinclude template="hash_hmac.cfm">
 <cfinclude template="hex2bin.cfm">
 <cfinclude template="http_build_query.cfm">
 <cfinclude template="identical_.cfm">
