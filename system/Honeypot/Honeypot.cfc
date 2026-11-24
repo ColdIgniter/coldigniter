@@ -89,7 +89,7 @@
 
 		<cfif cspOn>
 			<!--- Add id attribute to the container tag. --->
-			<cfset this.config.container = ReplaceNoCase(this.config.container, ">{template}", " id=""" & this.config.containerId & """>{template}", "ALL")>
+			<cfset this.container = ReplaceNoCase(this.container, ">{template}", " id=""" & this.containerId & """>{template}", "ALL")>
 		</cfif>
 
 		<cfset prepField = prepareTemplate(this.config.template)>
