@@ -1054,11 +1054,13 @@
 		<cfset var lockTable = ensureLockTable()>
 		<cfset var row = array_("lock_name", "migration_process", "acquired_at", JavaCast("int", time()))>
 		<cfset var acquired = false>
+		<cfset var insertResult = "">
 
 		<cftry>
-			<cfset this.db.table(lockTable).insert_(row)>
+			<cfset insertResult = this.db.table(lockTable).insert_(row)>
 
-			<cfset acquired = Val(this.db.insertID()) GT 0>
+			<!--- Difference: with DBDebug off a failed insert returns false instead of throwing, and insertID() can be stale, so the result is checked too --->
+			<cfset acquired = NOT identical_(insertResult, "false") AND Val(this.db.insertID()) GT 0>
 
 			<!--- Lock already exists or other error --->
 			<cfcatch type="ColdIgniter.Database.Exceptions.DatabaseException">

@@ -17,7 +17,7 @@
 
 	<cffunction name="getExitCode" access="public" returntype="numeric" output="no">
 
-		<cfreturn EXIT_CONFIG>
+		<cfreturn request.EXIT_CONFIG>
 	</cffunction>
 
 	<cffunction name="forDisabledMigrations" access="public" returntype="void" output="no">

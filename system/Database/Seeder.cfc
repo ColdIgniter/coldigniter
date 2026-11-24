@@ -74,7 +74,7 @@
 		<cfset path = REReplace(this.seedPath, "[\\/]+$", "")>
 
 		<cfif NOT CreateObject("java", "java.io.File").init(path).isDirectory()>
-			<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="Invalid filesPath set in the Config\Database.">
+			<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="Unable to locate the seeds directory. Please check Config\Database::filesPath">
 		</cfif>
 
 		<cfset this.config = arguments.config>
@@ -142,14 +142,15 @@
 
 		<cfif Find("\", class_) EQ 0>
 			<cfif NOT CreateObject("java", "java.io.File").init(this.seedPath & class_ & ".cfc").isFile()>
-				<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="The specified Seeder is not a valid file: #class_#.">
+				<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="The specified seeder is not a valid file: #this.seedPath##class_#.cfc">
 			</cfif>
 
 			<cfset class_ = request.APP_NAMESPACE & "\Database\Seeds\" & class_>
 		</cfif>
 
+		<!--- Difference: the original includes the file; here the class has to be found by the autoloader --->
 		<cfif NOT class_exists(class_)>
-			<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="The specified Seeder is not a valid file: #class_#.">
+			<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="The specified seeder is not a valid file: #class_#">
 		</cfif>
 
 		<cfset seeder = new_(class_, this.config, this.db)>
