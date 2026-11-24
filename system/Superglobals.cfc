@@ -20,7 +20,10 @@
  * The files array is read from the request only when it is first asked
  * for (getFilesArray()), as every file of the request is saved by cffile
  * then (see readFiles()), so a request that has no use for its uploads
- * costs nothing.
+ * costs nothing. On a multipart request the first read or change of the
+ * post values reads the files too, so the first getPost() saves every
+ * upload of the request (a field that only looked like an upload goes back
+ * into the post values then).
  *
  * Not ported yet: the names of a multipart/form-data body, which come
  * from the form scope in upper case.
@@ -279,6 +282,10 @@
 		<cfargument name="key" type="string" required="yes">
 		<cfargument name="value" type="any" required="yes">
 
+		<cfif this.filesPending>
+			<cfset getFilesArray()>
+		</cfif>
+
 		<cfset this.post_[arguments.key] = arguments.value>
 
 		<cfreturn this>
@@ -289,6 +296,10 @@
 	--->
 	<cffunction name="unsetPost" access="public" returntype="any" output="no">
 		<cfargument name="key" type="string" required="yes">
+
+		<cfif this.filesPending>
+			<cfset getFilesArray()>
+		</cfif>
 
 		<cfset this.post_.remove(arguments.key)>
 
@@ -311,6 +322,10 @@
 	--->
 	<cffunction name="setPostArray" access="public" returntype="any" output="no">
 		<cfargument name="array" type="any" required="yes">
+
+		<cfif this.filesPending>
+			<cfset getFilesArray()>
+		</cfif>
 
 		<cfset this.post_ = arguments.array>
 
@@ -655,22 +670,14 @@
 	 * Difference: the full_path is the name of the client, as the engine does
 	 * not give the relative path of a folder upload.
 	 *
-	 * Difference: cffile saves one file for a field name, so with several
-	 * files under the same name (docs[]) only the paths of the temp files are
-	 * known; the client name and type are dropped (see below).
-	 *
-	 * Not ported yet: the client name of such a file.
+	 * Not ported yet: a field name that comes more than once (docs[] with
+	 * two files). The engine keeps one value for it, the last, and the form
+	 * scope cannot tell a file part from a text part, so it could be made to
+	 * take a file of another request. Such a name has no files entry: its
+	 * value goes back to the post values, as text. The names are counted in
+	 * the field names list of the form scope.
 	 *
 	 * Only one level of brackets is read (docs[] or docs[key]).
-	 *
-	 * Difference: the engine keeps one value for a field name that comes
-	 * more than once (docs[] with two files), the path of the last file, so
-	 * only that file is seen, as a list of one. cffile would give the client
-	 * name of the first part with the content of the last, so for a name that
-	 * comes more than once the client name and type are dropped: the name is
-	 * the name of the temp file the form scope gave, the type
-	 * application/octet-stream. The names are counted in the field names list of the form
-	 * scope.
 	--->
 	<cffunction name="readFiles" access="private" returntype="any" output="no">
 		<cfset var raw = CreateObject("java", "java.util.LinkedHashMap").init()>
@@ -716,8 +723,14 @@
 					<cfset isList = true>
 				</cfif>
 
+				<cfif count GT 1>
+					<!--- a name that comes more than once: the form scope cannot tell a file part from a text part --->
+					<cfset restorePost(key)>
+					<cfset paths = ArrayNew(1)>
+				</cfif>
+
 				<cfloop from="1" to="#ArrayLen(paths)#" index="i">
-					<cfset info = fileInfo(key, paths[i], count)>
+					<cfset info = fileInfo(key, paths[i])>
 
 					<cfif info.error NEQ 0>
 						<!--- cffile refused it, so it is a text field after all: back to post, no files entry --->
@@ -765,11 +778,29 @@
 	<cffunction name="restorePost" access="private" returntype="void" output="no">
 		<cfargument name="key" type="string" required="yes">
 		<cfset var parsed = parse_str(URLEncodedFormat(arguments.key) & "=" & URLEncodedFormat(form[arguments.key]))>
+
+		<!--- the request values hold the post values too (see getRequestData()) --->
+		<cfset mergeInto(this.post_, parsed)>
+		<cfset mergeInto(this.request_, parsed)>
+	</cffunction>
+
+	<!---
+	 * Adds the names of a map to another, level by level: a name that is
+	 * there already is kept (a refused a[x] joins the a[y] that was set), and
+	 * a map is merged into a map.
+	 *
+	 * Not in the original.
+	--->
+	<cffunction name="mergeInto" access="private" returntype="void" output="no">
+		<cfargument name="target" type="any" required="yes">
+		<cfargument name="source" type="any" required="yes">
 		<cfset var name = "">
 
-		<cfloop collection="#parsed#" item="name">
-			<cfif NOT StructKeyExists(this.post_, name)>
-				<cfset this.post_[name] = parsed[name]>
+		<cfloop collection="#arguments.source#" item="name">
+			<cfif NOT StructKeyExists(arguments.target, name)>
+				<cfset arguments.target[name] = arguments.source[name]>
+			<cfelseif IsStruct(arguments.target[name]) AND IsStruct(arguments.source[name])>
+				<cfset mergeInto(arguments.target[name], arguments.source[name])>
 			</cfif>
 		</cfloop>
 	</cffunction>
@@ -786,12 +817,10 @@
 	 *
 	 * @param field The name of the form field
 	 * @param path  The path of the temp file that the form scope has
-	 * @param count The number of files under that name
 	--->
 	<cffunction name="fileInfo" access="private" returntype="struct" output="no">
 		<cfargument name="field" type="string" required="yes">
 		<cfargument name="path" type="string" required="yes">
-		<cfargument name="count" type="numeric" required="yes">
 		<cfset var info = StructNew()>
 		<cfset var dir = uploadDir()>
 		<cfset var saved = "">
@@ -810,12 +839,9 @@
 		<cftry>
 			<cffile action="upload" filefield="#arguments.field#" destination="#dir#" nameconflict="makeunique">
 
-			<cfif arguments.count EQ 1>
-				<cfset info.name = cffile.clientFile>
-				<cfset info.full_path = cffile.clientFile>
-				<cfset info.type = cffile.contentType & "/" & cffile.contentSubType>
-			</cfif>
-
+			<cfset info.name = cffile.clientFile>
+			<cfset info.full_path = cffile.clientFile>
+			<cfset info.type = cffile.contentType & "/" & cffile.contentSubType>
 			<cfset saved = cffile.serverDirectory & request.DIRECTORY_SEPARATOR & cffile.serverFile>
 			<cfset ok = true>
 
@@ -833,12 +859,6 @@
 				<cfset info.tmp_name = file.getCanonicalPath() & "">
 				<cfset info.error = 0>
 				<cfset info.size = file.length()>
-
-				<!--- a name that comes more than once: cffile pairs the first name with the last content, so the name is not used --->
-				<cfif arguments.count GT 1>
-					<cfset info.name = basename(arguments.path)>
-					<cfset info.full_path = info.name>
-				</cfif>
 
 				<!--- only a path in this list is an upload (see UploadedFile.isValid()) --->
 				<cfif NOT StructKeyExists(request.ColdIgniter, "uploads")>
