@@ -29,6 +29,7 @@ STRING = re.compile(r'"[^"]*"|\'[^\']*\'')
 TAG = re.compile(r"<(/?)(cf\w+)\b([^>]*)>", re.I)
 FUNCTION = re.compile(r"<cffunction\b.*?</cffunction>", re.S | re.I)
 WORDING = re.compile("p" + "hp", re.I)
+BUILTINS = ("encrypt", "decrypt", "hash", "tobase64", "tobinary", "find", "insert", "replace", "log")
 SYMBOLS = re.compile(r"==|!=|&&|\|\||\+\+|\+=|-=|<=|>=")
 
 
@@ -67,6 +68,12 @@ def check(path, raw):
             symbol = SYMBOLS.search(STRING.sub(blank, rest))
             if symbol:
                 found.append((line, "operators", "symbol operator " + symbol.group(0)))
+
+    for match in re.finditer(r'<cffunction\b[^>]*?\bname\s*=\s*"(\w+)"', code, re.I):
+        if re.match(r"equal(?!s_)|contains$", match.group(1), re.I):
+            found.append((line_of(code, match.start()), "operator", "function name starts like an operator word: " + match.group(1)))
+        if match.group(1).lower() in BUILTINS:
+            found.append((line_of(code, match.start()), "builtin", "function named like a built-in: " + match.group(1)))
 
     for function in FUNCTION.finditer(code):
         body_started = False
