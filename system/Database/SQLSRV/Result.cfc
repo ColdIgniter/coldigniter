@@ -23,9 +23,10 @@
  * 6.1 has no precision, so max_length is empty (verified on the server). The type constants of the
  * original (SQLSRV_SQLTYPE_*) do not exist.
  *
- * Difference: fetchObject() returns a map for the class stdClass and
- * for any other class, as there is no stdClass.
- * Not ported yet: the Entity branch of fetchObject().
+ * Difference: fetchObject() returns a map when there is no class (or the
+ * class stdClass), as there is no stdClass. For an Entity class it returns
+ * the object with the raw data injected (injectRawData()), and for any other
+ * class an object with the keys of the row set.
 --->
 <cfcomponent output="no" parent="ColdIgniter\Database\BaseResult" hint="Result for SQLSRV">
 
@@ -216,8 +217,28 @@
 	--->
 	<cffunction name="fetchObject" access="private" returntype="any" output="no">
 		<cfargument name="className" type="string" required="no" default="">
+		<cfset var data = fetchAssoc()>
+		<cfset var obj = "">
+		<cfset var keys = "">
+		<cfset var i = 0>
 
-		<cfreturn fetchAssoc()>
+		<cfif NOT isRow(data) OR Len(arguments.className) EQ 0 OR Compare(arguments.className, "stdClass") EQ 0>
+			<cfreturn data>
+		</cfif>
+
+		<cfset obj = new_(arguments.className)>
+
+		<cfif instanceof_(obj, "Entity")>
+			<cfreturn obj.injectRawData(data)>
+		</cfif>
+
+		<cfset keys = array_keys(data)>
+
+		<cfloop from="1" to="#ArrayLen(keys)#" index="i">
+			<cfset obj[keys[i]] = data[keys[i]]>
+		</cfloop>
+
+		<cfreturn obj>
 	</cffunction>
 
 	<!---

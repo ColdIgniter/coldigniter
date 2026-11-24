@@ -17,8 +17,6 @@
  *         <cfset this.allowedFields = ListToArray("name,email")>
  *     </cfcomponent>
  *
- * Not ported yet: Entity and the casts (see BaseModel).
- *
  * Difference: a model has no magic methods here (the language has none). The
  * methods of the builder that a model does not define itself are written out
  * below as public methods that hand the call over to the builder: where(),
@@ -526,13 +524,32 @@
 	<!---
 	 * Returns the primary key value of a row, or an empty string (null).
 	 *
-	 * Difference: Entity is not ported yet, so an object is read as a map.
+	 * Difference: an object that is not an Entity is read by its key (there
+	 * is no isset() of a property), and the magic methods of an Entity are
+	 * written out (__get()).
 	--->
 	<cffunction name="getIdValue" access="public" returntype="any" output="no">
 		<cfargument name="row" type="any" required="yes">
+		<cfset var cast = "">
+		<cfset var primaryKey = "">
 
 		<cfif IsObject(arguments.row) AND NOT isNullMarker_(arguments.row)>
-			<cfif StructKeyExists(arguments.row, this.primaryKey) AND NOT IsCustomFunction(arguments.row[this.primaryKey])>
+			<!--- get the raw or mapped primary key value of the Entity --->
+			<cfif instanceof_(arguments.row, "Entity")>
+				<cfif NOT is_null(arguments.row.__get(this.primaryKey))>
+					<cfset cast = arguments.row.cast()>
+
+					<!--- disable Entity casting, because raw primary key value is needed for database --->
+					<cfset arguments.row.cast(false)>
+
+					<cfset primaryKey = arguments.row.__get(this.primaryKey)>
+
+					<!--- restore Entity casting setting --->
+					<cfset arguments.row.cast(cast)>
+
+					<cfreturn primaryKey>
+				</cfif>
+			<cfelseif StructKeyExists(arguments.row, this.primaryKey) AND NOT IsCustomFunction(arguments.row[this.primaryKey])>
 				<cfif NOT isNullMarker_(arguments.row[this.primaryKey])>
 					<cfreturn arguments.row[this.primaryKey]>
 				</cfif>
