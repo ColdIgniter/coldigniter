@@ -9,6 +9,25 @@
 <cfset request.FCPATH = GetDirectoryFromPath(GetCurrentTemplatePath())>
 
 <!---
+ Not in the original. The application scope of this site is switched on
+ here, once, for the page cache and for the tables that the framework keeps
+ between requests (shared_() in Polyfills). The name is made from the path
+ of this folder. request.ColdIgniterApplication says whether the scope
+ can be used: a server with application variables switched off still works,
+ only without those memories.
+--->
+<cfset request.ColdIgniterApplication = false>
+
+<cftry>
+	<cfapplication name="ColdIgniter#LCase(Hash(request.FCPATH))#">
+	<cfset request.ColdIgniterApplication = IsStruct(application)>
+
+	<cfcatch type="any">
+		<cfset request.ColdIgniterApplication = false>
+	</cfcatch>
+</cftry>
+
+<!---
  *---------------------------------------------------------------
  * BOOTSTRAP THE APPLICATION
  *---------------------------------------------------------------

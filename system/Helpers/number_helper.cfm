@@ -289,32 +289,32 @@
  * reflection helpers and a table of Locale objects by name.
  *
  * Difference: not in the original. Looking these up takes about a
- * millisecond, so they are kept in the memory of the server in production
- * (server.ColdIgniterNumber, one entry per system folder), anywhere else
+ * millisecond, so they are kept in the memory of the site in production
+ * (shared_().number in the application scope, one entry per system folder), anywhere else
  * in request.ColdIgniter.number for the request only, and made for the
  * call when there is no request.ColdIgniter. They hold no value of the
  * configuration. A Method, a Class and a Locale are immutable, and the
  * table of locales is a synchronized java.util.Hashtable. A
  * NumberFormat is not thread-safe and is never kept.
  *
- * The entry is complete before it is stored; only the check and the
- * creation of it are inside a lock.
+ * The entry is complete before it is stored with one assignment, so it
+ * needs no lock: two requests that build it at the same time store equal
+ * values.
 --->
 <cffunction name="number_handles_" returntype="struct" output="no" hint="Returns the Java objects that the number formatting keeps">
-	<cfif StructKeyExists(request, "ENVIRONMENT") AND request.ENVIRONMENT EQ "production" AND StructKeyExists(request, "SYSTEMPATH")>
-		<cfif NOT StructKeyExists(server, "ColdIgniterNumber") OR NOT StructKeyExists(server.ColdIgniterNumber, request.SYSTEMPATH)>
-			<cflock name="ColdIgniterNumber" type="exclusive" timeout="10">
-				<cfif NOT StructKeyExists(server, "ColdIgniterNumber")>
-					<cfset server.ColdIgniterNumber = StructNew()>
-				</cfif>
+	<cfset var kept = "">
+	<cfset var handles = "">
 
-				<cfif NOT StructKeyExists(server.ColdIgniterNumber, request.SYSTEMPATH)>
-					<cfset server.ColdIgniterNumber[request.SYSTEMPATH] = number_handles_make_()>
-				</cfif>
-			</cflock>
+	<cfif StructKeyExists(request, "ENVIRONMENT") AND request.ENVIRONMENT EQ "production" AND StructKeyExists(request, "SYSTEMPATH")>
+		<cfset kept = shared_().number>
+
+		<cfif NOT StructKeyExists(kept, request.SYSTEMPATH)>
+			<!--- complete before it is stored: two requests that build it store equal values --->
+			<cfset handles = number_handles_make_()>
+			<cfset kept[request.SYSTEMPATH] = handles>
 		</cfif>
 
-		<cfreturn server.ColdIgniterNumber[request.SYSTEMPATH]>
+		<cfreturn kept[request.SYSTEMPATH]>
 	</cfif>
 
 	<cfif StructKeyExists(request, "ColdIgniter")>

@@ -80,6 +80,7 @@
 <cfinclude template="session_status.cfm">
 <cfinclude template="serialize.cfm">
 <cfinclude template="session_write_close.cfm">
+<cfinclude template="shared_.cfm">
 <cfinclude template="spaceship_.cfm">
 <cfinclude template="static_.cfm">
 <cfinclude template="str_replace.cfm">

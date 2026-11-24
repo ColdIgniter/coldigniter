@@ -15,7 +15,7 @@
  * with FindNoCase(), where the original runs a quoted pattern with the i
  * flag; the result is the same. A browser key is a pattern, so it is
  * compiled once (always with the i flag) to a java.util.regex.Pattern, kept
- * in server.ColdIgniterUserAgent[SYSTEMPATH], one synchronized
+ * in shared_().userAgent[SYSTEMPATH] (the application scope), one synchronized
  * java.util.Hashtable per install, keyed by the text of the pattern, so the
  * key is case-sensitive. A Pattern is immutable and the entries hold no
  * value of the request, so they are shared by every request.
@@ -477,24 +477,24 @@
 	--->
 	<cffunction name="userAgentPatterns" access="private" returntype="any" output="no">
 		<cfset var path = "">
+		<cfset var all = shared_().userAgent>
+		<cfset var table = "">
 
 		<cfif StructKeyExists(request, "SYSTEMPATH")>
 			<cfset path = request.SYSTEMPATH>
 		</cfif>
 
-		<cfif NOT StructKeyExists(server, "ColdIgniterUserAgent") OR NOT StructKeyExists(server.ColdIgniterUserAgent, path)>
-			<cflock name="ColdIgniterUserAgent" type="exclusive" timeout="10">
-				<cfif NOT StructKeyExists(server, "ColdIgniterUserAgent")>
-					<cfset server.ColdIgniterUserAgent = StructNew()>
-				</cfif>
-
-				<cfif NOT StructKeyExists(server.ColdIgniterUserAgent, path)>
-					<cfset server.ColdIgniterUserAgent[path] = CreateObject("java", "java.util.Hashtable").init()>
+		<cfif NOT StructKeyExists(all, path)>
+			<cflock scope="application" type="exclusive" timeout="10">
+				<cfif NOT StructKeyExists(all, path)>
+					<!--- the table is a synchronized Hashtable that every request writes to after it is stored --->
+					<cfset table = CreateObject("java", "java.util.Hashtable").init()>
+					<cfset all[path] = table>
 				</cfif>
 			</cflock>
 		</cfif>
 
-		<cfreturn server.ColdIgniterUserAgent[path]>
+		<cfreturn all[path]>
 	</cffunction>
 
 	<!---

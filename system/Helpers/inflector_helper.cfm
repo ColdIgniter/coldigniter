@@ -32,38 +32,32 @@
  * pattern => replacement). Here the order is the order of the two lists.
  *
  * The tables are built at the first call. In production they are kept in
- * the memory of the server (server.ColdIgniterInflector, one map of tables
- * per system folder) until it is restarted, anywhere else in
+ * the memory of the site (shared_().inflector in the application scope, one
+ * map of tables per system folder) until the application ends, anywhere else in
  * request.ColdIgniter.inflector for the
  * request only, so a change of this file is seen on the next request.
  * They hold rules only, never a value of the configuration.
  *
  * A table is complete before it is stored, so it needs no lock: two
- * requests that build it at the same time store the same values. Only
- * the map that holds the tables is created inside a lock.
+ * requests that build it at the same time store the same values.
  *
  * @param kind singular or plural
 --->
 <cffunction name="inflector_rules_" returntype="struct" output="no" hint="Returns the rule table of singular() or plural()">
 	<cfargument name="kind" type="string" required="yes">
+	<cfset var all = "">
 	<cfset var kept = "">
 	<cfset var rules = "">
 
 	<cfif StructKeyExists(request, "ENVIRONMENT") AND request.ENVIRONMENT EQ "production">
 		<!--- one map of tables per install, with the system folder as key --->
-		<cfif NOT StructKeyExists(server, "ColdIgniterInflector") OR NOT StructKeyExists(server.ColdIgniterInflector, request.SYSTEMPATH)>
-			<cflock name="ColdIgniterInflector" type="exclusive" timeout="10">
-				<cfif NOT StructKeyExists(server, "ColdIgniterInflector")>
-					<cfset server.ColdIgniterInflector = StructNew()>
-				</cfif>
+		<cfset all = shared_().inflector>
 
-				<cfif NOT StructKeyExists(server.ColdIgniterInflector, request.SYSTEMPATH)>
-					<cfset server.ColdIgniterInflector[request.SYSTEMPATH] = StructNew()>
-				</cfif>
-			</cflock>
+		<cfif NOT StructKeyExists(all, request.SYSTEMPATH)>
+			<cfset all[request.SYSTEMPATH] = StructNew()>
 		</cfif>
 
-		<cfset kept = server.ColdIgniterInflector[request.SYSTEMPATH]>
+		<cfset kept = all[request.SYSTEMPATH]>
 	<cfelseif StructKeyExists(request, "ColdIgniter")>
 		<cfif NOT StructKeyExists(request.ColdIgniter, "inflector")>
 			<cfset request.ColdIgniter.inflector = StructNew()>

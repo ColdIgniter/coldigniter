@@ -14,6 +14,8 @@ the rules that are easy to break and that need no server to detect:
   var        var lines come first in a function
   dupvar     a var line does not repeat an argument or another var name
   appcfc     no Application.cfc (it is ignored by the target server)
+  server     no server.ColdIgniter* use in app, system and public (the
+             application scope holds what is kept between requests)
 
 Exit status 0 when clean, 1 when something was found.
 """
@@ -30,6 +32,9 @@ TAG = re.compile(r"<(/?)(cf\w+)\b([^>]*)>", re.I)
 FUNCTION = re.compile(r"<cffunction\b.*?</cffunction>", re.S | re.I)
 WORDING = re.compile("p" + "hp", re.I)
 BUILTINS = ("encrypt", "decrypt", "hash", "tobase64", "tobinary", "find", "insert", "replace", "log")
+SERVER_USE = re.compile(r"\bserver\s*[.,\[]\s*[\"']?ColdIgniter", re.I)
+# the .env cache is moved by another branch; remove this entry with it
+SERVER_ALLOWED = ("system/Config/DotEnv.cfc",)
 SYMBOLS = re.compile(r"==|!=|&&|\|\||\+\+|\+=|-=|<=|>=")
 
 
@@ -54,6 +59,10 @@ def check(path, raw):
         found.append((line_of(text, match.start()), "wording", "names the language of the upstream"))
 
     code = COMMENT.sub(blank, text)
+
+    if path.split(os.sep)[0] in ("app", "system", "public") and path.replace(os.sep, "/") not in SERVER_ALLOWED:
+        for match in SERVER_USE.finditer(code):
+            found.append((line_of(code, match.start()), "server", "server.ColdIgniter use: keep it in shared_()"))
 
     for match in TAG.finditer(code):
         closing, name, rest = match.group(1), match.group(2).lower(), match.group(3)

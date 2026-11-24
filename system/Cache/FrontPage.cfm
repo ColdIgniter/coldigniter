@@ -50,19 +50,11 @@
 		</cfloop>
 
 		<cfif frontSafe>
-			<!--- The application scope, made here when no template has made it (the file handler of the cache uses the same name). --->
-			<cftry>
-				<cfset frontReady = StructKeyExists(application, "ColdIgniter")>
-
-				<cfcatch type="any">
-					<cfapplication name="ColdIgniter#LCase(Hash(request.FCPATH))#">
-				</cfcatch>
-			</cftry>
-
 			<cfset frontLine = Chr(10)>
 			<cfset request.ColdIgniterFront.signature = CGI.REQUEST_METHOD & frontLine & CGI.HTTP_HOST & frontLine & CGI.SERVER_NAME & frontLine & CGI.SERVER_PORT & frontLine & CGI.SERVER_PORT_SECURE & frontLine & CGI.HTTPS & frontLine & CGI.SCRIPT_NAME & frontLine & CGI.PATH_INFO & frontLine & CGI.QUERY_STRING & frontLine & CGI.REQUEST_URI>
 
-			<cfif StructKeyExists(application, "ColdIgniter") AND StructKeyExists(application.ColdIgniter, "frontPages")>
+			<!--- request.ColdIgniterApplication is set by the front controller (public/index.cfm). --->
+			<cfif request.ColdIgniterApplication AND StructKeyExists(application, "ColdIgniter") AND StructKeyExists(application.ColdIgniter, "frontPages")>
 				<cfset frontPage = application.ColdIgniter.frontPages.get(request.ColdIgniterFront.signature)>
 
 				<!--- No item gives a null, which leaves the variable undefined. --->
