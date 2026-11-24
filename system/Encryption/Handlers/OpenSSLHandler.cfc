@@ -210,7 +210,7 @@
 			<cfset body = substr_(raw, hmacLength)>
 			<cfset hmacCalc = hash_hmac(this.digest, body, authKey, true)>
 
-			<cfif NOT equalBytes(hmacKey, hmacCalc)>
+			<cfif NOT bytesMatch(hmacKey, hmacCalc)>
 				<cfset static_("ColdIgniter\Encryption\Exceptions\EncryptionException").forAuthenticationFailed()>
 			</cfif>
 		<cfelse>
@@ -419,7 +419,7 @@
 	 * Difference: not in the original. Compares two byte arrays over the
 	 * whole of their length, the way hash_equals() does for text.
 	--->
-	<cffunction name="equalBytes" access="private" returntype="boolean" output="no">
+	<cffunction name="bytesMatch" access="private" returntype="boolean" output="no">
 		<cfargument name="known" type="any" required="yes">
 		<cfargument name="user" type="any" required="yes">
 		<cfset var difference = 0>
