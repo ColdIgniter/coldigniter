@@ -108,6 +108,8 @@
 	<cfset var id = "">
 	<cfset var tz = "">
 	<cfset var cache = "">
+	<cfset var ids = "">
+	<cfset var i = 0>
 
 	<cfif NOT IsSimpleValue(arguments.timezone)>
 		<cfreturn arguments.timezone>
@@ -120,13 +122,14 @@
 	</cfif>
 
 	<cfif NOT StructKeyExists(request.ColdIgniter, "timeZones")>
-		<cfset request.ColdIgniter.timeZones = StructNew()>
+		<cfset request.ColdIgniter.timeZones = CreateObject("java", "java.util.HashMap").init()>
 	</cfif>
 
 	<cfset cache = request.ColdIgniter.timeZones>
 
-	<cfif StructKeyExists(cache, id)>
-		<cfreturn cache[id]>
+	<!--- the cache is a Java map, as a struct would not tell "utc" from "UTC" --->
+	<cfif cache.containsKey(JavaCast("string", id))>
+		<cfreturn cache.get(JavaCast("string", id))>
 	</cfif>
 
 	<cfif Compare(id, "Z") EQ 0>
@@ -137,11 +140,23 @@
 
 	<cfset tz = CreateObject("java", "java.util.TimeZone").getTimeZone(JavaCast("string", id))>
 
-	<cfif Compare(tz.getID(), id) NEQ 0 AND NOT REFind("^GMT[+-][0-9][0-9]?(:?[0-9][0-9])?$", id) GT 0>
+	<!--- an id is not case sensitive, as in the original: look for it by its other case --->
+	<cfif Compare(tz.getID(), id) NEQ 0>
+		<cfset ids = CreateObject("java", "java.util.TimeZone").getAvailableIDs()>
+
+		<cfloop from="1" to="#ArrayLen(ids)#" index="i">
+			<cfif CompareNoCase(ids[i], id) EQ 0>
+				<cfset tz = CreateObject("java", "java.util.TimeZone").getTimeZone(ids[i])>
+				<cfbreak>
+			</cfif>
+		</cfloop>
+	</cfif>
+
+	<cfif Compare(tz.getID(), id) NEQ 0 AND CompareNoCase(tz.getID(), id) NEQ 0 AND NOT REFind("^GMT[+-][0-9][0-9]?(:?[0-9][0-9])?$", id) GT 0>
 		<cfthrow type="ColdIgniter.Exception" message="Unknown or bad timezone (#id#)">
 	</cfif>
 
-	<cfset cache[id] = tz>
+	<cfset cache.put(JavaCast("string", id), tz)>
 
 	<cfreturn tz>
 </cffunction>
@@ -428,7 +443,8 @@
  * Returns a new instance with the date time values individually set.
  *
  * Difference: an empty value is null. A month or a day out of range rolls
- * over to the next month or year, as strtotime does.
+ * over to the next month or year (the original goes through strtotime, which
+ * gives false for a month above 12 or a day above 31).
 --->
 <cffunction name="create" access="public" returntype="any" output="no">
 	<cfargument name="year" type="any" required="no" default="">
@@ -502,6 +518,10 @@
  * Difference: the values are placed in the timezone argument (the default
  * timezone for none), unless the data holds U or a zone (e O P T), which
  * decide the instant that is shown in that timezone.
+ *
+ * Difference: the fields that the format leaves out are taken from the
+ * current time in the timezone argument (the original takes the wall clock of
+ * the default timezone and reads it in the timezone argument).
  *
  * @param string $format
  * @param string $datetime
@@ -664,7 +684,6 @@
 		<cfelseif Compare(ch, "?") EQ 0>
 			<cfset p = p + 1>
 		<cfelseif Compare(ch, "*") EQ 0>
-			<cfset p = p + Len(REReplace(Mid(data, p, Len(data)), "^[^ ,;:/.()-]*", ""))>
 			<cfset p = Len(data) + 1 - Len(REReplace(Mid(data, p, Len(data)), "^[^ ,;:/.()-]*", ""))>
 		<cfelse>
 			<cfif Compare(ch, "\") EQ 0>
@@ -802,13 +821,7 @@
 	<cfargument name="dateTime" type="any" required="yes">
 	<cfargument name="locale" type="any" required="no" default="">
 
-	<cfset var useLocale = arguments.locale>
-
-	<cfif is_null(useLocale)>
-		<cfset useLocale = arguments.dateTime.locale>
-	</cfif>
-
-	<cfreturn build_(arguments.dateTime.cal.getTime(), arguments.dateTime.timezone, localeOf_(useLocale), arguments.dateTime.micro)>
+	<cfreturn build_(arguments.dateTime.cal.getTime(), arguments.dateTime.timezone, localeOf_(arguments.locale), arguments.dateTime.micro)>
 </cffunction>
 
 <!---
@@ -1042,6 +1055,7 @@
 		<cfelseif Compare(ch, "v") EQ 0>
 			<cfset out = out & pad_(Int(this.micro / 1000), 3)>
 		<cfelseif Compare(ch, "e") EQ 0>
+			<!--- Difference: an offset timezone is "GMT+02:00" here, "+02:00" in the original --->
 			<cfset out = out & this.timezone.getID()>
 		<cfelseif Compare(ch, "I") EQ 0>
 			<cfif getF_(cal, 16) NEQ 0>
@@ -1155,6 +1169,9 @@
 
 <!---
  * Return the day of the week, 1 (Sunday) to 7.
+ *
+ * Difference: the number of ICU 'c' depends on the first day of the week of
+ * the locale, here Sunday is always 1.
 --->
 <cffunction name="getDayOfWeek" access="public" returntype="string" output="no">
 	<cfreturn toLocalizedString("c")>
@@ -1226,6 +1243,9 @@
 
 <!---
  * Returns the name of the current timezone.
+ *
+ * Difference: a timezone that is an offset gives its Java id, "GMT+02:00",
+ * where the original gives "+02:00".
 --->
 <cffunction name="getTimezoneName" access="public" returntype="string" output="no">
 	<cfreturn this.timezone.getID()>
@@ -1467,16 +1487,27 @@
 <cffunction name="sub" access="public" returntype="any" output="no">
 	<cfargument name="interval" type="string" required="yes">
 	<cfset var text = Trim(arguments.interval)>
+	<cfset var out = "">
+	<cfset var matcher = CreateObject("java", "java.util.regex.Pattern").compile("([+-]?)([0-9]+)").matcher(JavaCast("string", text))>
+	<cfset var last = 0>
 
-	<cfif Left(text, 1) EQ "-">
-		<cfreturn modify("+" & Mid(text, 2, Len(text)))>
-	</cfif>
+	<!--- the sign of every number term is turned round, "1 day 2 hours" is "-1 day -2 hours" --->
+	<cfloop condition="matcher.find()">
+		<cfset out = out & Mid(text, last + 1, matcher.start() - last)>
+		<cfset last = matcher.end()>
 
-	<cfif Left(text, 1) EQ "+">
-		<cfset text = Mid(text, 2, Len(text))>
-	</cfif>
+		<cfif Compare(matcher.group(1), "-") EQ 0>
+			<cfset out = out & "+">
+		<cfelse>
+			<cfset out = out & "-">
+		</cfif>
 
-	<cfreturn modify("-" & text)>
+		<cfset out = out & matcher.group(2)>
+	</cfloop>
+
+	<cfset out = out & Mid(text, last + 1, Len(text) - last)>
+
+	<cfreturn modify(out)>
 </cffunction>
 
 <!---
@@ -1656,8 +1687,28 @@
 </cffunction>
 
 <!---
+ * Adds a value to the pattern as quoted text. A value right after a quoted
+ * text is put in the same quotes: two quoted texts side by side would make
+ * SimpleDateFormat read an apostrophe between them.
+--->
+<cffunction name="quoted_" access="private" returntype="string" output="no">
+	<cfargument name="pattern" type="string" required="yes">
+	<cfargument name="value" type="string" required="yes">
+
+	<cfif Len(arguments.pattern) GT 1 AND Right(arguments.pattern, 1) EQ "'" AND Right(arguments.pattern, 2) NEQ "''">
+		<cfreturn Left(arguments.pattern, Len(arguments.pattern) - 1) & arguments.value & "'">
+	</cfif>
+
+	<cfreturn arguments.pattern & "'" & arguments.value & "'">
+</cffunction>
+
+<!---
  * Returns the localized value of this instance in $format string, with the
  * pattern letters of SimpleDateFormat, plus c, e, L, Q and q of ICU.
+ *
+ * Difference: c and e give the day of the week with Sunday as 1 whatever the
+ * locale. SSSSSS is fractional digits in ICU, but SimpleDateFormat pads the
+ * milliseconds, so the digits after the third are zeros.
  *
  * @param string|null $format
 --->
@@ -1712,12 +1763,12 @@
 					<cfelse>
 						<cfset value = ListGetAt("1st,2nd,3rd,4th", quarter) & " quarter">
 					</cfif>
-					<cfset out = out & "'" & value & "'">
+					<cfset out = quoted_(out, value)>
 				<cfelseif Find(ch, "ce") GT 0>
 					<cfif run EQ 1>
-						<cfset out = out & "'" & dow & "'">
+						<cfset out = quoted_(out, dow)>
 					<cfelseif run EQ 2>
-						<cfset out = out & "'" & pad_(dow, 2) & "'">
+						<cfset out = quoted_(out, pad_(dow, 2))>
 					<cfelseif run EQ 3>
 						<cfset out = out & "EEE">
 					<cfelse>
@@ -1725,7 +1776,7 @@
 					</cfif>
 				<cfelse>
 					<cfif run EQ 1>
-						<cfset out = out & "'" & month & "'">
+						<cfset out = quoted_(out, month)>
 					<cfelseif run EQ 2>
 						<cfset out = out & "MM">
 					<cfelseif run EQ 3>

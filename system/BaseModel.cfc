@@ -46,7 +46,8 @@
  * row costs no CreateObject) and gives the same strings for the date formats
  * 'datetime', 'date' and 'int'. Only while a test instance of Time is set
  * (Time::setTestNow) it asks Time for the current time. timeToDate() takes
- * a Time, or a CFML date.
+ * a Time, or a CFML date. The server clock is read in the zone of the CFML
+ * server, not in Config\App appTimezone (which a Time uses).
  *
  * Difference: Config\Feature is not ported yet, so limitZeroAsAll is always
  * true.
@@ -1770,7 +1771,7 @@
 
 		<!--- a test instance of Time (Time::setTestNow) stands for the current time --->
 		<cfif NOT given AND StructKeyExists(request.ColdIgniter, "testNowTime")>
-			<cfreturn intToDate(static_("ColdIgniter\I18n\Time").now_().getTimestamp())>
+			<cfreturn timeToDate(static_("ColdIgniter\I18n\Time").now_())>
 		</cfif>
 
 		<cfif NOT given AND Compare(this.dateFormat, "datetime") EQ 0>
@@ -1838,6 +1839,10 @@
 		<cfif NOT IsSimpleValue(arguments.value)>
 			<cfif Compare(this.dateFormat, "int") EQ 0>
 				<cfreturn arguments.value.getTimestamp()>
+			</cfif>
+
+			<cfif Compare(this.dateFormat, "datetime") NEQ 0 AND Compare(this.dateFormat, "date") NEQ 0>
+				<cfreturn arguments.value.__toString()>
 			</cfif>
 
 			<cfreturn arguments.value.format(this.db.dateFormat[this.dateFormat])>
