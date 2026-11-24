@@ -17,8 +17,6 @@
  *         <cfset this.allowedFields = ListToArray("name,email")>
  *     </cfcomponent>
  *
- * Not ported yet: Entity and the casts (see BaseModel).
- *
  * Difference: a model has no magic methods here (the language has none). The
  * methods of the builder that a model does not define itself are written out
  * below as public methods that hand the call over to the builder: where(),

@@ -3,9 +3,9 @@
  *
  * The first thing the Model and the Entity classes share.
  *
- * Not ported yet: Entity and the casts with DataConverter (a model with
- * casts throws when it is created). The methods that need them are kept in
- * their place and throw "Not ported yet".
+ * Difference: the casts are made by DataConverter (see createDataConverter()),
+ * and a model with the return type of an Entity class (or asObject() with a
+ * class name) returns the objects of that class.
  *
  * Difference: there is no abstract method, and no magic method (__get,
  * __isset and __call are written as public methods, see Model). The abstract
@@ -21,8 +21,7 @@
  *
  * Difference: a row is a map (see array_()), also for the return type
  * 'object' (the rows of the result are maps in both cases, as there is no
- * stdClass), so a model never returns a custom class either: asObject() with
- * a class name throws when the rows are read. An object (a component) that is
+ * stdClass). A class name gives the objects of that class. An object (a component) that is
  * given as data is read with its toRawArray() method, or the call throws
  * "Not ported yet" (there is no reflection).
  *
@@ -406,13 +405,13 @@
 	<!---
 	 * Creates DataConverter instance.
 	 *
-	 * Difference: DataConverter is not ported yet, so a model with casts
-	 * throws here.
+	 * Difference: the converter is a property that is empty when the model has
+	 * no casts, so the rows of such a model need no object.
 	--->
 	<cffunction name="createDataConverter" access="private" returntype="void" output="no">
 
 		<cfif useCasts()>
-			<cfthrow type="ColdIgniter.LogicException" message="Not ported yet: casts and DataConverter (#className_()#).">
+			<cfset this.converter = new_("ColdIgniter\DataConverter\DataConverter", this.casts, this.castHandlers, this.db)>
 		</cfif>
 	</cffunction>
 
@@ -2216,8 +2215,8 @@
 	 * class vars with the same name as the collection columns,
 	 * or at least allows them to be created.
 	 *
-	 * Difference: a class name is kept, but the rows are read as maps, so
-	 * a class name other than 'object' throws when the rows are read.
+	 * Difference: 'object' gives maps (there is no stdClass), and a class
+	 * name gives the objects of that class.
 	 *
 	 * @param class 'object'|class-string
 	 *
@@ -2476,8 +2475,6 @@
 	<!---
 	 * Converts database data array to return type value.
 	 *
-	 * Difference: DataConverter is not ported yet, so this throws.
-	 *
 	 * @param row        Raw data from database.
 	 * @param returnType 'array'|'object'|class-string
 	 *
@@ -2486,10 +2483,6 @@
 	<cffunction name="convertToReturnType" access="private" returntype="any" output="no">
 		<cfargument name="row" type="any" required="yes">
 		<cfargument name="returnType" type="string" required="yes">
-
-		<cfif NOT IsObject(this.converter)>
-			<cfthrow type="ColdIgniter.LogicException" message="Not ported yet: DataConverter (#className_()#).">
-		</cfif>
 
 		<cfif Compare(arguments.returnType, "array") EQ 0 OR Compare(arguments.returnType, "object") EQ 0>
 			<cfreturn this.converter.fromDataSource(arguments.row)>

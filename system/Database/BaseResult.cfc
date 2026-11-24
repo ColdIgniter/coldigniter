@@ -23,8 +23,11 @@
  * (the rows, a field, the count), and the test costs a tenth of the call
  * of the function.
  *
- * Not ported yet: the result objects of a class (getCustomResultObject()
- * and getCustomRowObject()), as Entity is not ported.
+ * Difference: the result objects of a class (getCustomResultObject() and
+ * getCustomRowObject()) are components created with new_(). The values of a
+ * row that is already read are given to an Entity with __set() (as the
+ * original does with the property), and to any other class as keys; a row
+ * that is read from the result is made by fetchObject(className).
  *
  * @template TConnection
  * @template TResult
@@ -113,16 +116,81 @@
 	<!---
 	 * Returns the results as an array of custom objects.
 	 *
-	 * Not ported yet: custom result objects (Entity is not ported).
-	 *
 	 * @param class-string $className
 	 *
 	 * @return array
 	--->
 	<cffunction name="getCustomResultObject" access="public" returntype="any" output="no">
 		<cfargument name="className" type="string" required="yes">
+		<cfset var list = ArrayNew(1)>
+		<cfset var source = "">
+		<cfset var obj = "">
+		<cfset var row = "">
+		<cfset var keys = "">
+		<cfset var isEntity = false>
+		<cfset var i = 0>
+		<cfset var j = 0>
 
-		<cfthrow type="ColdIgniter.LogicException" message="Not ported yet: custom result objects.">
+		<cfif StructKeyExists(this.customResultObject, arguments.className)>
+			<cfreturn this.customResultObject[arguments.className]>
+		</cfif>
+
+		<!---
+		 * In the event that query caching is on, the result_id variable
+		 * will not be a valid resource so we'll simply return an empty
+		 * array.
+		--->
+		<cfif NOT isValidResultId()>
+			<cfreturn ArrayNew(1)>
+		</cfif>
+
+		<!--- don't fetch the result set again if we already have it --->
+		<cfif ArrayLen(this.resultArray) GT 0>
+			<cfset source = this.resultArray>
+		<cfelseif ArrayLen(this.resultObject) GT 0>
+			<cfset source = this.resultObject>
+		</cfif>
+
+		<cfif IsArray(source)>
+			<cfloop from="1" to="#ArrayLen(source)#" index="i">
+				<cfset obj = new_(arguments.className)>
+				<cfset isEntity = instanceof_(obj, "Entity")>
+				<cfset keys = array_keys(source[i])>
+
+				<cfloop from="1" to="#ArrayLen(keys)#" index="j">
+					<cfif isEntity>
+						<cfset obj.__set(keys[j], source[i][keys[j]])>
+					<cfelse>
+						<cfset obj[keys[j]] = source[i][keys[j]]>
+					</cfif>
+				</cfloop>
+
+				<cfset ArrayAppend(list, obj)>
+			</cfloop>
+
+			<cfset this.customResultObject[arguments.className] = list>
+
+			<cfreturn list>
+		</cfif>
+
+		<cfif NOT (IsSimpleValue(this.rowData) AND this.rowData EQ "")>
+			<cfset this.dataSeek()>
+		</cfif>
+
+		<cfset row = fetchObject(arguments.className)>
+
+		<cfloop condition="IsObject(row)">
+			<cfif NOT instanceof_(row, "Entity") AND method_exists(row, "syncOriginal")>
+				<cfset row.syncOriginal()>
+			</cfif>
+
+			<cfset ArrayAppend(list, row)>
+			<cfset row = fetchObject(arguments.className)>
+		</cfloop>
+
+		<cfset this.customResultObject[arguments.className] = list>
+
+		<cfreturn list>
 	</cffunction>
 
 	<!---
@@ -263,15 +331,22 @@
 	 *
 	 * If row doesn't exist, returns null.
 	 *
-	 * Not ported yet: custom result objects (Entity is not ported).
-	 *
 	 * @return array|null
 	--->
 	<cffunction name="getCustomRowObject" access="public" returntype="any" output="no">
 		<cfargument name="n" type="numeric" required="yes">
 		<cfargument name="className" type="string" required="yes">
+		<cfset var list = this.getCustomResultObject(arguments.className)>
 
-		<cfthrow type="ColdIgniter.LogicException" message="Not ported yet: custom result objects.">
+		<cfif ArrayLen(list) EQ 0>
+			<cfreturn "">
+		</cfif>
+
+		<cfif arguments.n NEQ this.currentRow AND rowExists(list, arguments.n)>
+			<cfset this.currentRow = arguments.n>
+		</cfif>
+
+		<cfreturn rowAt(list, this.currentRow)>
 	</cffunction>
 
 	<!---
