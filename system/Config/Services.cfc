@@ -148,6 +148,26 @@
 	</cffunction>
 
 	<!---
+	 * The Honeypot provides a simple way to protect forms from bots.
+	 *
+	 * @param config The Config\Honeypot, or an empty string (null)
+	--->
+	<cffunction name="honeypot" access="public" returntype="any" output="no">
+		<cfargument name="config" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("honeypot", arguments.config)>
+		</cfif>
+
+		<cfif is_null(arguments.config)>
+			<cfset arguments.config = variables.config("Config\Honeypot")>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\Honeypot\Honeypot", arguments.config)>
+	</cffunction>
+
+	<!---
 	 * Responsible for loading the language string translations.
 	--->
 	<cffunction name="language" access="public" returntype="any" output="no">
