@@ -80,6 +80,8 @@
 	<cffunction name="bootWeb" access="public" returntype="numeric" output="no">
 		<cfargument name="paths" type="any" required="yes">
 		<cfset var app = "">
+		<cfset var uploadKey = "">
+		<cfset var uploadList = "">
 
 		<cfset definePathConstants(arguments.paths)>
 		<cfif NOT defined("APP_NAMESPACE")>
@@ -129,6 +131,31 @@
 				</cftry>
 			</cfcatch>
 		</cftry>
+
+		<!---
+		 Difference: the saved files of the uploads of this request (see
+		 Superglobals.readFiles()) are in a folder of their own in the temp
+		 folder, which is removed here, as the files of an upload are
+		 removed by the server at the end of the request in the original.
+		--->
+		<cfif StructKeyExists(request.ColdIgniter, "uploadDirs")>
+			<cfloop collection="#request.ColdIgniter.uploadDirs#" item="uploadKey">
+				<cftry>
+					<!--- cfdirectory has no recurse here, and the folder is flat --->
+					<cfdirectory action="list" directory="#request.ColdIgniter.uploadDirs[uploadKey]#" name="uploadList">
+
+					<cfloop query="uploadList">
+						<cfif uploadList.type EQ "File">
+							<cffile action="delete" file="#request.ColdIgniter.uploadDirs[uploadKey]##uploadList.name#">
+						</cfif>
+					</cfloop>
+
+					<cfdirectory action="delete" directory="#request.ColdIgniter.uploadDirs[uploadKey]#">
+
+					<cfcatch type="any"></cfcatch>
+				</cftry>
+			</cfloop>
+		</cfif>
 
 		<!---
 		 Exits the application, setting the exit code for CLI-based
