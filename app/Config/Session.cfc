@@ -17,6 +17,10 @@
 	 * - `ColdIgniter\Session\Handlers\FileHandler`
 	 * - `ColdIgniter\Session\Handlers\DatabaseHandler`
 	 *
+	 * The FileHandler keeps the sessions on each server. Behind a load
+	 * balancer, use the DatabaseHandler (see the schema in the comment
+	 * below) or sticky sessions.
+	 *
 	 * @var class-string<BaseHandler>
 	--->
 	<cfset this.driver = "ColdIgniter\Session\Handlers\FileHandler">
