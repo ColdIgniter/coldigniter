@@ -1,8 +1,7 @@
 <!---
  * Validation configuration.
  *
- * Not ported yet: FileRules and CreditCardRules (both are left out of the
- * rule sets below).
+ * Not ported yet: CreditCardRules (it is left out of the rule sets below).
  *
  * Difference: a rule group is a map (see array_()) of fields, and a group of
  * messages is a map of maps. Write them in the body of the component with
@@ -23,6 +22,7 @@
 	<cfset this.ruleSets = ArrayNew(1)>
 	<cfset ArrayAppend(this.ruleSets, "ColdIgniter\Validation\StrictRules\Rules")>
 	<cfset ArrayAppend(this.ruleSets, "ColdIgniter\Validation\StrictRules\FormatRules")>
+	<cfset ArrayAppend(this.ruleSets, "ColdIgniter\Validation\StrictRules\FileRules")>
 
 	<!---
 	 * Specifies the views that contain the validation errors, by the name

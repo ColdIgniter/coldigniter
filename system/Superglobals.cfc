@@ -87,14 +87,14 @@
 		<cfset setCookieArray(arguments.cookie)>
 		<cfset setFilesArray(arguments.files)>
 
-		<!--- Difference: the files of the request are read when they are first asked for. --->
-		<cfset this.filesPending = filesPending>
-
 		<cfif is_null(arguments.request_)>
 			<cfset arguments.request_ = getRequestData()>
 		</cfif>
 
 		<cfset setRequestArray(arguments.request_)>
+
+		<!--- Difference: the files of the request are read when they are first asked for (after the request array, as its accessors read them). --->
+		<cfset this.filesPending = filesPending>
 
 		<cfreturn this>
 	</cffunction>
@@ -398,6 +398,10 @@
 		<cfargument name="key" type="string" required="yes">
 		<cfargument name="default" type="any" required="no" default="">
 
+		<cfif this.filesPending>
+			<cfset getFilesArray()>
+		</cfif>
+
 		<cfif StructKeyExists(this.request_, arguments.key)>
 			<cfreturn this.request_[arguments.key]>
 		</cfif>
@@ -412,6 +416,10 @@
 		<cfargument name="key" type="string" required="yes">
 		<cfargument name="value" type="any" required="yes">
 
+		<cfif this.filesPending>
+			<cfset getFilesArray()>
+		</cfif>
+
 		<cfset this.request_[arguments.key] = arguments.value>
 
 		<cfreturn this>
@@ -423,6 +431,10 @@
 	<cffunction name="unsetRequest" access="public" returntype="any" output="no">
 		<cfargument name="key" type="string" required="yes">
 
+		<cfif this.filesPending>
+			<cfset getFilesArray()>
+		</cfif>
+
 		<cfset this.request_.remove(arguments.key)>
 
 		<cfreturn this>
@@ -432,6 +444,10 @@
 	 * Get all REQUEST values.
 	--->
 	<cffunction name="getRequestArray" access="public" returntype="any" output="no">
+		<cfif this.filesPending>
+			<cfset getFilesArray()>
+		</cfif>
+
 		<cfreturn this.request_>
 	</cffunction>
 
@@ -440,6 +456,10 @@
 	--->
 	<cffunction name="setRequestArray" access="public" returntype="any" output="no">
 		<cfargument name="array" type="any" required="yes">
+
+		<cfif this.filesPending>
+			<cfset getFilesArray()>
+		</cfif>
 
 		<cfset this.request_ = arguments.array>
 

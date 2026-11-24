@@ -403,7 +403,7 @@
 			<!--- FILTER_VALIDATE_REGEXP --->
 			<cfcase value="272">
 				<cfif NOT IsStruct(options) OR NOT StructKeyExists(options, "regexp")>
-					<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="filter_var(): ""regexp"" option is missing">
+					<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="filter_var(): 'regexp' option missing">
 				</cfif>
 
 				<cfif preg_match(options["regexp"], text) EQ 1>
