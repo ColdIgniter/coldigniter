@@ -140,8 +140,7 @@
 		<cfset classObj = new_(arguments.classname)>
 
 		<cfif instanceof_(classObj, "Entity")>
-			<!--- the entity keeps the raw row and casts a value when it is read --->
-			<cfset classObj.injectRawData(arguments.row)>
+			<cfset classObj.injectRawData(valueData)>
 			<cfset classObj.syncOriginal()>
 
 			<cfreturn classObj>
