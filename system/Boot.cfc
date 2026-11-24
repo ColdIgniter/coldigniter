@@ -67,6 +67,7 @@
 	<cfset request.FILTER_FLAG_IPV6 = 2097152>
 	<cfset request.FILTER_FLAG_NO_RES_RANGE = 4194304>
 	<cfset request.FILTER_FLAG_NO_PRIV_RANGE = 8388608>
+	<cfset request.FILTER_FLAG_GLOBAL_RANGE = 268435456>
 
 	<!---
 	 * Used by `public/index.cfm`

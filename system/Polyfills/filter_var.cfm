@@ -155,8 +155,7 @@
  * Not ported yet: FILTER_VALIDATE_DOMAIN, _MAC, FILTER_SANITIZE_STRING (it
  * is deprecated), FILTER_CALLBACK, and the flags FILTER_FLAG_ALLOW_HEX,
  * _ALLOW_OCTAL, _ENCODE_LOW, _ENCODE_HIGH, _ENCODE_AMP, _EMPTY_STRING_NULL,
- * _GLOBAL_RANGE, _PATH_REQUIRED, _QUERY_REQUIRED, _HOSTNAME and
- * _EMAIL_UNICODE.
+ * _PATH_REQUIRED, _QUERY_REQUIRED, _HOSTNAME and _EMAIL_UNICODE.
  *
  * Difference: null is an empty string here, so a failure with
  * FILTER_NULL_ON_FAILURE gives an empty string.
@@ -175,9 +174,8 @@
  * here a text that is encoded already (&amp;) is encoded again (&amp;amp;),
  * and a character above 127 stays as it is instead of becoming an entity.
  *
- * The IPv6 ranges are those of the original: FILTER_FLAG_NO_RES_RANGE refuses
- * ::/128, ::1/128, 5f00::/8, fe80::/10, 2001:db8::/32, 2001:10::/28 and
- * 3ff3::/16, and FILTER_FLAG_NO_PRIV_RANGE refuses fc00::/7.
+ * The ranges of FILTER_FLAG_NO_RES_RANGE, _NO_PRIV_RANGE and _GLOBAL_RANGE are
+ * the tables of the original (RFC 6890), see filter_ip_range_.
  *
  * @param leaf true for an item of an array: the flags about arrays are not read
 --->
@@ -664,63 +662,130 @@
 </cffunction>
 
 <!---
- * Checks the ranges that FILTER_FLAG_NO_RES_RANGE (4194304) and
- * FILTER_FLAG_NO_PRIV_RANGE (8388608) refuse. The address is valid already.
+ * Checks the ranges that FILTER_FLAG_NO_RES_RANGE (4194304),
+ * FILTER_FLAG_NO_PRIV_RANGE (8388608) and FILTER_FLAG_GLOBAL_RANGE
+ * (268435456) name. The address is valid already. The tables are those of
+ * ipv4_get_status_flags and ipv6_get_status_flags (RFC 6890), in the same
+ * order: the first block that holds the address gives its flags, and an
+ * address in no block passes every flag, also FILTER_FLAG_GLOBAL_RANGE.
  *
- * @return true when the address is outside the refused ranges
+ * @return true when the address is not refused
 --->
-<cffunction name="filter_ip_range_" returntype="boolean" output="no" hint="Checks the reserved and private ranges of an IP address">
+<cffunction name="filter_ip_range_" returntype="boolean" output="no" hint="Checks the reserved, private and global ranges of an IP address">
 	<cfargument name="value" type="string" required="yes">
 	<cfargument name="bits" type="numeric" required="yes">
-	<cfset var first = 0>
-	<cfset var second = 0>
-	<cfset var groups = "">
+	<cfset var ip = "">
+	<cfset var isGlobal = false>
+	<cfset var isReserved = false>
+	<cfset var isPrivate = false>
+	<cfset var special = true>
 
-	<cfif BitAnd(arguments.bits, 12582912) EQ 0>
+	<cfif BitAnd(arguments.bits, 281018368) EQ 0>
 		<cfreturn true>
 	</cfif>
 
 	<cfif Find(":", arguments.value) EQ 0>
-		<cfset first = Val(ListGetAt(arguments.value, 1, "."))>
-		<cfset second = Val(ListGetAt(arguments.value, 2, "."))>
+		<cfset ip = ArrayNew(1)>
+		<cfset ArrayAppend(ip, Val(ListGetAt(arguments.value, 1, ".")))>
+		<cfset ArrayAppend(ip, Val(ListGetAt(arguments.value, 2, ".")))>
+		<cfset ArrayAppend(ip, Val(ListGetAt(arguments.value, 3, ".")))>
+		<cfset ArrayAppend(ip, Val(ListGetAt(arguments.value, 4, ".")))>
 
-		<cfif BitAnd(arguments.bits, 8388608) NEQ 0>
-			<cfif first EQ 10 OR (first EQ 172 AND second GTE 16 AND second LTE 31) OR (first EQ 192 AND second EQ 168)>
-				<cfreturn false>
-			</cfif>
+		<!--- the numbers are the index 0 to 3 of the original, plus one --->
+		<cfif ip[1] EQ 0>
+			<!--- RFC 0791 - This network --->
+			<cfset isReserved = true>
+		<cfelseif ip[1] EQ 10>
+			<!--- RFC 1918 - Private Use --->
+			<cfset isPrivate = true>
+		<cfelseif ip[1] EQ 100 AND ip[2] GTE 64 AND ip[2] LTE 127>
+			<!--- RFC 6598 - Shared Address Space --->
+		<cfelseif ip[1] EQ 127>
+			<!--- RFC 1122 - Loopback --->
+			<cfset isReserved = true>
+		<cfelseif ip[1] EQ 169 AND ip[2] EQ 254>
+			<!--- RFC 3927 - Link Local --->
+			<cfset isReserved = true>
+		<cfelseif ip[1] EQ 172 AND ip[2] GTE 16 AND ip[2] LTE 31>
+			<!--- RFC 1918 - Private Use --->
+			<cfset isPrivate = true>
+		<cfelseif ip[1] EQ 192 AND ip[2] EQ 0 AND ip[3] EQ 0>
+			<!--- RFC 6890 - IETF Protocol Assignments --->
+		<cfelseif ip[1] EQ 192 AND ip[2] EQ 0 AND ip[3] EQ 2>
+			<!--- RFC 5737 - Documentation --->
+		<cfelseif ip[1] EQ 192 AND ip[2] EQ 88 AND ip[3] EQ 99>
+			<!--- RFC 3068 - 6to4 Relay Anycast --->
+			<cfset isGlobal = true>
+		<cfelseif ip[1] EQ 192 AND ip[2] EQ 168>
+			<!--- RFC 1918 - Private Use --->
+			<cfset isPrivate = true>
+		<cfelseif ip[1] EQ 198 AND ip[2] GTE 18 AND ip[2] LTE 19>
+			<!--- RFC 2544 - Benchmarking --->
+		<cfelseif ip[1] EQ 198 AND ip[2] EQ 51 AND ip[3] EQ 100>
+			<!--- RFC 5737 - Documentation --->
+		<cfelseif ip[1] EQ 203 AND ip[2] EQ 0 AND ip[3] EQ 113>
+			<!--- RFC 5737 - Documentation --->
+		<cfelseif ip[1] GTE 240>
+			<!--- RFC 1122 - Reserved, and RFC 0919 - Limited Broadcast --->
+			<cfset isReserved = true>
+		<cfelse>
+			<cfset special = false>
 		</cfif>
+	<cfelse>
+		<cfset ip = filter_ipv6_groups_(arguments.value)>
 
-		<cfif BitAnd(arguments.bits, 4194304) NEQ 0>
-			<cfif first EQ 0 OR first EQ 127 OR first GTE 240 OR (first EQ 169 AND second EQ 254)>
-				<cfreturn false>
-			</cfif>
+		<cfif ip[1] EQ 0 AND ip[2] EQ 0 AND ip[3] EQ 0 AND ip[4] EQ 0 AND ip[5] EQ 0 AND ip[6] EQ 0 AND ip[7] EQ 0 AND ip[8] EQ 0>
+			<!--- RFC 4291 - Unspecified Address --->
+			<cfset isReserved = true>
+		<cfelseif ip[1] EQ 0 AND ip[2] EQ 0 AND ip[3] EQ 0 AND ip[4] EQ 0 AND ip[5] EQ 0 AND ip[6] EQ 0 AND ip[7] EQ 0 AND ip[8] EQ 1>
+			<!--- RFC 4291 - Loopback Address --->
+			<cfset isReserved = true>
+		<cfelseif ip[1] EQ 100 AND ip[2] EQ 65435>
+			<!--- RFC 6052 - IPv4-IPv6 Translation (64:ff9b) --->
+			<cfset isGlobal = true>
+		<cfelseif ip[1] EQ 0 AND ip[2] EQ 0 AND ip[3] EQ 0 AND ip[4] EQ 0 AND ip[5] EQ 0 AND ip[6] EQ 65535>
+			<!--- RFC 4291 - IPv4-mapped Address --->
+			<cfset isReserved = true>
+		<cfelseif ip[1] EQ 256 AND ip[2] EQ 0 AND ip[3] EQ 0 AND ip[4] EQ 0>
+			<!--- RFC 6666 - Discard-Only Address Block (0100::) --->
+		<cfelseif ip[1] EQ 8193 AND ip[2] EQ 0>
+			<!--- RFC 4380 - TEREDO --->
+		<cfelseif ip[1] EQ 8193 AND ip[2] LTE 511>
+			<!--- RFC 2928 - IETF Protocol Assignments --->
+		<cfelseif ip[1] EQ 8193 AND ip[2] EQ 2 AND ip[3] EQ 0>
+			<!--- RFC 5180 - Benchmarking --->
+		<cfelseif ip[1] EQ 8193 AND ip[2] EQ 3512>
+			<!--- RFC 3849 - Documentation (2001:db8) --->
+		<cfelseif ip[1] EQ 8193 AND ip[2] GTE 16 AND ip[2] LTE 31>
+			<!--- RFC 4843 - ORCHID --->
+		<cfelseif ip[1] EQ 8194>
+			<!--- RFC 3056 - 6to4 --->
+		<cfelseif ip[1] GTE 64512 AND ip[1] LTE 65023>
+			<!--- RFC 4193 - Unique-Local --->
+			<cfset isPrivate = true>
+		<cfelseif ip[1] GTE 65152 AND ip[1] LTE 65215>
+			<!--- RFC 4291 - Linked-Scoped Unicast --->
+			<cfset isReserved = true>
+		<cfelse>
+			<cfset special = false>
 		</cfif>
+	</cfif>
 
+	<!--- an address in no special block is not tested against the flags --->
+	<cfif NOT special>
 		<cfreturn true>
 	</cfif>
 
-	<cfset groups = filter_ipv6_groups_(arguments.value)>
-
-	<!--- fc00::/7 --->
-	<cfif BitAnd(arguments.bits, 8388608) NEQ 0>
-		<cfif groups[1] GTE 64512 AND groups[1] LTE 65023>
-			<cfreturn false>
-		</cfif>
+	<cfif BitAnd(arguments.bits, 268435456) NEQ 0 AND NOT isGlobal>
+		<cfreturn false>
 	</cfif>
 
-	<!--- ::/128, ::1/128, 5f00::/8, fe80::/10, 2001:db8::/32, 2001:10::/28 and 3ff3::/16 --->
-	<cfif BitAnd(arguments.bits, 4194304) NEQ 0>
-		<cfif groups[1] EQ 0 AND groups[2] EQ 0 AND groups[3] EQ 0 AND groups[4] EQ 0 AND groups[5] EQ 0 AND groups[6] EQ 0 AND groups[7] EQ 0 AND groups[8] LTE 1>
-			<cfreturn false>
-		</cfif>
+	<cfif BitAnd(arguments.bits, 8388608) NEQ 0 AND isPrivate>
+		<cfreturn false>
+	</cfif>
 
-		<cfif groups[1] EQ 95 OR (groups[1] GTE 65152 AND groups[1] LTE 65215) OR groups[1] EQ 16371>
-			<cfreturn false>
-		</cfif>
-
-		<cfif groups[1] EQ 8193 AND (groups[2] EQ 3512 OR (groups[2] GTE 16 AND groups[2] LTE 31))>
-			<cfreturn false>
-		</cfif>
+	<cfif BitAnd(arguments.bits, 4194304) NEQ 0 AND isReserved>
+		<cfreturn false>
 	</cfif>
 
 	<cfreturn true>
@@ -736,6 +801,7 @@
 	<cfset var groups = ArrayNew(1)>
 	<cfset var leftPart = ArrayNew(1)>
 	<cfset var rightPart = ArrayNew(1)>
+	<cfset var head = "">
 	<cfset var tail = "">
 	<cfset var pos = 0>
 	<cfset var i = 0>
@@ -743,14 +809,17 @@
 	<!--- an IPv4 tail is two groups --->
 	<cfif Find(".", text) GT 0>
 		<cfset tail = ListLast(text, ":")>
-		<cfset text = Left(text, Len(text) - Len(tail)) & FormatBaseN(ListGetAt(tail, 1, ".") * 256 + ListGetAt(tail, 2, "."), 16) & ":" & FormatBaseN(ListGetAt(tail, 3, ".") * 256 + ListGetAt(tail, 4, "."), 16)>
+		<cfset text = JavaCast("string", text).substring(JavaCast("int", 0), JavaCast("int", Len(text) - Len(tail))) & FormatBaseN(ListGetAt(tail, 1, ".") * 256 + ListGetAt(tail, 2, "."), 16) & ":" & FormatBaseN(ListGetAt(tail, 3, ".") * 256 + ListGetAt(tail, 4, "."), 16)>
 	</cfif>
 
 	<cfset pos = Find("::", text)>
 
 	<cfif pos GT 0>
-		<cfset leftPart = ListToArray(Left(text, pos - 1), ":")>
-		<cfset rightPart = ListToArray(Mid(text, pos + 2, Len(text)), ":")>
+		<!--- substring takes a length of 0, where Left and Mid do not --->
+		<cfset head = JavaCast("string", text).substring(JavaCast("int", 0), JavaCast("int", pos - 1))>
+		<cfset tail = JavaCast("string", text).substring(JavaCast("int", pos + 1))>
+		<cfset leftPart = ListToArray(head, ":")>
+		<cfset rightPart = ListToArray(tail, ":")>
 
 		<cfloop from="1" to="#ArrayLen(leftPart)#" index="i">
 			<cfset ArrayAppend(groups, InputBaseN(leftPart[i], 16))>
