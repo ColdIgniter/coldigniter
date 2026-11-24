@@ -281,12 +281,12 @@
 					</cfif>
 
 					<cfif NOT failed>
-						<cfset result = Val(digits)>
+						<!--- the digits as text keep all 64 bits, a number would round --->
+							<cfset result = digits>
 
-						<cfif Compare(Left(jt, 1), "-") EQ 0>
-							<cfset result = 0 - result>
-						</cfif>
-
+							<cfif Compare(Left(jt, 1), "-") EQ 0 AND Compare(digits, "0") NEQ 0>
+								<cfset result = "-" & digits>
+							</cfif>
 						<cfif IsStruct(options)>
 							<cfif StructKeyExists(options, "min_range") AND result LT options["min_range"]>
 								<cfset failed = true>
@@ -336,13 +336,14 @@
 				</cfif>
 
 				<cfif NOT failed>
-					<cfset sepClass = Replace(sep, dec, "", "all")>
+					<cfset sepClass = filter_quote_(Replace(sep, dec, "", "all"))>
+					<cfset dec = filter_quote_(dec)>
 
 					<!--- the groups of thousands: 1 to 3 digits, then groups of 3 --->
 					<cfif BitAnd(bits, 8192) NEQ 0 AND Len(sepClass) GT 0>
-						<cfset pattern = "[+-]?([0-9]+|[0-9]{1,3}([\Q" & sepClass & "\E][0-9]{3})+)?(\Q" & dec & "\E[0-9]*)?([eE][+-]?[0-9]*)?">
+						<cfset pattern = "[+-]?([0-9]+|[0-9]{1,3}([" & sepClass & "][0-9]{3})+)?(" & dec & "[0-9]*)?([eE][+-]?[0-9]*)?">
 					<cfelse>
-						<cfset pattern = "[+-]?[0-9]*(\Q" & dec & "\E[0-9]*)?([eE][+-]?[0-9]*)?">
+						<cfset pattern = "[+-]?[0-9]*(" & dec & "[0-9]*)?([eE][+-]?[0-9]*)?">
 						<cfset sepClass = "">
 					</cfif>
 
@@ -350,18 +351,18 @@
 						<cfset digits = jt>
 
 						<cfif Len(sepClass) GT 0>
-							<cfset digits = digits.replaceAll("[\Q" & sepClass & "\E]", "")>
+							<cfset digits = digits.replaceAll("[" & sepClass & "]", "")>
 						</cfif>
 
-						<cfif Compare(dec, ".") NEQ 0>
-							<cfset digits = Replace(digits, dec, ".", "all")>
+						<cfif Compare(dec, "\.") NEQ 0>
+								<cfset digits = Replace(digits, Right(dec, 1), ".", "all")>
 						</cfif>
 
 						<cfif JavaCast("string", digits).matches("[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?")>
 							<cfset result = floatval(digits)>
 
 							<!--- an overflow, or a number that is too small and is 0 now --->
-							<cfif Find("Infinity", result & "") GT 0>
+							<cfif REFindNoCase("INF", result & "") GT 0>
 								<cfset failed = true>
 							<cfelseif result EQ 0 AND Len(digits) GT 1 AND REFind("[1-9]", digits) GT 0>
 								<cfset failed = true>
@@ -499,7 +500,7 @@
 				<cfset result = Replace(text, "\", "\\", "all")>
 				<cfset result = Replace(result, "'", "\'", "all")>
 				<cfset result = Replace(result, """", "\""", "all")>
-				<cfset result = Replace(result, Chr(0), "\0", "all")>
+				<!--- Difference: a NUL byte is not turned into the two characters \0, as Chr(0) is an empty text here --->
 			</cfcase>
 
 			<cfdefaultcase>
@@ -581,6 +582,16 @@
 	</cfloop>
 
 	<cfreturn result>
+</cffunction>
+
+<!---
+ * Writes every character but a letter or digit with a backslash, so that a
+ * text is literal inside a regular expression.
+--->
+<cffunction name="filter_quote_" returntype="string" output="no" hint="Writes every character but a letter or digit with a backslash, for a regular expression">
+	<cfargument name="value" type="string" required="yes">
+
+	<cfreturn JavaCast("string", arguments.value).replaceAll("([^A-Za-z0-9])", "\\$1")>
 </cffunction>
 
 <!---
