@@ -22,7 +22,8 @@
  * - Deserialized body binds
  *
  * Not ported yet: the filters of the input values (see RequestTrait and
- * getJsonVar), file uploads and old input (needs the session).
+ * getJsonVar) and old input (needs the session). The uploaded files are
+ * read when first asked for (see Files/FileCollection.cfc).
 --->
 <cfcomponent output="no" extends="Request" hint="Represents an incoming, server-side HTTP request">
 
@@ -774,9 +775,11 @@
 	 * request. Each file is represented by an UploadedFile instance.
 	--->
 	<cffunction name="getFiles" access="public" returntype="any" output="no">
-		<!--- Not ported yet: FileCollection and the uploaded files. No files are found until then. --->
+		<cfif is_null(this.files)>
+			<cfset this.files = new_("ColdIgniter\HTTP\Files\FileCollection")>
+		</cfif>
 
-		<cfreturn CreateObject("java", "java.util.LinkedHashMap").init()>
+		<cfreturn this.files.all()><!--- return all files --->
 	</cffunction>
 
 	<!---
@@ -786,9 +789,11 @@
 	<cffunction name="getFileMultiple" access="public" returntype="any" output="no">
 		<cfargument name="fileID" type="string" required="yes">
 
-		<!--- Not ported yet: FileCollection and the uploaded files --->
+		<cfif is_null(this.files)>
+			<cfset this.files = new_("ColdIgniter\HTTP\Files\FileCollection")>
+		</cfif>
 
-		<cfreturn "">
+		<cfreturn this.files.getFileMultiple(arguments.fileID)>
 	</cffunction>
 
 	<!---
@@ -798,9 +803,11 @@
 	<cffunction name="getFile" access="public" returntype="any" output="no">
 		<cfargument name="fileID" type="string" required="yes">
 
-		<!--- Not ported yet: FileCollection and the uploaded files --->
+		<cfif is_null(this.files)>
+			<cfset this.files = new_("ColdIgniter\HTTP\Files\FileCollection")>
+		</cfif>
 
-		<cfreturn "">
+		<cfreturn this.files.getFile(arguments.fileID)>
 	</cffunction>
 
 </cfcomponent>
