@@ -246,8 +246,9 @@
 	 * If the file was uploaded successfully, this method will return 0.
 	 *
 	 * Difference: the engine reports no error code of its own, so a file
-	 * of the files array that Superglobals makes has the error 0 or, when
-	 * the engine could not save it, 7 (UPLOAD_ERR_CANT_WRITE).
+	 * of the files array that Superglobals makes always has the error 0 (a
+	 * file that could not be saved gets no entry). The other codes are for
+	 * a file made by hand, as a test does.
 	--->
 	<cffunction name="getError" access="public" returntype="numeric" output="no">
 		<cfif is_null(this.error)>

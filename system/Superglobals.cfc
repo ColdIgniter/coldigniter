@@ -640,11 +640,12 @@
 	 * Difference: the names are upper case, as the form scope has them, and
 	 * FileCollection finds a field without regard to case.
 	 *
-	 * Difference: the error is 0 for a file that was saved, and 7
-	 * (UPLOAD_ERR_CANT_WRITE) for one that could not be. The other codes are
-	 * not known, and a field with no file chosen has no entry, where the
+	 * Difference: an entry exists only for a file that cffile saved, and its
+	 * error is always 0. A field that cffile refuses has no entry (see
+	 * below), and a field with no file chosen has none either, where the
 	 * original has one with the error 4 (UPLOAD_ERR_NO_FILE), as an empty file
-	 * field cannot be told from an empty text field.
+	 * field cannot be told from an empty text field. The other error codes
+	 * are not known.
 	 *
 	 * Difference: a value that looks like a temp file but that cffile does
 	 * not take as a file part stays a post value, with no files entry. The
@@ -777,8 +778,9 @@
 	 * What is known of one upload: a structure with the keys of an entry
 	 * of the files array. A path is an upload (error 0) only when cffile
 	 * saved it in the folder of this request; in every other case the error
-	 * is 7 and there is no path, so a text field that holds the path of a
-	 * file of the temp folder is never a valid upload.
+	 * is 7 and there is no path, which readFiles() takes as a refused field
+	 * (it is put back in the post values and gets no entry), so a text field
+	 * that holds the path of a file of the temp folder is never an upload.
 	 *
 	 * Not in the original.
 	 *
