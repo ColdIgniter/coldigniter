@@ -4,7 +4,7 @@
  * Not ported yet:
  *  - closures and callables as rules (a rule is a string, run by a rule set)
  *  - the JSON branch of withRequest (6.1 has no JSON parser), it throws
- *  - the rules of FileRules and CreditCardRules, is_unique and is_not_unique
+ *  - the rules of CreditCardRules, is_unique and is_not_unique
  *
  * Difference: there is no null. An empty string stands in for it (an empty
  * label, a missing parameter and a missing value). A rule string with
