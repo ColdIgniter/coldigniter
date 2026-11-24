@@ -260,6 +260,11 @@
 		<cfargument name="key" type="string" required="yes">
 		<cfargument name="default" type="any" required="no" default="">
 
+		<!--- Difference: the files are read first, as that puts back the fields that only looked like uploads --->
+		<cfif this.filesPending>
+			<cfset getFilesArray()>
+		</cfif>
+
 		<cfif StructKeyExists(this.post_, arguments.key)>
 			<cfreturn this.post_[arguments.key]>
 		</cfif>
@@ -294,6 +299,10 @@
 	 * Get all POST values.
 	--->
 	<cffunction name="getPostArray" access="public" returntype="any" output="no">
+		<cfif this.filesPending>
+			<cfset getFilesArray()>
+		</cfif>
+
 		<cfreturn this.post_>
 	</cffunction>
 
@@ -637,6 +646,11 @@
 	 * original has one with the error 4 (UPLOAD_ERR_NO_FILE), as an empty file
 	 * field cannot be told from an empty text field.
 	 *
+	 * Difference: a value that looks like a temp file but that cffile does
+	 * not take as a file part stays a post value, with no files entry. The
+	 * files are read the first time the post values or the files are asked
+	 * for, so that post is complete either way.
+	 *
 	 * Difference: the full_path is the name of the client, as the engine does
 	 * not give the relative path of a folder upload.
 	 *
@@ -653,7 +667,8 @@
 	 * only that file is seen, as a list of one. cffile would give the client
 	 * name of the first part with the content of the last, so for a name that
 	 * comes more than once the client name and type are dropped: the name is
-	 * the name of the saved file, the type application/octet-stream. The names are counted in the field names list of the form
+	 * the name of the temp file the form scope gave, the type
+	 * application/octet-stream. The names are counted in the field names list of the form
 	 * scope.
 	--->
 	<cffunction name="readFiles" access="private" returntype="any" output="no">
@@ -703,35 +718,59 @@
 				<cfloop from="1" to="#ArrayLen(paths)#" index="i">
 					<cfset info = fileInfo(key, paths[i], count)>
 
-					<cfif NOT StructKeyExists(raw, name)>
-						<cfset raw[name] = CreateObject("java", "java.util.LinkedHashMap").init()>
-					</cfif>
-
-					<cfloop list="#fields#" index="field">
-						<cfset entry = raw[name]>
-
-						<cfif NOT isList>
-							<cfset entry[field] = info[field]>
-						<cfelse>
-							<cfif NOT StructKeyExists(entry, field)>
-								<cfset entry[field] = CreateObject("java", "java.util.LinkedHashMap").init()>
-							</cfif>
-
-							<cfset holder = entry[field]>
-							<cfset index = sub>
-
-							<cfif index EQ "" OR ArrayLen(paths) GT 1>
-								<cfset index = StructCount(holder) & "">
-							</cfif>
-
-							<cfset holder[index] = info[field]>
+					<cfif info.error NEQ 0>
+						<!--- cffile refused it, so it is a text field after all: back to post, no files entry --->
+						<cfset restorePost(key)>
+					<cfelse>
+						<cfif NOT StructKeyExists(raw, name)>
+							<cfset raw[name] = CreateObject("java", "java.util.LinkedHashMap").init()>
 						</cfif>
-					</cfloop>
+
+						<cfloop list="#fields#" index="field">
+							<cfset entry = raw[name]>
+
+							<cfif NOT isList>
+								<cfset entry[field] = info[field]>
+							<cfelse>
+								<cfif NOT StructKeyExists(entry, field)>
+									<cfset entry[field] = CreateObject("java", "java.util.LinkedHashMap").init()>
+								</cfif>
+
+								<cfset holder = entry[field]>
+								<cfset index = sub>
+
+								<cfif index EQ "" OR ArrayLen(paths) GT 1>
+									<cfset index = StructCount(holder) & "">
+								</cfif>
+
+								<cfset holder[index] = info[field]>
+							</cfif>
+						</cfloop>
+					</cfif>
 				</cfloop>
 			</cfif>
 		</cfloop>
 
 		<cfreturn raw>
+	</cffunction>
+
+	<!---
+	 * Puts a form field back in the post values: a field whose value looked
+	 * like a temp file but that cffile did not take as a file part (see
+	 * readFiles()). Only the names that are not there yet are added.
+	 *
+	 * Not in the original.
+	--->
+	<cffunction name="restorePost" access="private" returntype="void" output="no">
+		<cfargument name="key" type="string" required="yes">
+		<cfset var parsed = parse_str(URLEncodedFormat(arguments.key) & "=" & URLEncodedFormat(form[arguments.key]))>
+		<cfset var name = "">
+
+		<cfloop collection="#parsed#" item="name">
+			<cfif NOT StructKeyExists(this.post_, name)>
+				<cfset this.post_[name] = parsed[name]>
+			</cfif>
+		</cfloop>
 	</cffunction>
 
 	<!---
@@ -795,7 +834,7 @@
 
 				<!--- a name that comes more than once: cffile pairs the first name with the last content, so the name is not used --->
 				<cfif arguments.count GT 1>
-					<cfset info.name = file.getName() & "">
+					<cfset info.name = basename(arguments.path)>
 					<cfset info.full_path = info.name>
 				</cfif>
 
