@@ -90,7 +90,7 @@
 	<cfset var chain = "">
 
 	<cfif NOT is_null(headerObj)>
-		<cfset spoof = headerObj>
+		<cfset spoof = headerObj.getValue()>
 
 		<!---
 		 Some proxies typically list the whole chain of IP

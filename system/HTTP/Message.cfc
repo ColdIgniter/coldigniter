@@ -1,23 +1,15 @@
 <!---
  * An HTTP message
  *
- * A header is kept as its name and its value line here; the original
- * keeps a Header object for each.
- *
- * The checks of the Header class (validateName and validateValue) are
- * done here, in setHeader, as the Header constructor does them.
- *
- * Difference: there is no Header class. The values of one header are kept
- * as one line, joined with ", " (what getValueLine() gives). Several
- * headers of the same name (addHeader) are a list of such lines.
- * appendHeader does not add a value that the line has already.
+ * A header is a Header object, or an array of Header objects for several
+ * headers of the same name (addHeader).
 --->
 <cfcomponent output="no" hint="An HTTP message">
 
 	<!---
 	 * List of all HTTP request headers.
 	 *
-	 * [name => value]
+	 * [name => Header|Header[]]
 	 *
 	 * Named with an underscore, because headers() is a method.
 	--->
@@ -91,16 +83,23 @@
 	<!---
 	 * Returns an array containing all Headers.
 	 *
-	 * @return An array of the headers, by name
+	 * @return A map of the headers, by name: a Header, or an array of
+	 *         Headers for a header that was added more than once
+	 *
+	 * Difference: the original calls populateHeaders() when no header is
+	 * set. Here it does not: IncomingRequest populates its headers in the
+	 * constructor, and on a response the call would fill an empty header
+	 * map with the request headers (ResponseCache empties it first).
 	--->
 	<cffunction name="headers" access="public" returntype="any" output="no">
 		<cfreturn this.headers_>
 	</cffunction>
 
 	<!---
-	 * Returns a single Header.
+	 * Returns a single Header object. If multiple headers with the same
+	 * name exist, then will return an array of header objects.
 	 *
-	 * @return The value line of the header, or an empty string if there is none
+	 * @return array|Header|null An empty string (null) if there is none
 	--->
 	<cffunction name="header" access="public" returntype="any" output="no">
 		<cfargument name="name" type="string" required="yes">
@@ -115,24 +114,48 @@
 
 	<!---
 	 * Sets a header and it's value.
+	 *
+	 * The Header is made with CreateObject() and its __construct(), the
+	 * cheapest way to make an object here (see the class Header).
+	 *
+	 * @param value array|string|null
 	--->
 	<cffunction name="setHeader" access="public" returntype="any" output="no">
 		<cfargument name="name" type="string" required="yes">
 		<cfargument name="value" type="any" required="yes">
-		<cfset var origName = "">
+		<cfset var origName = getHeaderName(arguments.name)>
+		<cfset var existing = "">
+		<cfset var obj = "">
+		<cfset var values = "">
+		<cfset var i = 0>
 
-		<cfset checkMultipleHeaders(arguments.name)>
+		<cfif StructKeyExists(this.headers_, origName)>
+			<cfset existing = this.headers_[origName]>
 
-		<cfset origName = getHeaderName(arguments.name)>
+			<!--- checkMultipleHeaders(), with the name that is already looked up --->
+			<cfif IsArray(existing)>
+				<cfset checkMultipleHeaders(arguments.name)>
+			</cfif>
 
-		<cfif IsArray(arguments.value)>
-			<cfset arguments.value = implode(", ", arguments.value)>
+			<cfif IsArray(existing.getValue())>
+				<cfif NOT IsArray(arguments.value)>
+					<cfset values = ArrayNew(1)>
+					<cfset ArrayAppend(values, arguments.value)>
+					<cfset arguments.value = values>
+				</cfif>
+
+				<cfloop from="1" to="#ArrayLen(arguments.value)#" index="i">
+					<cfset appendHeader(origName, arguments.value[i])>
+				</cfloop>
+
+				<cfreturn this>
+			</cfif>
 		</cfif>
 
-		<cfset validateName(arguments.name)>
-		<cfset validateValue(arguments.value)>
+		<cfset obj = CreateObject("component", "Header")>
+		<cfset obj.__construct(origName, arguments.value)>
 
-		<cfset this.headers_[origName] = arguments.value>
+		<cfset this.headers_[origName] = obj>
 		<cfset this.headerMap[LCase(origName)] = origName>
 
 		<cfreturn this>
@@ -164,15 +187,17 @@
 	<!---
 	 * Returns an array containing all Headers.
 	 *
-	 * @return An array of the headers, by name
+	 * @return A map of the headers, by name
 	--->
 	<cffunction name="getHeaders" access="public" returntype="any" output="no">
 		<cfreturn headers()>
 	</cffunction>
 
 	<!---
-	 * Returns a single Header. If multiple headers with the same
-	 * name exist, then will return a list of them.
+	 * Returns a single Header object. If multiple headers with the same
+	 * name exist, then will return an array of header objects.
+	 *
+	 * @return array|Header|null
 	--->
 	<cffunction name="getHeader" access="public" returntype="any" output="no">
 		<cfargument name="name" type="string" required="yes">
@@ -197,37 +222,26 @@
 
 	<!---
 	 * Adds an additional header value to any headers that accept
-	 * multiple values.
+	 * multiple values (i.e. are an array or implement ArrayAccess).
 	 *
-	 * A value that is an empty string stands for null: nothing is added to
-	 * a header that exists.
+	 * Difference: a value that is an empty string stands for null: nothing
+	 * is added to a header that exists.
 	--->
 	<cffunction name="appendHeader" access="public" returntype="any" output="no">
 		<cfargument name="name" type="string" required="yes">
 		<cfargument name="value" type="any" required="no" default="">
 		<cfset var origName = "">
-		<cfset var line = "">
 
 		<cfset checkMultipleHeaders(arguments.name)>
 
 		<cfset origName = getHeaderName(arguments.name)>
 
-		<cfif NOT StructKeyExists(this.headers_, origName)>
+		<cfif StructKeyExists(this.headers_, origName)>
+			<cfif NOT is_null(arguments.value)>
+				<cfset this.headers_[origName].appendValue(arguments.value)>
+			</cfif>
+		<cfelse>
 			<cfset setHeader(arguments.name, arguments.value)>
-			<cfreturn this>
-		</cfif>
-
-		<cfif is_null(arguments.value)>
-			<cfreturn this>
-		</cfif>
-
-		<cfset validateValue(arguments.value)>
-
-		<cfset line = this.headers_[origName]>
-
-		<!--- a value that the line has already is not added again --->
-		<cfif Find(", " & arguments.value & ", ", ", " & line & ", ") EQ 0>
-			<cfset this.headers_[origName] = line & ", " & arguments.value>
 		</cfif>
 
 		<cfreturn this>
@@ -242,22 +256,24 @@
 		<cfargument name="name" type="string" required="yes">
 		<cfargument name="value" type="string" required="yes">
 		<cfset var origName = getHeaderName(arguments.name)>
-		<cfset var line = "">
+		<cfset var list = "">
+		<cfset var obj = "">
 
 		<cfif NOT StructKeyExists(this.headers_, origName)>
 			<cfset setHeader(arguments.name, arguments.value)>
 			<cfreturn this>
 		</cfif>
 
-		<cfset validateValue(arguments.value)>
-
-		<cfif NOT hasMultipleHeaders(arguments.name)>
-			<cfset line = this.headers_[origName]>
-			<cfset this.headers_[origName] = ArrayNew(1)>
-			<cfset ArrayAppend(this.headers_[origName], line)>
+		<cfif NOT IsArray(this.headers_[origName])>
+			<cfset list = ArrayNew(1)>
+			<cfset ArrayAppend(list, this.headers_[origName])>
+			<cfset this.headers_[origName] = list>
 		</cfif>
 
-		<cfset ArrayAppend(this.headers_[origName], arguments.value)>
+		<!--- Add the header. --->
+		<cfset obj = CreateObject("component", "Header")>
+		<cfset obj.__construct(origName, arguments.value)>
+		<cfset ArrayAppend(this.headers_[origName], obj)>
 
 		<cfreturn this>
 	</cffunction>
@@ -282,24 +298,33 @@
 			<cfreturn this>
 		</cfif>
 
-		<cfset validateValue(arguments.value)>
-
-		<cfset this.headers_[origName] = arguments.value & ", " & this.headers_[origName]>
+		<cfset this.headers_[origName].prependValue(arguments.value)>
 
 		<cfreturn this>
 	</cffunction>
 
 	<!---
 	 * Retrieves a comma-separated string of the values for a single header.
+	 *
+	 * NOTE: Not all header values may be appropriately represented using
+	 * comma concatenation. For such headers, use getHeader() instead
+	 * and supply your own delimiter when concatenating.
+	 *
+	 * @see https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2
 	--->
 	<cffunction name="getHeaderLine" access="public" returntype="string" output="no">
 		<cfargument name="name" type="string" required="yes">
+		<cfset var origName = getHeaderName(arguments.name)>
 
-		<cfif hasMultipleHeaders(arguments.name)>
+		<cfif NOT StructKeyExists(this.headers_, origName)>
+			<cfreturn "">
+		</cfif>
+
+		<cfif IsArray(this.headers_[origName])>
 			<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="The header ""#arguments.name#"" already has multiple headers. You cannot use getHeaderLine().">
 		</cfif>
 
-		<cfreturn header(arguments.name)>
+		<cfreturn this.headers_[origName].getValueLine()>
 	</cffunction>
 
 	<!---
@@ -348,46 +373,6 @@
 		</cfif>
 
 		<cfreturn arguments.name>
-	</cffunction>
-
-	<!---
-	 * Validate header name.
-	 *
-	 * @see https://datatracker.ietf.org/doc/html/rfc7230#section-3.2
-	 *
-	 * @throws InvalidArgumentException
-	--->
-	<cffunction name="validateName" access="private" returntype="void" output="no">
-		<cfargument name="name" type="string" required="yes">
-
-		<cfif NOT JavaCast("string", arguments.name).matches("[a-zA-Z0-9'`##$%&*+.^_|~!-]+")>
-			<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="The header name is not valid as per RFC 7230.">
-		</cfif>
-	</cffunction>
-
-	<!---
-	 * Validate header value.
-	 *
-	 * The original checks the bytes of the value; a CFML string holds
-	 * characters, so all characters from U+0080 up stand for the bytes
-	 * \x80-\xFF of their UTF-8 form.
-	 *
-	 * @see https://datatracker.ietf.org/doc/html/rfc7230#section-3.2
-	 *
-	 * @throws InvalidArgumentException
-	--->
-	<cffunction name="validateValue" access="private" returntype="void" output="no">
-		<cfargument name="value" type="any" required="yes">
-
-		<!---
-		 The original returns for an int. There is no int type here, and
-		 the text of a number passes the check below anyway.
-		--->
-
-		<!--- The regular expression excludes obs-fold per RFC 7230#3.2.4 --->
-		<cfif NOT JavaCast("string", arguments.value).matches("[\x20\x09\x21-\x7E\u0080-\uFFFF]*")>
-			<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="The header value is not valid as per RFC 7230.">
-		</cfif>
 	</cffunction>
 
 </cfcomponent>

@@ -286,8 +286,11 @@
 	 * Test to see if a request contains the HTTP_X_REQUESTED_WITH header.
 	--->
 	<cffunction name="isAJAX" access="public" returntype="boolean" output="no">
-		<cfreturn hasHeader("X-Requested-With")
-			AND Compare(LCase(header("X-Requested-With")), "xmlhttprequest") EQ 0>
+		<cfif NOT hasHeader("X-Requested-With")>
+			<cfreturn false>
+		</cfif>
+
+		<cfreturn Compare(LCase(header("X-Requested-With").getValue()), "xmlhttprequest") EQ 0>
 	</cffunction>
 
 	<!---
@@ -325,9 +328,8 @@
 		</cfif>
 
 		<cfif hasHeader("X-Forwarded-Proto")>
-			<cfset proto = header("X-Forwarded-Proto")>
+			<cfset proto = header("X-Forwarded-Proto").getValue()>
 
-			<!--- The header value is one line here, so there is no array of values. --->
 			<cfif LCase(Trim(proto)) EQ "https">
 				<cfreturn true>
 			</cfif>
@@ -337,7 +339,7 @@
 			<cfreturn false>
 		</cfif>
 
-		<cfset frontEndHttps = header("Front-End-Https")>
+		<cfset frontEndHttps = header("Front-End-Https").getValue()>
 
 		<cfreturn frontEndHttps NEQ "" AND Compare(frontEndHttps, "0") NEQ 0 AND LCase(frontEndHttps) NEQ "off">
 	</cffunction>

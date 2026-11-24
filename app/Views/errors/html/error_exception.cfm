@@ -242,7 +242,15 @@
                         <cfloop collection="#headers#" item="name">
                             <tr>
                                 <td>#esc(name, "html")#</td>
-                                <td>#esc(headers[name], "html")#</td>
+                                <td>
+                                <cfif IsArray(headers[name])>
+                                    <cfloop from="1" to="#ArrayLen(headers[name])#" index="headerIndex">
+                                        #" (" & headerIndex & ") " & esc(headers[name][headerIndex].getValueLine(), "html")#
+                                    </cfloop>
+                                <cfelse>
+                                    #esc(headers[name].getValueLine(), "html")#
+                                </cfif>
+                                </td>
                             </tr>
                         </cfloop>
                         </tbody>
@@ -280,7 +288,7 @@
                                 <td>
                                 <cfif IsArray(headers[name])>
                                     <cfloop from="1" to="#ArrayLen(headers[name])#" index="headerIndex">
-                                        #" (" & headerIndex & ") " & esc(headers[name][headerIndex], "html")#
+                                        #" (" & headerIndex & ") " & esc(headers[name][headerIndex].getValueLine(), "html")#
                                     </cfloop>
                                 <cfelse>
                                     #esc(response.getHeaderLine(name), "html")#
