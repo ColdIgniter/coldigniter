@@ -21,8 +21,7 @@
  * - Upload files, if any
  * - Deserialized body binds
  *
- * Not ported yet: the filters of the input values (see RequestTrait and
- * getJsonVar), file uploads and old input (needs the session).
+ * Not ported yet: file uploads and old input (needs the session).
 --->
 <cfcomponent output="no" extends="Request" hint="Represents an incoming, server-side HTTP request">
 
@@ -503,6 +502,7 @@
 		<cfset var result = "">
 		<cfset var key = "">
 		<cfset var i = 0>
+		<cfset var filtering = true>
 
 		<cfif NOT is_array(data)>
 			<cfreturn "">
@@ -521,7 +521,28 @@
 			<cfset data = result>
 		</cfif>
 
-		<!--- Not ported yet: the filters (filter_var, array_walk_recursive) --->
+		<!--- Difference: a value that is not there and a null are an empty string, which is not filtered. --->
+		<!--- no filter (null or FILTER_UNSAFE_RAW) and no flags (null, 0 or an empty map): nothing to apply --->
+		<cfif arguments.filter EQ "" OR arguments.filter EQ 516>
+			<cfif IsSimpleValue(arguments.flags)>
+				<cfif arguments.flags EQ "" OR arguments.flags EQ 0>
+					<cfset filtering = false>
+				</cfif>
+			<cfelseif IsStruct(arguments.flags)>
+				<cfif StructIsEmpty(arguments.flags)>
+					<cfset filtering = false>
+				</cfif>
+			</cfif>
+		</cfif>
+
+		<cfif filtering AND NOT is_null(data)>
+			<cfif IsArray(data) OR IsStruct(data)>
+				<!--- array_walk_recursive with filter_var, on a copy --->
+				<cfset data = filter_walk_(data, arguments.filter, arguments.flags)>
+			<cfelseif IsSimpleValue(data)>
+				<cfset data = filter_value_(data, arguments.filter, arguments.flags)>
+			</cfif>
+		</cfif>
 
 		<!--- Difference: an object is a map whether assoc is set or not (there is no object type), so the conversion with json_decode(json_encode()) is not done. --->
 
@@ -551,6 +572,7 @@
 		<cfset var data = "">
 		<cfset var key = "">
 		<cfset var i = 0>
+		<cfset var filtering = true>
 
 		<!--- Not ported yet: helper('array'), the helpers are not loaded. The array helper is called directly. --->
 
@@ -567,7 +589,30 @@
 			<cfset output = data>
 		</cfif>
 
-		<!--- Not ported yet: the filters (filter_var, array_walk_recursive) --->
+		<!--- Difference: a value that is not there and a null are an empty string, which is not filtered. --->
+		<!--- no filter (null or FILTER_UNSAFE_RAW) and no flags (null, 0 or an empty map): nothing to apply --->
+		<cfif arguments.filter EQ "" OR arguments.filter EQ 516>
+			<cfif IsSimpleValue(arguments.flags)>
+				<cfif arguments.flags EQ "" OR arguments.flags EQ 0>
+					<cfset filtering = false>
+				</cfif>
+			<cfelseif IsStruct(arguments.flags)>
+				<cfif StructIsEmpty(arguments.flags)>
+					<cfset filtering = false>
+				</cfif>
+			</cfif>
+		</cfif>
+
+		<cfif filtering AND NOT is_null(output)>
+			<cfif IsArray(output) OR IsStruct(output)>
+				<!--- array_walk_recursive with filter_var, on a copy --->
+				<cfreturn filter_walk_(output, arguments.filter, arguments.flags)>
+			</cfif>
+
+			<cfif IsSimpleValue(output)>
+				<cfreturn filter_value_(output, arguments.filter, arguments.flags)>
+			</cfif>
+		</cfif>
 
 		<cfreturn output>
 	</cffunction>
