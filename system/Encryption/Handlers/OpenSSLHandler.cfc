@@ -213,6 +213,9 @@
 			<cfif NOT bytesMatch(hmacKey, hmacCalc)>
 				<cfset static_("ColdIgniter\Encryption\Exceptions\EncryptionException").forAuthenticationFailed()>
 			</cfif>
+
+			<!--- what follows the hmac is the iv and the ciphertext --->
+			<cfset raw = body>
 		<cfelse>
 			<cfif IsBinary(arguments.data)>
 				<cfset arguments.data = ToString(arguments.data, "ISO-8859-1")>
