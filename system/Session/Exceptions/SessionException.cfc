@@ -3,8 +3,8 @@
  *
  * Not ported yet: the messages come from the language files in the
  * original (Session.*); they are written out here until the language
- * service is ported. forMissingDatabaseTable() and forInvalidSavePathFormat()
- * belong to the Database and Redis handlers, which are not ported yet.
+ * service is ported. forInvalidSavePathFormat() belongs to the Redis handler,
+ * which is not ported yet.
  *
  * An exception is not an object here. The methods throw the exception
  * themselves, with the type "ColdIgniter.Session.Exceptions.SessionException":

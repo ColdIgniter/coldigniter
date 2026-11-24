@@ -106,6 +106,20 @@
 	<cffunction name="__construct" access="public" returntype="any" output="no">
 		<cfargument name="config" type="any" required="yes">
 		<cfargument name="ipAddress" type="string" required="yes">
+
+		<cfset configure_(arguments.config, arguments.ipAddress)>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Not in the original: the work of the constructor. The database
+	 * handlers are mixed in, where super does not reach this class, so
+	 * DatabaseHandler calls this in place of super.__construct().
+	--->
+	<cffunction name="configure_" access="private" returntype="void" output="no">
+		<cfargument name="config" type="any" required="yes">
+		<cfargument name="ipAddress" type="string" required="yes">
 		<cfset var cookie_ = variables.config("Config\Cookie")>
 
 		<!--- Store Session configurations --->
@@ -119,8 +133,6 @@
 		<cfset this.cookieSecure = cookie_.secure>
 
 		<cfset this.ipAddress = arguments.ipAddress>
-
-		<cfreturn this>
 	</cffunction>
 
 	<!---
