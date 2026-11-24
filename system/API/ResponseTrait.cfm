@@ -25,8 +25,6 @@
  * json_decode(json_encode()) for a mime type other than JSON: the XML
  * formatter reads a list, a map (see array_()) and a component with
  * __toString() as they are.
- *
- * Not ported yet: paginate() of a Model (the Pager).
 --->
 
 <!---
@@ -417,7 +415,6 @@
 
 		<!--- If using a Model we can use its built-in paginate method --->
 		<cfif instanceof_(arguments.resource, "ColdIgniter\Model")>
-			<!--- Not ported yet: the Pager, so paginate() of the Model throws --->
 			<cfset data = arguments.resource.paginate(arguments.perPage, "default", page)>
 			<cfset pager = arguments.resource.pager>
 

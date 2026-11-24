@@ -3,9 +3,9 @@
  *
  * The first thing the Model and the Entity classes share.
  *
- * Not ported yet: Pager (paginate() throws), Entity and the casts with
- * DataConverter (a model with casts throws when it is created). The methods
- * that need them are kept in their place and throw "Not ported yet".
+ * Not ported yet: Entity and the casts with DataConverter (a model with
+ * casts throws when it is created). The methods that need them are kept in
+ * their place and throw "Not ported yet".
  *
  * Difference: there is no abstract method, and no magic method (__get,
  * __isset and __call are written as public methods, see Model). The abstract
@@ -1611,8 +1611,6 @@
 	 * Expects a GET variable (?page=2) that specifies the page of results
 	 * to display.
 	 *
-	 * Not ported yet: Pager.
-	 *
 	 * @param perPage Items per page, an empty string is null
 	 * @param group   Will be used by the pagination library to identify a unique pagination set.
 	 * @param page    Optional page number (useful when the page number is provided in different way).
@@ -1626,7 +1624,28 @@
 		<cfargument name="page" type="any" required="no" default="">
 		<cfargument name="segment" type="numeric" required="no" default="0">
 
-		<cfthrow type="ColdIgniter.LogicException" message="Not ported yet: Pager (paginate() of #className_()#).">
+		<cfset var pager = "">
+		<cfset var pageNo = arguments.page>
+		<cfset var size = "">
+		<cfset var offset = 0>
+
+		<!--- Since multiple models may use the Pager, the Pager must be shared. --->
+		<cfset pager = service("pager")>
+
+		<cfif arguments.segment NEQ 0>
+			<cfset pager.setSegment(arguments.segment, arguments.group)>
+		</cfif>
+
+		<cfif is_null(pageNo) OR pageNo LT 1>
+			<cfset pageNo = pager.getCurrentPage(arguments.group)>
+		</cfif>
+
+		<!--- Store it in the Pager library, so it can be paginated in the views. --->
+		<cfset this.pager = pager.store(arguments.group, pageNo, arguments.perPage, this.countAllResults(false), arguments.segment)>
+		<cfset size = this.pager.getPerPage(arguments.group)>
+		<cfset offset = (pager.getCurrentPage(arguments.group) - 1) * size>
+
+		<cfreturn findAll(size, offset)>
 	</cffunction>
 
 	<!---
