@@ -84,6 +84,35 @@
 </cffunction>
 
 <!---
+ * Returns the nonce attribute for style tags, or an empty string when the
+ * content security policy is off.
+ *
+ * Difference: the policy object is only asked once the config says that the
+ * policy is on, so a request with the policy off does not make it.
+--->
+<cffunction name="csp_style_nonce" returntype="string" output="no" hint="Returns the nonce attribute for style tags">
+
+	<cfif NOT config("Config\App").CSPEnabled>
+		<cfreturn "">
+	</cfif>
+
+	<cfreturn 'nonce="' & service("csp").getStyleNonce() & '"'>
+</cffunction>
+
+<!---
+ * Returns the nonce attribute for script tags, or an empty string when the
+ * content security policy is off. See csp_style_nonce().
+--->
+<cffunction name="csp_script_nonce" returntype="string" output="no" hint="Returns the nonce attribute for script tags">
+
+	<cfif NOT config("Config\App").CSPEnabled>
+		<cfreturn "">
+	</cfif>
+
+	<cfreturn 'nonce="' & service("csp").getScriptNonce() & '"'>
+</cffunction>
+
+<!---
  * Returns the CSRF token name.
  * Can be used in Views when building hidden inputs manually,
  * or used in javascript vars when using APIs.

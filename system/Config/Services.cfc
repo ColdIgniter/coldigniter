@@ -61,6 +61,25 @@
 	</cffunction>
 
 	<!---
+	 * The Content Security Policy class provides the tools needed to build
+	 * a secure Content-Security-Policy header.
+	--->
+	<cffunction name="csp" access="public" returntype="any" output="no">
+		<cfargument name="config" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("csp", arguments.config)>
+		</cfif>
+
+		<cfif is_null(arguments.config)>
+			<cfset arguments.config = variables.config("Config\ContentSecurityPolicy")>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\HTTP\ContentSecurityPolicy", arguments.config)>
+	</cffunction>
+
+	<!---
 	 * The Encryption class provides two-way encryption.
 	 *
 	 * Difference: getShared is false by default, as in the original. The

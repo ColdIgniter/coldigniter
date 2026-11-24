@@ -364,8 +364,6 @@
  * to get the number of a character. A CFML string holds characters,
  * so Asc() gives that number at once.
  *
- * Not ported yet: csp_script_nonce (the nonce is left out).
- *
  * @param email      the email address
  * @param title      the link title
  * @param attributes any attributes
@@ -445,7 +443,7 @@
 	</cfloop>
 
 	<!--- improve obfuscation by eliminating newlines & whitespace --->
-	<!--- Not ported yet: cspNonce = csp_script_nonce() --->
+	<cfset cspNonce = csp_script_nonce()>
 	<cfif cspNonce NEQ "">
 		<cfset cspNonce = " " & cspNonce>
 	</cfif>
