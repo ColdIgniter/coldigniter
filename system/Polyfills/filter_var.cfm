@@ -1,14 +1,19 @@
 <!---
- * Filters a value with the filter of a name: filter_var(value, filter, flags).
+ * Filters a value: filter_var(value, filter, flags).
  *
- * The filters are "email", "ip" and "url", for FILTER_VALIDATE_EMAIL,
- * FILTER_VALIDATE_IP and FILTER_VALIDATE_URL. The flags of "ip" are
- * "ipv4" or "ipv6" (or nothing, for both). The functions that follow it in
- * this file (the names that start with filter_) belong to it.
+ * There are two forms. With the name of a filter ("email", "ip" or "url")
+ * it validates, with a number (a constant like request.FILTER_VALIDATE_INT)
+ * it filters and gives back the filtered value, as the original does.
  *
- * Difference: it returns true when the value passes and false when it does
- * not. The original returns the filtered value, and the callers here only
- * compare it with false.
+ * The form with a name: the filters are "email", "ip" and "url", for
+ * FILTER_VALIDATE_EMAIL, FILTER_VALIDATE_IP and FILTER_VALIDATE_URL. The
+ * flags of "ip" are "ipv4" or "ipv6" (or nothing, for both). The functions
+ * that follow it in this file (the names that start with filter_) belong
+ * to it.
+ *
+ * Difference: the form with a name returns true when the value passes and
+ * false when it does not. The original returns the filtered value, and the
+ * callers here only compare it with false.
  *
  * Difference: the original checks bytes, and this checks characters. A
  * character above 127 is never part of an address, a host or a URL, so the
@@ -27,15 +32,21 @@
  *
  * The URL check keeps only the parts of the URL parser of the original that
  * the check needs: scheme, user, password, host and port.
+ *
+ * The form with a number is filter_value_().
 --->
-<cffunction name="filter_var" returntype="boolean" output="no" hint="Filters a value with the filter of a name">
-	<cfargument name="value" type="string" required="yes">
-	<cfargument name="filter" type="string" required="yes">
-	<cfargument name="flags" type="string" required="no" default="">
+<cffunction name="filter_var" returntype="any" output="no" hint="Filters a value with the filter of a name or of a constant">
+	<cfargument name="value" type="any" required="yes">
+	<cfargument name="filter" type="any" required="yes">
+	<cfargument name="flags" type="any" required="no" default="">
 	<cfset var parts = "">
 	<cfset var host = "">
 	<cfset var scheme = "">
 	<cfset var mode = "">
+
+	<cfif IsNumeric(arguments.filter)>
+		<cfreturn filter_value_(arguments.value, arguments.filter, arguments.flags)>
+	</cfif>
 
 	<cfif Compare(arguments.filter, "email") EQ 0>
 		<cfreturn filter_email_(arguments.value)>
@@ -121,6 +132,715 @@
 	</cfif>
 
 	<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="Not ported yet: the filter #arguments.filter#.">
+</cffunction>
+
+<!---
+ * Filters a value with the filter of a constant and gives back the
+ * filtered value, or false when the value does not pass (an empty string,
+ * which is the null of this port, with FILTER_NULL_ON_FAILURE).
+ *
+ * The flags are a number (the sum of the flags) or a map with the keys
+ * "flags" and "options". The options are a map: "min_range", "max_range"
+ * (FILTER_VALIDATE_INT, FILTER_VALIDATE_FLOAT), "regexp"
+ * (FILTER_VALIDATE_REGEXP), "decimal" and "thousand"
+ * (FILTER_VALIDATE_FLOAT), and "default" for all filters.
+ *
+ * The filters are FILTER_VALIDATE_INT, _BOOLEAN, _FLOAT, _REGEXP, _URL, _EMAIL
+ * and _IP, FILTER_UNSAFE_RAW (FILTER_DEFAULT), FILTER_SANITIZE_ENCODED,
+ * _SPECIAL_CHARS, _FULL_SPECIAL_CHARS, _EMAIL, _URL, _NUMBER_INT,
+ * _NUMBER_FLOAT and _ADD_SLASHES. A value that is an array is filtered at
+ * each of its items when FILTER_REQUIRE_ARRAY or FILTER_FORCE_ARRAY is set,
+ * and does not pass otherwise.
+ *
+ * Not ported yet: FILTER_VALIDATE_DOMAIN, _MAC, FILTER_SANITIZE_STRING (it
+ * is deprecated), FILTER_CALLBACK, and the flags FILTER_FLAG_ALLOW_HEX,
+ * _ALLOW_OCTAL, _ENCODE_LOW, _ENCODE_HIGH, _ENCODE_AMP, _EMPTY_STRING_NULL,
+ * _PATH_REQUIRED, _QUERY_REQUIRED, _HOSTNAME and _EMAIL_UNICODE.
+ *
+ * Difference: null is an empty string here, so a failure with
+ * FILTER_NULL_ON_FAILURE gives an empty string.
+ *
+ * Difference: a number is a double here. FILTER_VALIDATE_INT gives the digits
+ * as text, so all 64 bits are kept, but "min_range" and "max_range" compare
+ * as doubles, so a limit above 2^53 is not exact. A float is a double.
+ *
+ * Difference: the original strips and encodes bytes. Here FILTER_FLAG_STRIP_HIGH
+ * counts characters, not bytes: one character above 127 is removed once,
+ * where the original removes each of its bytes. The URL encoding is made of
+ * the UTF-8 bytes of it, as the original gives for UTF-8 text.
+ *
+ * Difference: FILTER_SANITIZE_FULL_SPECIAL_CHARS is htmlspecialchars with
+ * quotes. The original is htmlentities-like and does not encode twice, so
+ * here a text that is encoded already (&amp;) is encoded again (&amp;amp;),
+ * and a character above 127 stays as it is instead of becoming an entity.
+ *
+ * The ranges of FILTER_FLAG_NO_RES_RANGE, _NO_PRIV_RANGE and _GLOBAL_RANGE are
+ * the tables of the original (RFC 6890), see filter_ip_range_.
+ *
+ * @param leaf true for an item of an array: the flags about arrays are not read
+--->
+<cffunction name="filter_value_" returntype="any" output="no" hint="Filters a value with the filter of a constant">
+	<cfargument name="value" type="any" required="yes">
+	<cfargument name="filter" type="any" required="yes">
+	<cfargument name="flags" type="any" required="no" default="">
+	<cfargument name="leaf" type="boolean" required="no" default="false">
+	<cfset var bits = 0>
+	<cfset var options = "">
+	<cfset var hasDefault = false>
+	<cfset var failed = false>
+	<cfset var falsy = false>
+	<cfset var kind = 516>
+	<cfset var text = "">
+	<cfset var jt = "">
+	<cfset var result = "">
+	<cfset var digits = "">
+	<cfset var big = "">
+	<cfset var dec = ".">
+	<cfset var sep = ",'.">
+	<cfset var sepClass = "">
+	<cfset var pattern = "">
+	<cfset var mode = "">
+	<cfset var wrapped = "">
+
+	<cfif IsStruct(arguments.flags)>
+		<cfif StructKeyExists(arguments.flags, "flags")>
+			<cfset bits = Int(Val(arguments.flags["flags"]))>
+		</cfif>
+
+		<cfif StructKeyExists(arguments.flags, "options")>
+			<cfset options = arguments.flags["options"]>
+			<cfset hasDefault = IsStruct(options) AND StructKeyExists(options, "default")>
+		</cfif>
+	<cfelseif IsNumeric(arguments.flags)>
+		<cfset bits = Int(arguments.flags)>
+	</cfif>
+
+	<!--- an empty filter is null here, and the original takes FILTER_UNSAFE_RAW then; a name is a TypeError there --->
+	<cfif IsNumeric(arguments.filter)>
+		<cfset kind = Int(arguments.filter)>
+	<cfelseif Len(arguments.filter) GT 0>
+		<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="filter_var(): Argument ##2 ($filter) must be of type ?int, string given">
+	</cfif>
+
+	<!--- a failure about the array flags gives false at once: the option "default" and FILTER_FORCE_ARRAY do not apply --->
+	<cfif NOT arguments.leaf>
+		<cfif NOT IsSimpleValue(arguments.value)>
+			<!--- an array needs FILTER_REQUIRE_ARRAY or FILTER_FORCE_ARRAY --->
+			<cfif BitAnd(bits, 83886080) EQ 0>
+				<cfif BitAnd(bits, 134217728) NEQ 0>
+					<cfreturn "">
+				</cfif>
+
+				<cfreturn false>
+			<cfelse>
+				<cfreturn filter_walk_(arguments.value, arguments.filter, arguments.flags, true)>
+			</cfif>
+		<cfelseif BitAnd(bits, 16777216) NEQ 0>
+			<cfif BitAnd(bits, 134217728) NEQ 0>
+				<cfreturn "">
+			</cfif>
+
+			<cfreturn false>
+		</cfif>
+	</cfif>
+
+	<cfif NOT failed>
+		<cfset text = arguments.value>
+
+		<!--- a boolean is "1" or "" (a string like "yes" is not one, and its class tells) --->
+		<cfif IsBoolean(text) AND NOT IsNumeric(text)>
+			<cfif Compare(text.getClass().getName(), "java.lang.Boolean") EQ 0>
+				<cfif text>
+					<cfset text = "1">
+				<cfelse>
+					<cfset text = "">
+				</cfif>
+			</cfif>
+		</cfif>
+
+		<cfset text = text & "">
+
+		<cfswitch expression="#kind#">
+			<!--- FILTER_UNSAFE_RAW, FILTER_DEFAULT --->
+			<cfcase value="516">
+				<cfset result = text>
+
+				<cfif BitAnd(bits, 524) NEQ 0>
+					<cfset result = filter_strip_(text, bits)>
+				</cfif>
+			</cfcase>
+
+			<!--- FILTER_VALIDATE_INT --->
+			<cfcase value="257">
+				<cfset jt = JavaCast("string", text).replaceAll("^[ \t\r\x0B\n]+|[ \t\r\x0B\n]+$", "")>
+
+				<!--- no leading zero, and a sign is allowed: "-0" and "+0" pass, "007" does not --->
+				<cfif jt.matches("[+-]?(0|[1-9][0-9]*)")>
+					<cfset digits = jt.replaceFirst("^[+-]", "")>
+					<cfset big = digits>
+
+					<cfif Compare(Left(jt, 1), "-") EQ 0>
+						<cfset big = "-" & digits>
+					</cfif>
+
+					<!--- up to 18 digits always fit in a 64-bit integer --->
+					<cfif Len(digits) GT 18>
+						<cftry>
+							<cfset CreateObject("java", "java.lang.Long").parseLong(JavaCast("string", big))>
+							<cfcatch type="any">
+								<cfset failed = true>
+							</cfcatch>
+						</cftry>
+					</cfif>
+
+					<cfif NOT failed>
+						<!--- the digits as text keep all 64 bits, a number would round --->
+						<cfset result = digits>
+
+						<cfif Compare(Left(jt, 1), "-") EQ 0 AND Compare(digits, "0") NEQ 0>
+							<cfset result = "-" & digits>
+						</cfif>
+
+						<cfif IsStruct(options)>
+							<cfif StructKeyExists(options, "min_range") AND result LT options["min_range"]>
+								<cfset failed = true>
+							</cfif>
+
+							<cfif StructKeyExists(options, "max_range") AND result GT options["max_range"]>
+								<cfset failed = true>
+							</cfif>
+						</cfif>
+					</cfif>
+				<cfelse>
+					<cfset failed = true>
+				</cfif>
+			</cfcase>
+
+			<!--- FILTER_VALIDATE_BOOLEAN --->
+			<cfcase value="258">
+				<cfset jt = LCase(JavaCast("string", text).replaceAll("^[ \t\r\x0B\n]+|[ \t\r\x0B\n]+$", ""))>
+
+				<cfif Len(jt) EQ 0 OR ListFind("0,false,off,no", jt) GT 0>
+					<!--- an empty text is false, also with FILTER_NULL_ON_FAILURE --->
+					<cfset result = false>
+					<cfset falsy = true>
+				<cfelseif ListFind("1,true,on,yes", jt) GT 0>
+					<cfset result = true>
+				<cfelse>
+					<cfset failed = true>
+				</cfif>
+			</cfcase>
+
+			<!--- FILTER_VALIDATE_FLOAT --->
+			<cfcase value="259">
+				<cfset jt = JavaCast("string", text).replaceAll("^[ \t\r\x0B\n]+|[ \t\r\x0B\n]+$", "")>
+
+				<cfif IsStruct(options)>
+					<cfif StructKeyExists(options, "decimal")>
+						<cfset dec = options["decimal"] & "">
+
+						<cfif Len(dec) NEQ 1>
+							<cfset failed = true>
+						</cfif>
+					</cfif>
+
+					<cfif StructKeyExists(options, "thousand") AND Len(options["thousand"]) GT 0>
+						<cfset sep = options["thousand"] & "">
+					</cfif>
+				</cfif>
+
+				<cfif NOT failed>
+					<cfset sepClass = filter_quote_(Replace(sep, dec, "", "all"))>
+					<cfset dec = filter_quote_(dec)>
+
+					<!--- the groups of thousands: 1 to 3 digits, then groups of 3 --->
+					<cfif BitAnd(bits, 8192) NEQ 0 AND Len(sepClass) GT 0>
+						<cfset pattern = "[+-]?([0-9]+|[0-9]{1,3}([" & sepClass & "][0-9]{3})+)?(" & dec & "[0-9]*)?([eE][+-]?[0-9]*)?">
+					<cfelse>
+						<cfset pattern = "[+-]?[0-9]*(" & dec & "[0-9]*)?([eE][+-]?[0-9]*)?">
+						<cfset sepClass = "">
+					</cfif>
+
+					<cfif jt.matches(pattern)>
+						<cfset digits = jt>
+
+						<cfif Len(sepClass) GT 0>
+							<cfset digits = digits.replaceAll("[" & sepClass & "]", "")>
+						</cfif>
+
+						<cfif Compare(dec, "\.") NEQ 0>
+								<cfset digits = Replace(digits, Right(dec, 1), ".", "all")>
+						</cfif>
+
+						<cfif JavaCast("string", digits).matches("[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?")>
+							<cfset result = floatval(digits)>
+
+							<!--- an overflow, or a number that is too small and is 0 now --->
+							<cfif REFindNoCase("INF", result & "") GT 0>
+								<cfset failed = true>
+							<cfelseif result EQ 0 AND Len(digits) GT 1 AND REFind("[1-9]", digits) GT 0>
+								<cfset failed = true>
+							</cfif>
+
+							<cfif NOT failed AND IsStruct(options)>
+								<cfif StructKeyExists(options, "min_range") AND result LT options["min_range"]>
+									<cfset failed = true>
+								</cfif>
+
+								<cfif StructKeyExists(options, "max_range") AND result GT options["max_range"]>
+									<cfset failed = true>
+								</cfif>
+							</cfif>
+						<cfelse>
+							<cfset failed = true>
+						</cfif>
+					<cfelse>
+						<cfset failed = true>
+					</cfif>
+				</cfif>
+			</cfcase>
+
+			<!--- FILTER_VALIDATE_REGEXP --->
+			<cfcase value="272">
+				<cfif NOT IsStruct(options) OR NOT StructKeyExists(options, "regexp")>
+					<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="filter_var(): ""regexp"" option is missing">
+				</cfif>
+
+				<cfif preg_match(options["regexp"], text) EQ 1>
+					<cfset result = text>
+				<cfelse>
+					<cfset failed = true>
+				</cfif>
+			</cfcase>
+
+			<!--- FILTER_VALIDATE_URL --->
+			<cfcase value="273">
+				<cfif filter_var(text, "url")>
+					<cfset result = text>
+				<cfelse>
+					<cfset failed = true>
+				</cfif>
+			</cfcase>
+
+			<!--- FILTER_VALIDATE_EMAIL --->
+			<cfcase value="274">
+				<cfif filter_var(text, "email")>
+					<cfset result = text>
+				<cfelse>
+					<cfset failed = true>
+				</cfif>
+			</cfcase>
+
+			<!--- FILTER_VALIDATE_IP: FILTER_FLAG_IPV4 is 1048576, FILTER_FLAG_IPV6 is 2097152 --->
+			<cfcase value="275">
+				<cfif BitAnd(bits, 1048576) NEQ 0 AND BitAnd(bits, 2097152) EQ 0>
+					<cfset mode = "ipv4">
+				<cfelseif BitAnd(bits, 2097152) NEQ 0 AND BitAnd(bits, 1048576) EQ 0>
+					<cfset mode = "ipv6">
+				</cfif>
+
+				<cfif filter_var(text, "ip", mode) AND filter_ip_range_(text, bits)>
+					<cfset result = text>
+				<cfelse>
+					<cfset failed = true>
+				</cfif>
+			</cfcase>
+
+			<!--- FILTER_SANITIZE_ENCODED: everything but letters, digits and - . _ is %XX --->
+			<cfcase value="514">
+				<cfset result = Replace(rawurlencode(filter_strip_(text, bits)), "~", "%7E", "all")>
+			</cfcase>
+
+			<!--- FILTER_SANITIZE_SPECIAL_CHARS --->
+			<cfcase value="515">
+				<cfset result = filter_strip_(text, bits)>
+				<cfset result = Replace(result, "&", "&##38;", "all")>
+				<cfset result = Replace(result, "'", "&##39;", "all")>
+				<cfset result = Replace(result, """", "&##34;", "all")>
+				<cfset result = Replace(result, "<", "&##60;", "all")>
+				<cfset result = Replace(result, ">", "&##62;", "all")>
+				<cfset result = filter_encode_low_(result)>
+			</cfcase>
+
+			<!--- FILTER_SANITIZE_EMAIL --->
+			<cfcase value="517">
+				<cfset result = JavaCast("string", text).replaceAll("[^A-Za-z0-9!##$%&'*+=?^_`{|}~@.\[\]\-]", "")>
+			</cfcase>
+
+			<!--- FILTER_SANITIZE_URL --->
+			<cfcase value="518">
+				<cfset result = JavaCast("string", text).replaceAll("[^A-Za-z0-9$\-_.+!*'(),{}|\\^~\[\]`<>##%"";/?:@&=]", "")>
+			</cfcase>
+
+			<!--- FILTER_SANITIZE_NUMBER_INT --->
+			<cfcase value="519">
+				<cfset result = JavaCast("string", text).replaceAll("[^0-9+\-]", "")>
+			</cfcase>
+
+			<!--- FILTER_SANITIZE_NUMBER_FLOAT: FILTER_FLAG_ALLOW_FRACTION 4096, _THOUSAND 8192, _SCIENTIFIC 16384 --->
+			<cfcase value="520">
+				<cfset pattern = "0-9+\-">
+
+				<cfif BitAnd(bits, 4096) NEQ 0>
+					<cfset pattern = pattern & ".">
+				</cfif>
+
+				<cfif BitAnd(bits, 8192) NEQ 0>
+					<cfset pattern = pattern & ",">
+				</cfif>
+
+				<cfif BitAnd(bits, 16384) NEQ 0>
+					<cfset pattern = pattern & "eE">
+				</cfif>
+
+				<cfset result = JavaCast("string", text).replaceAll("[^" & pattern & "]", "")>
+			</cfcase>
+
+			<!--- FILTER_SANITIZE_FULL_SPECIAL_CHARS: FILTER_FLAG_NO_ENCODE_QUOTES is 128 --->
+			<cfcase value="522">
+				<cfset result = Replace(text, "&", "&amp;", "all")>
+
+				<cfif BitAnd(bits, 128) EQ 0>
+					<cfset result = Replace(result, """", "&quot;", "all")>
+					<cfset result = Replace(result, "'", "&##039;", "all")>
+				</cfif>
+
+				<cfset result = Replace(result, "<", "&lt;", "all")>
+				<cfset result = Replace(result, ">", "&gt;", "all")>
+			</cfcase>
+
+			<!--- FILTER_SANITIZE_ADD_SLASHES --->
+			<cfcase value="523">
+				<cfset result = Replace(text, "\", "\\", "all")>
+				<cfset result = Replace(result, "'", "\'", "all")>
+				<cfset result = Replace(result, """", "\""", "all")>
+				<!--- Difference: a NUL byte is not turned into the two characters \0, as Chr(0) is an empty text here --->
+			</cfcase>
+
+			<cfdefaultcase>
+				<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="Not ported yet: the filter #kind#.">
+			</cfdefaultcase>
+		</cfswitch>
+	</cfif>
+
+	<!--- 134217728 is FILTER_NULL_ON_FAILURE; the option "default" replaces a failure (and a false result without it) --->
+	<cfif failed>
+		<cfif hasDefault>
+			<cfset result = options["default"]>
+		<cfelseif BitAnd(bits, 134217728) NEQ 0>
+			<cfset result = "">
+		<cfelse>
+			<cfset result = false>
+		</cfif>
+	<cfelseif falsy AND hasDefault AND BitAnd(bits, 134217728) EQ 0>
+		<cfset result = options["default"]>
+	</cfif>
+
+	<!--- FILTER_FORCE_ARRAY --->
+	<cfif NOT arguments.leaf AND BitAnd(bits, 67108864) NEQ 0>
+		<cfset wrapped = ArrayNew(1)>
+		<cfset ArrayAppend(wrapped, result)>
+		<cfset result = wrapped>
+	</cfif>
+
+	<cfreturn result>
+</cffunction>
+
+<!---
+ * Filters every leaf of a nested value and gives back a copy (the values
+ * of the request are kept as they are). It is array_walk_recursive() with
+ * filter_var() on each leaf. A map keeps its keys and their order.
+ *
+ * @param leaf Passed to filter_value_()
+--->
+<cffunction name="filter_walk_" returntype="any" output="no" hint="Filters every leaf of a nested value">
+	<cfargument name="value" type="any" required="yes">
+	<cfargument name="filter" type="any" required="yes">
+	<cfargument name="flags" type="any" required="no" default="">
+	<cfargument name="leaf" type="boolean" required="no" default="false">
+	<cfset var result = "">
+	<cfset var item = "">
+	<cfset var key = "">
+	<cfset var i = 0>
+
+	<cfif IsArray(arguments.value)>
+		<cfset result = ArrayNew(1)>
+
+		<cfloop from="1" to="#ArrayLen(arguments.value)#" index="i">
+			<cfset item = arguments.value[i]>
+
+			<cfif IsSimpleValue(item)>
+				<cfset ArrayAppend(result, filter_value_(item, arguments.filter, arguments.flags, arguments.leaf))>
+			<cfelseif IsArray(item) OR IsStruct(item)>
+				<cfset ArrayAppend(result, filter_walk_(item, arguments.filter, arguments.flags, arguments.leaf))>
+			<cfelse>
+				<cfset ArrayAppend(result, item)>
+			</cfif>
+		</cfloop>
+
+		<cfreturn result>
+	</cfif>
+
+	<cfset result = CreateObject("java", "java.util.LinkedHashMap").init()>
+
+	<cfloop collection="#arguments.value#" item="key">
+		<cfset item = arguments.value[key]>
+
+		<cfif IsSimpleValue(item)>
+			<cfset result[key] = filter_value_(item, arguments.filter, arguments.flags, arguments.leaf)>
+		<cfelseif IsArray(item) OR IsStruct(item)>
+			<cfset result[key] = filter_walk_(item, arguments.filter, arguments.flags, arguments.leaf)>
+		<cfelse>
+			<cfset result[key] = item>
+		</cfif>
+	</cfloop>
+
+	<cfreturn result>
+</cffunction>
+
+<!---
+ * Writes every character but a letter or digit with a backslash, so that a
+ * text is literal inside a regular expression.
+--->
+<cffunction name="filter_quote_" returntype="string" output="no" hint="Writes every character but a letter or digit with a backslash, for a regular expression">
+	<cfargument name="value" type="string" required="yes">
+
+	<cfreturn JavaCast("string", arguments.value).replaceAll("([^A-Za-z0-9])", "\\$1")>
+</cffunction>
+
+<!---
+ * Removes the characters that FILTER_FLAG_STRIP_LOW (4, below 32),
+ * FILTER_FLAG_STRIP_HIGH (8, above 127) and FILTER_FLAG_STRIP_BACKTICK
+ * (512) name.
+--->
+<cffunction name="filter_strip_" returntype="string" output="no" hint="Removes the characters that the strip flags name">
+	<cfargument name="value" type="string" required="yes">
+	<cfargument name="bits" type="numeric" required="yes">
+	<cfset var chars = "">
+
+	<cfif BitAnd(arguments.bits, 524) EQ 0>
+		<cfreturn arguments.value>
+	</cfif>
+
+	<cfif BitAnd(arguments.bits, 4) NEQ 0>
+		<cfset chars = chars & "\x00-\x1F">
+	</cfif>
+
+	<cfif BitAnd(arguments.bits, 8) NEQ 0>
+		<cfset chars = chars & "\u0080-\uFFFF">
+	</cfif>
+
+	<cfif BitAnd(arguments.bits, 512) NEQ 0>
+		<cfset chars = chars & "`">
+	</cfif>
+
+	<cfreturn JavaCast("string", arguments.value).replaceAll("[" & chars & "]", "")>
+</cffunction>
+
+<!---
+ * Writes the characters below 32 as a numeric entity (&#10;).
+--->
+<cffunction name="filter_encode_low_" returntype="string" output="no" hint="Writes the control characters as numeric entities">
+	<cfargument name="value" type="string" required="yes">
+	<cfset var matcher = CreateObject("java", "java.util.regex.Pattern").compile("[\x00-\x1F]").matcher(JavaCast("string", arguments.value))>
+	<cfset var buffer = "">
+
+	<cfif NOT matcher.find()>
+		<cfreturn arguments.value>
+	</cfif>
+
+	<cfset matcher.reset()>
+	<cfset buffer = CreateObject("java", "java.lang.StringBuffer").init()>
+
+	<cfloop condition="matcher.find()">
+		<cfset matcher.appendReplacement(buffer, "&##" & Asc(matcher.group()) & ";")>
+	</cfloop>
+
+	<cfset matcher.appendTail(buffer)>
+
+	<cfreturn buffer.toString()>
+</cffunction>
+
+<!---
+ * Checks the ranges that FILTER_FLAG_NO_RES_RANGE (4194304),
+ * FILTER_FLAG_NO_PRIV_RANGE (8388608) and FILTER_FLAG_GLOBAL_RANGE
+ * (268435456) name. The address is valid already. The tables are those of
+ * ipv4_get_status_flags and ipv6_get_status_flags (RFC 6890), in the same
+ * order: the first block that holds the address gives its flags, and an
+ * address in no block passes every flag, also FILTER_FLAG_GLOBAL_RANGE.
+ *
+ * @return true when the address is not refused
+--->
+<cffunction name="filter_ip_range_" returntype="boolean" output="no" hint="Checks the reserved, private and global ranges of an IP address">
+	<cfargument name="value" type="string" required="yes">
+	<cfargument name="bits" type="numeric" required="yes">
+	<cfset var ip = "">
+	<cfset var isGlobal = false>
+	<cfset var isReserved = false>
+	<cfset var isPrivate = false>
+	<cfset var special = true>
+
+	<cfif BitAnd(arguments.bits, 281018368) EQ 0>
+		<cfreturn true>
+	</cfif>
+
+	<cfif Find(":", arguments.value) EQ 0>
+		<cfset ip = ArrayNew(1)>
+		<cfset ArrayAppend(ip, Val(ListGetAt(arguments.value, 1, ".")))>
+		<cfset ArrayAppend(ip, Val(ListGetAt(arguments.value, 2, ".")))>
+		<cfset ArrayAppend(ip, Val(ListGetAt(arguments.value, 3, ".")))>
+		<cfset ArrayAppend(ip, Val(ListGetAt(arguments.value, 4, ".")))>
+
+		<!--- the numbers are the index 0 to 3 of the original, plus one --->
+		<cfif ip[1] EQ 0>
+			<!--- RFC 0791 - This network --->
+			<cfset isReserved = true>
+		<cfelseif ip[1] EQ 10>
+			<!--- RFC 1918 - Private Use --->
+			<cfset isPrivate = true>
+		<cfelseif ip[1] EQ 100 AND ip[2] GTE 64 AND ip[2] LTE 127>
+			<!--- RFC 6598 - Shared Address Space --->
+		<cfelseif ip[1] EQ 127>
+			<!--- RFC 1122 - Loopback --->
+			<cfset isReserved = true>
+		<cfelseif ip[1] EQ 169 AND ip[2] EQ 254>
+			<!--- RFC 3927 - Link Local --->
+			<cfset isReserved = true>
+		<cfelseif ip[1] EQ 172 AND ip[2] GTE 16 AND ip[2] LTE 31>
+			<!--- RFC 1918 - Private Use --->
+			<cfset isPrivate = true>
+		<cfelseif ip[1] EQ 192 AND ip[2] EQ 0 AND ip[3] EQ 0>
+			<!--- RFC 6890 - IETF Protocol Assignments --->
+		<cfelseif ip[1] EQ 192 AND ip[2] EQ 0 AND ip[3] EQ 2>
+			<!--- RFC 5737 - Documentation --->
+		<cfelseif ip[1] EQ 192 AND ip[2] EQ 88 AND ip[3] EQ 99>
+			<!--- RFC 3068 - 6to4 Relay Anycast --->
+			<cfset isGlobal = true>
+		<cfelseif ip[1] EQ 192 AND ip[2] EQ 168>
+			<!--- RFC 1918 - Private Use --->
+			<cfset isPrivate = true>
+		<cfelseif ip[1] EQ 198 AND ip[2] GTE 18 AND ip[2] LTE 19>
+			<!--- RFC 2544 - Benchmarking --->
+		<cfelseif ip[1] EQ 198 AND ip[2] EQ 51 AND ip[3] EQ 100>
+			<!--- RFC 5737 - Documentation --->
+		<cfelseif ip[1] EQ 203 AND ip[2] EQ 0 AND ip[3] EQ 113>
+			<!--- RFC 5737 - Documentation --->
+		<cfelseif ip[1] GTE 240>
+			<!--- RFC 1122 - Reserved, and RFC 0919 - Limited Broadcast --->
+			<cfset isReserved = true>
+		<cfelse>
+			<cfset special = false>
+		</cfif>
+	<cfelse>
+		<cfset ip = filter_ipv6_groups_(arguments.value)>
+
+		<cfif ip[1] EQ 0 AND ip[2] EQ 0 AND ip[3] EQ 0 AND ip[4] EQ 0 AND ip[5] EQ 0 AND ip[6] EQ 0 AND ip[7] EQ 0 AND ip[8] EQ 0>
+			<!--- RFC 4291 - Unspecified Address --->
+			<cfset isReserved = true>
+		<cfelseif ip[1] EQ 0 AND ip[2] EQ 0 AND ip[3] EQ 0 AND ip[4] EQ 0 AND ip[5] EQ 0 AND ip[6] EQ 0 AND ip[7] EQ 0 AND ip[8] EQ 1>
+			<!--- RFC 4291 - Loopback Address --->
+			<cfset isReserved = true>
+		<cfelseif ip[1] EQ 100 AND ip[2] EQ 65435>
+			<!--- RFC 6052 - IPv4-IPv6 Translation (64:ff9b) --->
+			<cfset isGlobal = true>
+		<cfelseif ip[1] EQ 0 AND ip[2] EQ 0 AND ip[3] EQ 0 AND ip[4] EQ 0 AND ip[5] EQ 0 AND ip[6] EQ 65535>
+			<!--- RFC 4291 - IPv4-mapped Address --->
+			<cfset isReserved = true>
+		<cfelseif ip[1] EQ 256 AND ip[2] EQ 0 AND ip[3] EQ 0 AND ip[4] EQ 0>
+			<!--- RFC 6666 - Discard-Only Address Block (0100::) --->
+		<cfelseif ip[1] EQ 8193 AND ip[2] EQ 0>
+			<!--- RFC 4380 - TEREDO --->
+		<cfelseif ip[1] EQ 8193 AND ip[2] LTE 511>
+			<!--- RFC 2928 - IETF Protocol Assignments --->
+		<cfelseif ip[1] EQ 8193 AND ip[2] EQ 2 AND ip[3] EQ 0>
+			<!--- RFC 5180 - Benchmarking --->
+		<cfelseif ip[1] EQ 8193 AND ip[2] EQ 3512>
+			<!--- RFC 3849 - Documentation (2001:db8) --->
+		<cfelseif ip[1] EQ 8193 AND ip[2] GTE 16 AND ip[2] LTE 31>
+			<!--- RFC 4843 - ORCHID --->
+		<cfelseif ip[1] EQ 8194>
+			<!--- RFC 3056 - 6to4 --->
+		<cfelseif ip[1] GTE 64512 AND ip[1] LTE 65023>
+			<!--- RFC 4193 - Unique-Local --->
+			<cfset isPrivate = true>
+		<cfelseif ip[1] GTE 65152 AND ip[1] LTE 65215>
+			<!--- RFC 4291 - Linked-Scoped Unicast --->
+			<cfset isReserved = true>
+		<cfelse>
+			<cfset special = false>
+		</cfif>
+	</cfif>
+
+	<!--- an address in no special block is not tested against the flags --->
+	<cfif NOT special>
+		<cfreturn true>
+	</cfif>
+
+	<cfif BitAnd(arguments.bits, 268435456) NEQ 0 AND NOT isGlobal>
+		<cfreturn false>
+	</cfif>
+
+	<cfif BitAnd(arguments.bits, 8388608) NEQ 0 AND isPrivate>
+		<cfreturn false>
+	</cfif>
+
+	<cfif BitAnd(arguments.bits, 4194304) NEQ 0 AND isReserved>
+		<cfreturn false>
+	</cfif>
+
+	<cfreturn true>
+</cffunction>
+
+<!---
+ * Gives the eight 16-bit groups of a valid IPv6 address as numbers, with the
+ * "::" filled with zeros and an IPv4 tail as the last two groups.
+--->
+<cffunction name="filter_ipv6_groups_" returntype="any" output="no" hint="Splits an IPv6 address into eight numbers">
+	<cfargument name="value" type="string" required="yes">
+	<cfset var text = JavaCast("string", arguments.value).toLowerCase()>
+	<cfset var groups = ArrayNew(1)>
+	<cfset var leftPart = ArrayNew(1)>
+	<cfset var rightPart = ArrayNew(1)>
+	<cfset var head = "">
+	<cfset var tail = "">
+	<cfset var pos = 0>
+	<cfset var i = 0>
+
+	<!--- an IPv4 tail is two groups --->
+	<cfif Find(".", text) GT 0>
+		<cfset tail = ListLast(text, ":")>
+		<cfset text = JavaCast("string", text).substring(JavaCast("int", 0), JavaCast("int", Len(text) - Len(tail))) & FormatBaseN(ListGetAt(tail, 1, ".") * 256 + ListGetAt(tail, 2, "."), 16) & ":" & FormatBaseN(ListGetAt(tail, 3, ".") * 256 + ListGetAt(tail, 4, "."), 16)>
+	</cfif>
+
+	<cfset pos = Find("::", text)>
+
+	<cfif pos GT 0>
+		<!--- substring takes a length of 0, where Left and Mid do not --->
+		<cfset head = JavaCast("string", text).substring(JavaCast("int", 0), JavaCast("int", pos - 1))>
+		<cfset tail = JavaCast("string", text).substring(JavaCast("int", pos + 1))>
+		<cfset leftPart = ListToArray(head, ":")>
+		<cfset rightPart = ListToArray(tail, ":")>
+
+		<cfloop from="1" to="#ArrayLen(leftPart)#" index="i">
+			<cfset ArrayAppend(groups, InputBaseN(leftPart[i], 16))>
+		</cfloop>
+
+		<cfloop from="1" to="#8 - ArrayLen(leftPart) - ArrayLen(rightPart)#" index="i">
+			<cfset ArrayAppend(groups, 0)>
+		</cfloop>
+
+		<cfloop from="1" to="#ArrayLen(rightPart)#" index="i">
+			<cfset ArrayAppend(groups, InputBaseN(rightPart[i], 16))>
+		</cfloop>
+	<cfelse>
+		<cfset leftPart = ListToArray(text, ":")>
+
+		<cfloop from="1" to="#ArrayLen(leftPart)#" index="i">
+			<cfset ArrayAppend(groups, InputBaseN(leftPart[i], 16))>
+		</cfloop>
+	</cfif>
+
+	<cfreturn groups>
 </cffunction>
 
 <!---

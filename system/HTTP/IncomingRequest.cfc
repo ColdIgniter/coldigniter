@@ -21,8 +21,7 @@
  * - Upload files, if any
  * - Deserialized body binds
  *
- * Not ported yet: the filters of the input values (see RequestTrait and
- * getJsonVar) and old input (needs the session). The uploaded files are
+ * Not ported yet: old input (needs the session). The uploaded files are
  * read when first asked for (see Files/FileCollection.cfc).
 --->
 <cfcomponent output="no" extends="Request" hint="Represents an incoming, server-side HTTP request">
@@ -287,8 +286,11 @@
 	 * Test to see if a request contains the HTTP_X_REQUESTED_WITH header.
 	--->
 	<cffunction name="isAJAX" access="public" returntype="boolean" output="no">
-		<cfreturn hasHeader("X-Requested-With")
-			AND Compare(LCase(header("X-Requested-With")), "xmlhttprequest") EQ 0>
+		<cfif NOT hasHeader("X-Requested-With")>
+			<cfreturn false>
+		</cfif>
+
+		<cfreturn Compare(LCase(header("X-Requested-With").getValue()), "xmlhttprequest") EQ 0>
 	</cffunction>
 
 	<!---
@@ -326,9 +328,8 @@
 		</cfif>
 
 		<cfif hasHeader("X-Forwarded-Proto")>
-			<cfset proto = header("X-Forwarded-Proto")>
+			<cfset proto = header("X-Forwarded-Proto").getValue()>
 
-			<!--- The header value is one line here, so there is no array of values. --->
 			<cfif LCase(Trim(proto)) EQ "https">
 				<cfreturn true>
 			</cfif>
@@ -338,7 +339,7 @@
 			<cfreturn false>
 		</cfif>
 
-		<cfset frontEndHttps = header("Front-End-Https")>
+		<cfset frontEndHttps = header("Front-End-Https").getValue()>
 
 		<cfreturn frontEndHttps NEQ "" AND Compare(frontEndHttps, "0") NEQ 0 AND LCase(frontEndHttps) NEQ "off">
 	</cffunction>
@@ -504,6 +505,7 @@
 		<cfset var result = "">
 		<cfset var key = "">
 		<cfset var i = 0>
+		<cfset var filtering = true>
 
 		<cfif NOT is_array(data)>
 			<cfreturn "">
@@ -522,7 +524,28 @@
 			<cfset data = result>
 		</cfif>
 
-		<!--- Not ported yet: the filters (filter_var, array_walk_recursive) --->
+		<!--- Difference: a value that is not there and a null are an empty string, which is not filtered. --->
+		<!--- no filter (null or FILTER_UNSAFE_RAW) and no flags (null, 0 or an empty map): nothing to apply --->
+		<cfif arguments.filter EQ "" OR arguments.filter EQ 516>
+			<cfif IsSimpleValue(arguments.flags)>
+				<cfif arguments.flags EQ "" OR arguments.flags EQ 0>
+					<cfset filtering = false>
+				</cfif>
+			<cfelseif IsStruct(arguments.flags)>
+				<cfif StructIsEmpty(arguments.flags)>
+					<cfset filtering = false>
+				</cfif>
+			</cfif>
+		</cfif>
+
+		<cfif filtering AND NOT is_null(data)>
+			<cfif IsArray(data) OR IsStruct(data)>
+				<!--- array_walk_recursive with filter_var, on a copy --->
+				<cfset data = filter_walk_(data, arguments.filter, arguments.flags)>
+			<cfelseif IsSimpleValue(data)>
+				<cfset data = filter_value_(data, arguments.filter, arguments.flags)>
+			</cfif>
+		</cfif>
 
 		<!--- Difference: an object is a map whether assoc is set or not (there is no object type), so the conversion with json_decode(json_encode()) is not done. --->
 
@@ -552,6 +575,7 @@
 		<cfset var data = "">
 		<cfset var key = "">
 		<cfset var i = 0>
+		<cfset var filtering = true>
 
 		<!--- Not ported yet: helper('array'), the helpers are not loaded. The array helper is called directly. --->
 
@@ -568,7 +592,30 @@
 			<cfset output = data>
 		</cfif>
 
-		<!--- Not ported yet: the filters (filter_var, array_walk_recursive) --->
+		<!--- Difference: a value that is not there and a null are an empty string, which is not filtered. --->
+		<!--- no filter (null or FILTER_UNSAFE_RAW) and no flags (null, 0 or an empty map): nothing to apply --->
+		<cfif arguments.filter EQ "" OR arguments.filter EQ 516>
+			<cfif IsSimpleValue(arguments.flags)>
+				<cfif arguments.flags EQ "" OR arguments.flags EQ 0>
+					<cfset filtering = false>
+				</cfif>
+			<cfelseif IsStruct(arguments.flags)>
+				<cfif StructIsEmpty(arguments.flags)>
+					<cfset filtering = false>
+				</cfif>
+			</cfif>
+		</cfif>
+
+		<cfif filtering AND NOT is_null(output)>
+			<cfif IsArray(output) OR IsStruct(output)>
+				<!--- array_walk_recursive with filter_var, on a copy --->
+				<cfreturn filter_walk_(output, arguments.filter, arguments.flags)>
+			</cfif>
+
+			<cfif IsSimpleValue(output)>
+				<cfreturn filter_value_(output, arguments.filter, arguments.flags)>
+			</cfif>
+		</cfif>
 
 		<cfreturn output>
 	</cffunction>

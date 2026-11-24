@@ -183,8 +183,7 @@
 			<cfset vars["post"] = map>
 		</cfif>
 
-		<!--- Difference: a header is a name to value line map here, not a Header object. --->
-		<cfset map = dataSection(arguments.request_.headers())>
+		<cfset map = headerSection(arguments.request_.headers())>
 		<cfif map.size() GT 0>
 			<cfset vars["headers"] = map>
 		</cfif>
@@ -204,7 +203,7 @@
 			"statusCode", Val(arguments.response.getStatusCode()),
 			"reason", esc(arguments.response.getReasonPhrase()),
 			"contentType", esc(arguments.response.getHeaderLine("content-type")),
-			"headers", dataSection(arguments.response.headers())
+			"headers", headerSection(arguments.response.headers())
 		)>
 		<cfset vars["response"] = responseData>
 
@@ -364,6 +363,44 @@
 				<cfset result[esc(key)] = esc(value)>
 			<cfelse>
 				<cfset result[esc(key)] = "<pre>" & esc(print_r(value, true)) & "</pre>">
+			</cfif>
+		</cfloop>
+
+		<cfreturn result>
+	</cffunction>
+
+	<!---
+	 * Not in the original, where each of the two header sections of the
+	 * variables is a loop in run(). Escapes the names and the value lines
+	 * of the headers: a header is a Header, or an array of Headers for
+	 * several headers of the same name, shown as " (1) value (2) value".
+	 *
+	 * @return A map
+	--->
+	<cffunction name="headerSection" access="private" returntype="any" output="no">
+		<cfargument name="source" type="any" required="yes">
+		<cfset var result = array_()>
+		<cfset var it = "">
+		<cfset var key = "">
+		<cfset var value = "">
+		<cfset var line = "">
+		<cfset var i = 0>
+
+		<cfset it = arguments.source.keySet().iterator()>
+		<cfloop condition="it.hasNext()">
+			<cfset key = it.next()>
+			<cfset value = arguments.source.get(key)>
+
+			<cfif IsArray(value)>
+				<cfset line = "">
+
+				<cfloop from="1" to="#ArrayLen(value)#" index="i">
+					<cfset line = line & " (" & i & ") " & esc(value[i].getValueLine())>
+				</cfloop>
+
+				<cfset result[esc(key)] = line>
+			<cfelse>
+				<cfset result[esc(key)] = esc(value.getValueLine())>
 			</cfif>
 		</cfloop>
 

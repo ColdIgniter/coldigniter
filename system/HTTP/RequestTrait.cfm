@@ -7,8 +7,7 @@
  * A trait is a file of properties and functions that the component
  * includes where the original says "use RequestTrait".
  *
- * Not ported yet: the filters (the filter and flags arguments are kept,
- * and nothing is applied), the proxy IP addresses (checkIPAgainstProxy)
+ * Not ported yet: the proxy IP addresses (checkIPAgainstProxy)
  * and the check of an IP address (FormatRules::valid_ip).
 --->
 
@@ -90,7 +89,7 @@
 	<cfset var chain = "">
 
 	<cfif NOT is_null(headerObj)>
-		<cfset spoof = headerObj>
+		<cfset spoof = headerObj.getValue()>
 
 		<!---
 		 Some proxies typically list the whole chain of IP
@@ -210,9 +209,21 @@
  * Can optionally filter the input when you retrieve it by passing in
  * a filter.
  *
- * Not ported yet: the filter, which has no counterpart. The filter and
- * flags arguments are kept and nothing is applied, so every value comes
- * back as it was sent.
+ * The filter is a constant (request.FILTER_VALIDATE_INT and the like, see
+ * Polyfills/filter_var.cfm) and the flags are a number or a map with the
+ * keys "flags" and "options". Without a filter (an empty string, which is
+ * null here, or FILTER_UNSAFE_RAW) and without flags the value comes back
+ * as it was sent, with no other cost than one check.
+ *
+ * Difference: a value that is not there is an empty string (null), and it is
+ * not filtered. A value that is there and is an empty string is filtered,
+ * except for a server value that is read by name outside the saved
+ * globals (a request header): the live read gives an empty string for both
+ * a missing and an empty value, so it is not filtered.
+ *
+ * A failed filter gives the text "false" (or an empty string with
+ * FILTER_NULL_ON_FAILURE). On MX 6.1 "0 EQ false" is true, so test a failure
+ * with IsBoolean(x) AND NOT IsNumeric(x) AND NOT x, never with EQ.
  *
  * @param name   Superglobal name (lowercase): cookie, get, post, request or server
  * @param index  A name, an array of names, or an empty string (null) for all values
@@ -230,6 +241,8 @@
 	<cfset var output = "">
 	<cfset var value = "">
 	<cfset var found = false>
+	<cfset var present = false>
+	<cfset var filtering = true>
 	<cfset var matcher = "">
 	<cfset var matches = "">
 	<cfset var key = "">
@@ -242,7 +255,18 @@
 		<cfset populateGlobals(arguments.name)>
 	</cfif>
 
-	<!--- Not ported yet: the default filter (FILTER_UNSAFE_RAW) and the flags --->
+	<!--- no filter (null or FILTER_UNSAFE_RAW) and no flags (null, 0 or an empty map): nothing to apply --->
+	<cfif arguments.filter EQ "" OR arguments.filter EQ 516>
+		<cfif IsSimpleValue(arguments.flags)>
+			<cfif arguments.flags EQ "" OR arguments.flags EQ 0>
+				<cfset filtering = false>
+			</cfif>
+		<cfelseif IsStruct(arguments.flags)>
+			<cfif StructIsEmpty(arguments.flags)>
+				<cfset filtering = false>
+			</cfif>
+		</cfif>
+	</cfif>
 
 	<!--- Return all values when index is null --->
 	<cfif is_null(arguments.index)>
@@ -254,8 +278,11 @@
 			<cfif is_array(value)>
 				<cfset values[key] = fetchGlobal(arguments.name, key, arguments.filter, arguments.flags)>
 			<cfelse>
-				<!--- Not ported yet: filter_var --->
-				<cfset values[key] = value>
+				<cfif filtering>
+					<cfset values[key] = filter_value_(value, arguments.filter, arguments.flags)>
+				<cfelse>
+					<cfset values[key] = value>
+				</cfif>
 			</cfif>
 		</cfloop>
 
@@ -300,6 +327,7 @@
 	<cfif ArrayLen(matches) GT 1>
 		<cfset value = this.globals[arguments.name]>
 		<cfset found = true>
+		<cfset present = true>
 
 		<cfloop from="1" to="#ArrayLen(matches)#" index="i">
 			<cfif Left(matches[i], 1) EQ "[">
@@ -327,13 +355,25 @@
 
 	<cfif NOT found AND array_key_exists(arguments.index, this.globals[arguments.name])>
 		<cfset value = this.globals[arguments.name][arguments.index]>
+		<cfset present = true>
 	<cfelseif NOT found AND arguments.name EQ "server">
 		<!--- the CGI scope does not list the request headers (HTTP_*), but a read by name finds them --->
 		<!--- this reads the live value, not the saved snapshot of the server globals --->
 		<cfset value = service("superglobals").server(arguments.index)>
+		<cfset present = Len(value) GT 0>
 	</cfif>
 
-	<!--- Not ported yet: the filters of an array (array_walk_recursive with filter_var), and of a string (filter_var) --->
+	<cfif filtering AND present>
+		<cfif IsArray(value) OR IsStruct(value)>
+			<!--- array_walk_recursive with filter_var, on a copy --->
+			<cfreturn filter_walk_(value, arguments.filter, arguments.flags)>
+		</cfif>
+
+		<!--- cannot filter these types of data automatically... --->
+		<cfif IsSimpleValue(value)>
+			<cfreturn filter_value_(value, arguments.filter, arguments.flags)>
+		</cfif>
+	</cfif>
 
 	<cfreturn value>
 </cffunction>

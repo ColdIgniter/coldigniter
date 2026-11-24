@@ -30,6 +30,46 @@
 	<cfset define("DIRECTORY_SEPARATOR", Right(GetDirectoryFromPath(GetCurrentTemplatePath()), 1))>
 
 	<!---
+	 * The constants of the filters of filter_var() (see Polyfills/filter_var.cfm), with the values of the original.
+	 * Not ported yet: FILTER_VALIDATE_DOMAIN, _MAC, FILTER_SANITIZE_STRING, FILTER_CALLBACK and the flags that filter_value_() does not read.
+	--->
+	<cfset request.FILTER_FLAG_NONE = 0>
+	<cfset request.FILTER_REQUIRE_SCALAR = 33554432>
+	<cfset request.FILTER_REQUIRE_ARRAY = 16777216>
+	<cfset request.FILTER_FORCE_ARRAY = 67108864>
+	<cfset request.FILTER_NULL_ON_FAILURE = 134217728>
+	<cfset request.FILTER_VALIDATE_INT = 257>
+	<cfset request.FILTER_VALIDATE_BOOLEAN = 258>
+	<cfset request.FILTER_VALIDATE_BOOL = 258>
+	<cfset request.FILTER_VALIDATE_FLOAT = 259>
+	<cfset request.FILTER_VALIDATE_REGEXP = 272>
+	<cfset request.FILTER_VALIDATE_URL = 273>
+	<cfset request.FILTER_VALIDATE_EMAIL = 274>
+	<cfset request.FILTER_VALIDATE_IP = 275>
+	<cfset request.FILTER_DEFAULT = 516>
+	<cfset request.FILTER_UNSAFE_RAW = 516>
+	<cfset request.FILTER_SANITIZE_ENCODED = 514>
+	<cfset request.FILTER_SANITIZE_SPECIAL_CHARS = 515>
+	<cfset request.FILTER_SANITIZE_EMAIL = 517>
+	<cfset request.FILTER_SANITIZE_URL = 518>
+	<cfset request.FILTER_SANITIZE_NUMBER_INT = 519>
+	<cfset request.FILTER_SANITIZE_NUMBER_FLOAT = 520>
+	<cfset request.FILTER_SANITIZE_FULL_SPECIAL_CHARS = 522>
+	<cfset request.FILTER_SANITIZE_ADD_SLASHES = 523>
+	<cfset request.FILTER_FLAG_STRIP_LOW = 4>
+	<cfset request.FILTER_FLAG_STRIP_HIGH = 8>
+	<cfset request.FILTER_FLAG_STRIP_BACKTICK = 512>
+	<cfset request.FILTER_FLAG_NO_ENCODE_QUOTES = 128>
+	<cfset request.FILTER_FLAG_ALLOW_FRACTION = 4096>
+	<cfset request.FILTER_FLAG_ALLOW_THOUSAND = 8192>
+	<cfset request.FILTER_FLAG_ALLOW_SCIENTIFIC = 16384>
+	<cfset request.FILTER_FLAG_IPV4 = 1048576>
+	<cfset request.FILTER_FLAG_IPV6 = 2097152>
+	<cfset request.FILTER_FLAG_NO_RES_RANGE = 4194304>
+	<cfset request.FILTER_FLAG_NO_PRIV_RANGE = 8388608>
+	<cfset request.FILTER_FLAG_GLOBAL_RANGE = 268435456>
+
+	<!---
 	 * Used by `public/index.cfm`
 	 *
 	 * Context

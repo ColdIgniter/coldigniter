@@ -323,12 +323,12 @@
 			<cfif IsArray(headers[name])>
 				<!--- several headers of the same name (see addHeader) --->
 				<cfloop from="1" to="#ArrayLen(headers[name])#" index="i">
-					<cfheader name="#name#" value="#headers[name][i]#">
+					<cfheader name="#name#" value="#headers[name][i].getValueLine()#">
 				</cfloop>
 			<cfelseif name EQ "Content-Type">
-				<cfcontent type="#headers[name]#">
+				<cfcontent type="#headers[name].getValueLine()#">
 			<cfelse>
-				<cfheader name="#name#" value="#headers[name]#">
+				<cfheader name="#name#" value="#headers[name].getValueLine()#">
 			</cfif>
 		</cfloop>
 
