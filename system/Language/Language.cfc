@@ -7,6 +7,12 @@
  * a message (see formatMessage). The plural, select and number forms of
  * ICU, and its quoting with the apostrophe, are not known.
  *
+ * Difference: only the English form {n, plural, =1{# year} other{# years}}
+ * is known (see formatMessage).
+ *
+ * Not ported yet: plural rules of other locales, and the select, number
+ * and date forms.
+ *
  * Not ported yet: the file locator. A language file is searched in the
  * folder "Language/{locale}" of every namespace the autoloader knows
  * (system first, then the application), see requireFile.
@@ -263,6 +269,8 @@
 		<cfset var buffer = "">
 		<cfset var last = 0>
 		<cfset var i = 0>
+		<cfset var text = "">
+		<cfset var count = "">
 
 		<cfif NOT this.intlSupport OR NOT is_array(arguments.args) OR IsArray(arguments.args) AND ArrayLen(arguments.args) EQ 0 OR IsStruct(arguments.args) AND StructCount(arguments.args) EQ 0>
 			<cfreturn arguments.message>
@@ -278,13 +286,47 @@
 			<cfreturn result>
 		</cfif>
 
+		<cfset text = arguments.message>
+
+		<!--- Difference: the plural form {n, plural, =1{# one} other{# many}} is resolved with the English rule (one for 1, else other), a # is the number --->
+		<cfif REFind(", *plural *,", text) GT 0>
+			<cfset matcher = CreateObject("java", "java.util.regex.Pattern").compile("\{([^{},]+), *plural, *=1\{([^{}]*)\} *other\{([^{}]*)\}\}").matcher(JavaCast("string", text))>
+			<cfset buffer = CreateObject("java", "java.lang.StringBuffer").init()>
+
+			<cfloop condition="matcher.find()">
+				<cfset name = matcher.group(1)>
+				<cfset buffer.append(Mid(text, last + 1, matcher.start() - last))>
+				<cfset last = matcher.end()>
+				<cfset count = "">
+
+				<cfif IsStruct(arguments.args) AND StructKeyExists(arguments.args, name)>
+					<cfset count = arguments.args[name]>
+				<cfelseif IsArray(arguments.args) AND REFind("^(0|[1-9][0-9]*)$", name) GT 0 AND Val(name) LT ArrayLen(arguments.args)>
+					<cfset count = arguments.args[Val(name) + 1]>
+				</cfif>
+
+				<!--- only a number is put in, any other value is left as written (and not read again by the {name} pass) --->
+				<cfif Len(count) EQ 0 OR NOT IsNumeric(count)>
+					<cfset buffer.append(matcher.group(0))>
+				<cfelseif count EQ 1>
+					<cfset buffer.append(JavaCast("string", Replace(matcher.group(2), Chr(35), count, "all")))>
+				<cfelse>
+					<cfset buffer.append(JavaCast("string", Replace(matcher.group(3), Chr(35), count, "all")))>
+				</cfif>
+			</cfloop>
+
+			<cfset buffer.append(Mid(text, last + 1, Len(text) - last))>
+			<cfset text = buffer.toString()>
+			<cfset last = 0>
+		</cfif>
+
 		<!--- a position is written without a leading zero: ICU reads {01} as a name, not a position, so it is left as written (the original's behaviour is not checked here, as the intl extension is not at hand) --->
-		<cfset matcher = CreateObject("java", "java.util.regex.Pattern").compile("\{([^{}]+)\}").matcher(JavaCast("string", arguments.message))>
+		<cfset matcher = CreateObject("java", "java.util.regex.Pattern").compile("\{([^{}]+)\}").matcher(JavaCast("string", text))>
 		<cfset buffer = CreateObject("java", "java.lang.StringBuffer").init()>
 
 		<cfloop condition="matcher.find()">
 			<cfset name = matcher.group(1)>
-			<cfset buffer.append(Mid(arguments.message, last + 1, matcher.start() - last))>
+			<cfset buffer.append(Mid(text, last + 1, matcher.start() - last))>
 			<cfset last = matcher.end()>
 
 			<cfif IsStruct(arguments.args) AND StructKeyExists(arguments.args, name)>
@@ -296,7 +338,7 @@
 			</cfif>
 		</cfloop>
 
-		<cfset buffer.append(Mid(arguments.message, last + 1, Len(arguments.message) - last))>
+		<cfset buffer.append(Mid(text, last + 1, Len(text) - last))>
 
 		<cfreturn buffer.toString()>
 	</cffunction>
