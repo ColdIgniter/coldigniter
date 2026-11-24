@@ -224,6 +224,19 @@
 	</cffunction>
 
 	<!---
+	 * Sets the path portion of the URI. The path is relative to baseURL.
+	 *
+	 * @return SiteURI
+	--->
+	<cffunction name="setPath" access="public" returntype="any" output="no">
+		<cfargument name="path" type="string" required="yes">
+
+		<cfset setRoutePath(arguments.path)>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
 	 * Sets the route path (and segments).
 	--->
 	<cffunction name="setRoutePath" access="private" returntype="void" output="no">
@@ -239,6 +252,25 @@
 		<cfset this.routePath = REReplace(arguments.routePath, "^/+", "")>
 
 		<cfset this.segments = convertToSegments(this.routePath)>
+	</cffunction>
+
+	<!---
+	 * Sets the path portion of the URI based on segments.
+	 *
+	 * @return SiteURI
+	--->
+	<cffunction name="refreshPath" access="public" returntype="any" output="no">
+		<cfset var allSegments = array_merge(this.baseSegments, this.segments)>
+
+		<cfset this.path = "/" & filterPath(implode("/", allSegments))>
+
+		<cfif this.routePath EQ "/" AND this.path NEQ "/">
+			<cfset this.path = this.path & "/">
+		</cfif>
+
+		<cfset this.routePath = filterPath(implode("/", this.segments))>
+
+		<cfreturn this>
 	</cffunction>
 
 	<!---

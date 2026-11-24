@@ -3,9 +3,16 @@
  *
  * The query is kept as a string here; the original keeps it as an array.
  *
- * Not ported yet: the query variables (getQuery options, addQuery,
- * stripQuery, keepQuery), resolveRelativeURI, silent mode, the
- * encoding of the path, the default ports and showPassword.
+ * Not ported yet: the query variables (getQuery options, stripQuery,
+ * keepQuery), resolveRelativeURI, the encoding of the path, the default
+ * ports and showPassword.
+ *
+ * Difference: addQuery() and setQueryArray() read the query string into a
+ * map (parse_str) and write it back (http_build_query), as it is kept as a
+ * string. A null value (an empty string) removes the key, as
+ * http_build_query() leaves a null out.
+ *
+ * Difference: there is no clone operator. clone_() makes a copy.
 --->
 <cfcomponent output="no" hint="Abstraction for a uniform resource identifier (URI)">
 
@@ -65,6 +72,11 @@
 	 * The query string.
 	--->
 	<cfset this.query = "">
+
+	<!---
+	 * Whether to throw exceptions on bad segments, or to stay silent.
+	--->
+	<cfset this.silent = false>
 
 	<!---
 	 * Builds a representation of the string from the component parts.
@@ -181,6 +193,10 @@
 			<cfset parts = parse_url(arguments.uri)>
 
 			<cfif StructCount(parts) EQ 0>
+				<cfif this.silent>
+					<cfreturn this>
+				</cfif>
+
 				<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Unable to parse URI: ""#arguments.uri#""">
 			</cfif>
 
@@ -188,6 +204,44 @@
 		</cfif>
 
 		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * If $silent == true, then will not throw exceptions and will
+	 * attempt to continue gracefully.
+	 *
+	 * @return URI
+	--->
+	<cffunction name="setSilent" access="public" returntype="any" output="no">
+		<cfargument name="silent" type="boolean" required="no" default="true">
+
+		<cfset this.silent = arguments.silent>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Makes a copy of this URI, the stand-in for the clone operator. The
+	 * object is made without calling __construct() and the properties are
+	 * copied (a list is duplicated).
+	 *
+	 * @return URI
+	--->
+	<cffunction name="clone_" access="public" returntype="any" output="no">
+		<cfset var copy = request.ColdIgniter.autoloader.instantiate(this.__class)>
+		<cfset var key = "">
+
+		<cfloop collection="#this#" item="key">
+			<cfif NOT IsCustomFunction(this[key])>
+				<cfif IsArray(this[key])>
+					<cfset copy[key] = Duplicate(this[key])>
+				<cfelse>
+					<cfset copy[key] = this[key]>
+				</cfif>
+			</cfif>
+		</cfloop>
+
+		<cfreturn copy>
 	</cffunction>
 
 	<!---
@@ -298,7 +352,7 @@
 			<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Request URI segment is out of range: #arguments.number#">
 		</cfif>
 
-		<cfif arguments.number GT ArrayLen(this.segments) + 1>
+		<cfif arguments.number GT ArrayLen(this.segments) + 1 AND NOT this.silent>
 			<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Request URI segment is out of range: #arguments.number#">
 		</cfif>
 
@@ -307,6 +361,40 @@
 		</cfif>
 
 		<cfreturn this.segments[arguments.number]>
+	</cffunction>
+
+	<!---
+	 * Sets the value of a specific segment of the URI path.
+	 * Allows to set only existing segments or add new one.
+	 *
+	 * @param number Segment number starting at 1
+	 * @param value  The segment value
+	 *
+	 * @return URI
+	--->
+	<cffunction name="setSegment" access="public" returntype="any" output="no">
+		<cfargument name="number" type="numeric" required="yes">
+		<cfargument name="value" type="any" required="yes">
+
+		<cfif arguments.number LT 1>
+			<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Request URI segment is out of range: #arguments.number#">
+		</cfif>
+
+		<cfif arguments.number GT ArrayLen(this.segments) + 1>
+			<cfif this.silent>
+				<cfreturn this>
+			</cfif>
+
+			<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Request URI segment is out of range: #arguments.number#">
+		</cfif>
+
+		<cfif arguments.number EQ ArrayLen(this.segments) + 1>
+			<cfset ArrayAppend(this.segments, arguments.value)>
+		<cfelse>
+			<cfset this.segments[arguments.number] = arguments.value>
+		</cfif>
+
+		<cfreturn refreshPath()>
 	</cffunction>
 
 	<!---
@@ -388,6 +476,10 @@
 			<cfreturn this>
 		</cfif>
 
+		<cfif this.silent>
+			<cfreturn this>
+		</cfif>
+
 		<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Invalid port given: #arguments.port#">
 	</cffunction>
 
@@ -419,6 +511,10 @@
 		<cfargument name="query" type="string" required="yes">
 
 		<cfif Find("##", arguments.query) GT 0>
+			<cfif this.silent>
+				<cfreturn this>
+			</cfif>
+
 			<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="Query strings may not include URI fragments.">
 		</cfif>
 
@@ -428,6 +524,60 @@
 		</cfif>
 
 		<cfset this.query = arguments.query>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Sets the query portion of the URI, from a map of the variables.
+	 *
+	 * @return URI
+	--->
+	<cffunction name="setQueryArray" access="public" returntype="any" output="no">
+		<cfargument name="query" type="any" required="yes">
+
+		<cfreturn setQuery(http_build_query(arguments.query))>
+	</cffunction>
+
+	<!---
+	 * Adds a single new element to the query vars. A null value (an empty
+	 * string) takes the key out.
+	 *
+	 * @return URI
+	--->
+	<cffunction name="addQuery" access="public" returntype="any" output="no">
+		<cfargument name="key" type="string" required="yes">
+		<cfargument name="value" type="any" required="no" default="">
+		<cfset var vars = parse_str(this.query)>
+
+		<cfif is_null(arguments.value)>
+			<cfset vars.remove(arguments.key)>
+		<cfelse>
+			<cfset vars[arguments.key] = arguments.value>
+		</cfif>
+
+		<cfset this.query = http_build_query(vars)>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Sets the path from the segments, and the segments from the path.
+	 *
+	 * @return URI
+	--->
+	<cffunction name="refreshPath" access="public" returntype="any" output="no">
+		<cfset var tempPath = "">
+
+		<cfset this.path = filterPath(implode("/", this.segments))>
+
+		<cfset tempPath = trim_(this.path, "/")>
+
+		<cfif tempPath EQ "">
+			<cfset this.segments = ArrayNew(1)>
+		<cfelse>
+			<cfset this.segments = explode("/", tempPath)>
+		</cfif>
 
 		<cfreturn this>
 	</cffunction>
