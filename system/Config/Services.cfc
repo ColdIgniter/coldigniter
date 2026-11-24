@@ -207,6 +207,29 @@
 	</cffunction>
 
 	<!---
+	 * Return the appropriate pagination handler.
+	--->
+	<cffunction name="pager" access="public" returntype="any" output="no">
+		<cfargument name="config" type="any" required="no" default="">
+		<cfargument name="view" type="any" required="no" default="">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("pager", arguments.config, arguments.view)>
+		</cfif>
+
+		<cfif is_null(arguments.config)>
+			<cfset arguments.config = variables.config("Config\Pager")>
+		</cfif>
+
+		<cfif is_null(arguments.view)>
+			<cfset arguments.view = static_("Config\Services").get("renderer")>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\Pager\Pager", arguments.config, arguments.view)>
+	</cffunction>
+
+	<!---
 	 * The Parser is a simple template parser.
 	 *
 	 * Not ported yet: the file locator (service("locator")).
