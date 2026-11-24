@@ -64,6 +64,10 @@ def check(path, raw):
             found.append((line, "script", "cfscript block"))
         if name in ("cfcomponent", "cffunction") and not re.search(r'\boutput\s*=\s*"no"', rest, re.I):
             found.append((line, "output", name + ' without output="no"'))
+        if name == "cffunction":
+            access = re.search(r'\baccess\s*=\s*"(\w*)"', rest, re.I)
+            if access and access.group(1).lower() not in ("private", "package", "public", "remote"):
+                found.append((line, "access", "invalid access value " + access.group(1)))
         if name in ("cfif", "cfelseif", "cfset", "cfreturn"):
             symbol = SYMBOLS.search(STRING.sub(blank, rest))
             if symbol:
