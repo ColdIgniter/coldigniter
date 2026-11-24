@@ -13,6 +13,7 @@
 <cfinclude template="basename.cfm">
 <cfinclude template="bin2hex.cfm">
 <cfinclude template="bitxor_.cfm">
+<cfinclude template="boolval.cfm">
 <cfinclude template="class_exists.cfm">
 <cfinclude template="ctype_digit.cfm">
 <cfinclude template="date.cfm">
@@ -22,6 +23,7 @@
 <cfinclude template="explode.cfm">
 <cfinclude template="file_get_contents.cfm">
 <cfinclude template="filter_var.cfm">
+<cfinclude template="floatcast_.cfm">
 <cfinclude template="floatval.cfm">
 <cfinclude template="fnmatch.cfm">
 <cfinclude template="gmdate.cfm">
@@ -35,6 +37,7 @@
 <cfinclude template="ini_get.cfm">
 <cfinclude template="ini_set.cfm">
 <cfinclude template="instanceof_.cfm">
+<cfinclude template="intval.cfm">
 <cfinclude template="is_array.cfm">
 <cfinclude template="is_bool.cfm">
 <cfinclude template="is_file.cfm">
@@ -73,6 +76,7 @@
 <cfinclude template="session_start.cfm">
 <cfinclude template="session_state.cfm">
 <cfinclude template="session_status.cfm">
+<cfinclude template="serialize.cfm">
 <cfinclude template="session_write_close.cfm">
 <cfinclude template="spaceship_.cfm">
 <cfinclude template="static_.cfm">
@@ -91,5 +95,6 @@
 <cfinclude template="trim_.cfm">
 <cfinclude template="ucfirst.cfm">
 <cfinclude template="ucwords.cfm">
+<cfinclude template="unserialize.cfm">
 <cfinclude template="urlencode.cfm">
 <cfinclude template="version_compare.cfm">
