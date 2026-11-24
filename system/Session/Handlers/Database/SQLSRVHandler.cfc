@@ -28,6 +28,10 @@
  * false), and a data source that does not enable long text retrieval
  * cuts what it reads at 64000 characters.
  *
+ * Difference: text and varchar are not Unicode, and the values go into the
+ * statement as '...' constants, so a character outside the code page of
+ * the database comes back as "?".
+ *
  * Difference: there is no lock. The original of MySQLi and Postgre takes a
  * lock of the database (GET_LOCK, an advisory lock) in read() and keeps it
  * until close(). For SQL Server that is sp_getapplock with the owner

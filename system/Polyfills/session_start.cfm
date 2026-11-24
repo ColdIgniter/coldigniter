@@ -58,6 +58,9 @@
 		</cfif>
 	<cfelse>
 		<cfset id = session_create_id()>
+
+		<!--- as the original does, the handler reads the new id, which takes the lock of a database handler --->
+		<cfset state.handler.read(id)>
 	</cfif>
 
 	<cfset state.id = id>

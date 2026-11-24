@@ -36,6 +36,10 @@
 		<cfset var text = Replace(Replace(rtrim_(arguments.data), Chr(10), "", "all"), Chr(13), "", "all")>
 		<cfset var bytes = "">
 
+		<cfif NOT Len(text)>
+			<cfreturn "">
+		</cfif>
+
 		<cfif REFind("^[A-Za-z0-9+/]*={0,2}$", text) EQ 0>
 			<cfreturn false>
 		</cfif>

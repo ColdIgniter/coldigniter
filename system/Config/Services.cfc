@@ -485,9 +485,9 @@
 	 * that never asks for it has no session, sends no session cookie and
 	 * writes no file.
 	 *
-	 * Not ported yet: the MemcachedHandler and the RedisHandler, and the check that the driver is a session handler (any
-	 * component that can be created is used; a handler is checked by the
-	 * name of its base only).
+	 * Not ported yet: the MemcachedHandler and the RedisHandler, and the
+	 * check that the driver is a session handler (any component that can be
+	 * created is used; a handler is checked by the name of its base only).
 	 *
 	 * Difference: the Cache-Control header of the response is kept, as no
 	 * engine sets one of its own for the session.
