@@ -3,10 +3,9 @@
  *
  * The first thing the Model and the Entity classes share.
  *
- * Not ported yet: Pager (paginate() throws), Entity, the casts with
- * DataConverter (a model with casts throws when it is created) and I18n\Time
- * (see the date notes below). The methods that need them are kept in their
- * place and throw "Not ported yet".
+ * Not ported yet: Pager (paginate() throws), Entity and the casts with
+ * DataConverter (a model with casts throws when it is created). The methods
+ * that need them are kept in their place and throw "Not ported yet".
  *
  * Difference: there is no abstract method, and no magic method (__get,
  * __isset and __call are written as public methods, see Model). The abstract
@@ -44,9 +43,11 @@
  * [object, "method"] (as the Query Builder does). The method has to return a
  * value.
  *
- * Difference: Time is not ported yet. setDate() and timeToDate() use the
- * server clock and give the same strings for the date formats 'datetime',
- * 'date' and 'int' (a CFML date stands in for a Time).
+ * Difference: setDate() uses the server clock directly (no Time object, so a
+ * row costs no CreateObject) and gives the same strings for the date formats
+ * 'datetime', 'date' and 'int'. Only while a test instance of Time is set
+ * (Time::setTestNow) it asks Time for the current time. timeToDate() takes
+ * a Time, or a CFML date.
  *
  * Difference: Config\Feature is not ported yet, so limitZeroAsAll is always
  * true.
@@ -1749,6 +1750,11 @@
 			<cfset given = false>
 		</cfif>
 
+		<!--- a test instance of Time (Time::setTestNow) stands for the current time --->
+		<cfif NOT given AND StructKeyExists(request.ColdIgniter, "testNowTime")>
+			<cfreturn intToDate(static_("ColdIgniter\I18n\Time").now_().getTimestamp())>
+		</cfif>
+
 		<cfif NOT given AND Compare(this.dateFormat, "datetime") EQ 0>
 			<cfreturn timeToDate(Now())>
 		</cfif>
@@ -1803,12 +1809,21 @@
 	 *  - 'datetime' - Stores the data in the SQL datetime format.
 	 *  - 'date'     - Stores the date (only) in the SQL date format.
 	 *
-	 * Difference: Time is not ported yet, the value is a CFML date.
+	 * Difference: the value is a Time, or a CFML date (a CFML date is cheaper
+	 * than a Time, see setDate).
 	 *
 	 * @return int|string
 	--->
 	<cffunction name="timeToDate" access="private" returntype="any" output="no">
 		<cfargument name="value" type="any" required="yes">
+
+		<cfif NOT IsSimpleValue(arguments.value)>
+			<cfif Compare(this.dateFormat, "int") EQ 0>
+				<cfreturn arguments.value.getTimestamp()>
+			</cfif>
+
+			<cfreturn arguments.value.format(this.db.dateFormat[this.dateFormat])>
+		</cfif>
 
 		<cfif Compare(this.dateFormat, "datetime") EQ 0 OR Compare(this.dateFormat, "date") EQ 0>
 			<cfreturn date(this.db.dateFormat[this.dateFormat], arguments.value)>
@@ -2224,17 +2239,23 @@
 	<!---
 	 * Convert any Time instances to appropriate $dateFormat.
 	 *
-	 * Difference: Time is not ported yet, so there is no value to convert and
-	 * the map is only copied.
-	 *
 	 * @param properties array<string, mixed>
 	 *
 	 * @return array<string, mixed>
 	--->
 	<cffunction name="timeToString" access="private" returntype="any" output="no">
 		<cfargument name="properties" type="any" required="yes">
+		<cfset var copy = copyMap_(arguments.properties)>
+		<cfset var keys = array_keys(copy)>
+		<cfset var i = 0>
 
-		<cfreturn copyMap_(arguments.properties)>
+		<cfloop from="1" to="#ArrayLen(keys)#" index="i">
+			<cfif IsObject(copy[keys[i]]) AND instanceof_(copy[keys[i]], "ColdIgniter\I18n\Time")>
+				<cfset copy[keys[i]] = timeToDate(copy[keys[i]])>
+			</cfif>
+		</cfloop>
+
+		<cfreturn copy>
 	</cffunction>
 
 	<!---
