@@ -229,17 +229,36 @@
 	</cffunction>
 
 	<!---
+	 * Like load(), but never touches the file that is kept. Not in the
+	 * original: it is here so that the two ways can be timed side by side.
+	--->
+	<cffunction name="loadPlain" access="public" returntype="boolean" output="no">
+		<cfreturn NOT is_null(parse())>
+	</cffunction>
+
+	<!---
 	 * Parse the .env file into a map of key => value
+	 *
+	 * Difference: the file is read as one string and walked with one
+	 * compiled regular expression, so a blank line and a comment line are
+	 * never seen by CFML code. A plain line (a simple name, and a value
+	 * without whitespace, quote, ##, $ or backslash) is set from the two
+	 * groups of the match. Every other line with an equal sign goes through
+	 * normaliseVariable() as before, so quotes, export, a comment after the
+	 * value, nested ${name} and the error for spaces are the same. The
+	 * order of the file is kept. A byte order mark at the start is dropped,
+	 * and a carriage return is dropped wherever it is.
 	 *
 	 * @return A map, or an empty string when there is no file
 	--->
 	<cffunction name="parse" access="public" returntype="any" output="no">
 		<cfset var content = "">
-		<cfset var lines = ArrayNew(1)>
+		<cfset var matcher = "">
 		<cfset var vars = "">
+		<cfset var env = request.ColdIgniter.env>
 		<cfset var parts = "">
-		<cfset var line = "">
-		<cfset var i = 0>
+		<cfset var name = "">
+		<cfset var value = "">
 
 		<!--- We don't want to enforce the presence of a .env file, they should be optional. --->
 		<cfif NOT is_file(this.path)>
@@ -254,22 +273,38 @@
 			</cfcatch>
 		</cftry>
 
-		<!--- FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES --->
-		<cfset lines = explode(Chr(10), Replace(content, Chr(13), "", "all"))>
+		<!--- A byte order mark would end up in the first name. --->
+		<cfif Len(content) GT 0 AND Asc(Left(content, 1)) EQ 65279>
+			<cfset content = Mid(content, 2, Len(content) - 1)>
+		</cfif>
+
+		<!---
+		 (?m): ^ and $ are at every line; (?d): only a line feed ends a line.
+		 Group 1 and 2: a plain line, name = value, nothing to clean.
+		 Group 3: any other line that is not a comment and has an equal sign.
+		 A blank line, a comment line and a line without an equal sign do
+		 not match at all.
+		--->
+		<cfset matcher = CreateObject("java", "java.util.regex.Pattern").compile(JavaCast("string", "(?md)^[ \t]*(?:([A-Za-z0-9_.\-]+)[ \t]*=[ \t]*([^\s'""##$\\]*)[ \t]*|([^##\s][^\n]*=[^\n]*))$")).matcher(JavaCast("string", Replace(content, Chr(13), "", "all")))>
 
 		<cfset vars = array_()>
 
-		<cfloop from="1" to="#ArrayLen(lines)#" index="i">
-			<cfset line = lines[i]>
+		<cfloop condition="matcher.find()">
+			<cfif matcher.start(JavaCast("int", 3)) GTE 0>
+				<!--- The slow way, as before. --->
+				<cfset parts = normaliseVariable(matcher.group(JavaCast("int", 3)))>
+				<cfset name = parts[1]>
+				<cfset value = parts[2]>
+			<cfelse>
+				<cfset name = matcher.group(JavaCast("int", 1))>
+				<cfset value = matcher.group(JavaCast("int", 2))>
+			</cfif>
 
-			<!--- Is it a comment? An empty line is skipped like one. --->
-			<cfif Compare(line, "") NEQ 0 AND Compare(Left(trim_(line), 1), "##") NEQ 0>
-				<!--- If there is an equal sign, then we know we are assigning a variable. --->
-				<cfif Find("=", line) GT 0>
-					<cfset parts = normaliseVariable(line)>
-					<cfset vars[parts[1]] = parts[2]>
-					<cfset setVariable_(parts[1], parts[2])>
-				</cfif>
+			<cfset vars[name] = value>
+
+			<!--- setVariable_(), written out to save a call --->
+			<cfif NOT StructKeyExists(env, name) OR Compare(env[name], "") EQ 0 OR Compare(env[name], "0") EQ 0>
+				<cfset env[name] = value>
 			</cfif>
 		</cfloop>
 
