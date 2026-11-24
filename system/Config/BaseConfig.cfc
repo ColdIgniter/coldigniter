@@ -83,7 +83,8 @@
 			</cfif>
 		</cfloop>
 
-		<cfif NOT wanted>
+		<!--- Difference: the keys of the Encryption config are parsed whatever the environment holds --->
+		<cfif NOT wanted AND Compare(shortPrefix, "encryption") NEQ 0>
 			<cfreturn this>
 		</cfif>
 

@@ -29,6 +29,10 @@
 	<cfset var result = "">
 	<cfset var i = 0>
 
+	<cfif (IsBinary(arguments.key) AND ArrayLen(arguments.key) EQ 0) OR (NOT IsBinary(arguments.key) AND Len(arguments.key) EQ 0)>
+		<cfthrow type="ColdIgniter.ValueError" message="hash_hkdf(): Argument ##2 ($key) cannot be empty">
+	</cfif>
+
 	<cfif arguments.length LT 0>
 		<cfthrow type="ColdIgniter.ValueError" message="hash_hkdf(): Argument ##3 ($length) must be greater than or equal to 0">
 	</cfif>

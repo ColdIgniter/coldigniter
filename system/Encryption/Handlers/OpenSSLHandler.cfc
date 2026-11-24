@@ -182,7 +182,7 @@
 		<cfargument name="data" type="any" required="yes">
 		<cfargument name="params" type="any" required="no" default="">
 		<cfset var key = overrideKey(arguments.params)>
-		<cfset var spec = getSpec()>
+		<cfset var spec = "">
 		<cfset var authKey = "">
 		<cfset var hmacLength = 0>
 		<cfset var hmacKey = "">
@@ -192,6 +192,15 @@
 		<cfset var encryptKey = "">
 		<cfset var plain = "">
 		<cfset var raw = "">
+
+		<!--- Difference: an unsupported cipher is a failed authentication here, as the original gives for a failed decryption --->
+		<cftry>
+			<cfset spec = getSpec()>
+
+			<cfcatch type="ColdIgniter.Encryption.Exceptions.EncryptionException">
+				<cfset static_("ColdIgniter\Encryption\Exceptions\EncryptionException").forAuthenticationFailed()>
+			</cfcatch>
+		</cftry>
 
 		<cfset checkStrength(spec)>
 
@@ -222,6 +231,11 @@
 			</cfif>
 
 			<cfset hmacLength = this.digestSize[this.digest] * 2>
+
+			<cfif Len(arguments.data) LTE hmacLength>
+				<cfset static_("ColdIgniter\Encryption\Exceptions\EncryptionException").forAuthenticationFailed()>
+			</cfif>
+
 			<cfset hmacKey = Left(arguments.data, hmacLength)>
 			<cfset body = Mid(arguments.data, hmacLength + 1, Len(arguments.data))>
 			<cfset hmacCalc = hash_hmac(this.digest, body, authKey, false)>
