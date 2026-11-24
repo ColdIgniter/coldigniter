@@ -485,13 +485,9 @@
 		</cfif>
 
 		<cfif NOT StructKeyExists(all, path)>
-			<cflock scope="application" type="exclusive" timeout="10">
-				<cfif NOT StructKeyExists(all, path)>
-					<!--- the table is a synchronized Hashtable that every request writes to after it is stored --->
-					<cfset table = CreateObject("java", "java.util.Hashtable").init()>
-					<cfset all[path] = table>
-				</cfif>
-			</cflock>
+			<!--- no lock: two first requests that build it at the same time waste one empty table. It is a synchronized Hashtable that every request writes to after it is stored. --->
+			<cfset table = CreateObject("java", "java.util.Hashtable").init()>
+			<cfset all[path] = table>
 		</cfif>
 
 		<cfreturn all[path]>

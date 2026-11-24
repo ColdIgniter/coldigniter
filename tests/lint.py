@@ -33,8 +33,6 @@ FUNCTION = re.compile(r"<cffunction\b.*?</cffunction>", re.S | re.I)
 WORDING = re.compile("p" + "hp", re.I)
 BUILTINS = ("encrypt", "decrypt", "hash", "tobase64", "tobinary", "find", "insert", "replace", "log")
 SERVER_USE = re.compile(r"\bserver\s*[.,\[]\s*[\"']?ColdIgniter", re.I)
-# the .env cache is moved by another branch; remove this entry with it
-SERVER_ALLOWED = ("system/Config/DotEnv.cfc",)
 SYMBOLS = re.compile(r"==|!=|&&|\|\||\+\+|\+=|-=|<=|>=")
 
 
@@ -60,7 +58,7 @@ def check(path, raw):
 
     code = COMMENT.sub(blank, text)
 
-    if path.split(os.sep)[0] in ("app", "system", "public") and path.replace(os.sep, "/") not in SERVER_ALLOWED:
+    if path.split(os.sep)[0] in ("app", "system", "public"):
         for match in SERVER_USE.finditer(code):
             found.append((line_of(code, match.start()), "server", "server.ColdIgniter use: keep it in shared_()"))
 

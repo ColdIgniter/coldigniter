@@ -506,7 +506,9 @@
 	 *
 	 * In production, what is kept is used as long as it creates a
 	 * component. So after class files are changed in one of these ways,
-	 * restart the server or run StructDelete(application.ColdIgniter, "shared"):
+	 * restart the server, or run StructDelete(application.ColdIgniter, "shared")
+	 * from a template that names the same application (it takes effect from
+	 * the next request):
 	 * the "parent" attribute or "extends" of a class is changed, a class
 	 * file is copied to a new place and the old file stays, or a namespace
 	 * or a folder is added that would now find another file first. A file

@@ -1,6 +1,6 @@
 <!---
  * Difference: not in the original. Serves a page of the page cache from
- * the memory of the server before the framework starts.
+ * the memory of the application (this site) before the framework starts.
  *
  * The front controller includes this file first. A page gets here after
  * the framework has served it from the page cache once (see keepFront()

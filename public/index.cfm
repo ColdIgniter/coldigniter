@@ -12,7 +12,9 @@
  Not in the original. The application scope of this site is switched on
  here, once, for the page cache and for the tables that the framework keeps
  between requests (shared_() in Polyfills). The name is made from the path
- of this folder. request.ColdIgniterApplication says whether the scope
+ of this folder. A site that has its own Application.cfm has its
+ application (and so its session scope) renamed by this line for the rest
+ of the request. request.ColdIgniterApplication says whether the scope
  can be used: a server with application variables switched off still works,
  only without those memories.
 --->
@@ -65,7 +67,7 @@
 
 <!---
  Not in the original. A page of the page cache that is kept in the memory
- of the server is served here, before the framework starts (see the file).
+ of the application (this site) is served here, before the framework starts (see the file).
 --->
 <cfinclude template="#systemDirectory#/Cache/FrontPage.cfm">
 
