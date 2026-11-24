@@ -1,8 +1,5 @@
 <!---
  * CORS filter
- *
- * Difference: the alias arguments are a list of strings; the first is the
- * name of the config (of Config\Cors) to use.
 --->
 <cfcomponent output="no" extends="FilterInterface" hint="CORS filter">
 
