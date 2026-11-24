@@ -586,18 +586,18 @@
 
 	<!---
 	 * Difference: not in the original. Opens the map of the items in the
-	 * application scope, and makes the scope if no template has.
+	 * application scope, which the front controller has switched on.
 	 *
 	 * The map is a synchronized java.util.HashMap (the Java of the server has
 	 * no ConcurrentHashMap), kept in application.ColdIgniter, the struct of
 	 * this framework in the scope. The application is named after the root
-	 * path of the site. Any failure switches the map off for the request.
+	 * path of the site. A scope that can not be used (the flag
+	 * request.ColdIgniterApplication) or any failure switches the map off
+	 * for the request.
 	 *
 	 * @return The map, or an empty string when it is off
 	--->
 	<cffunction name="getMemory" access="private" returntype="any" output="no">
-		<cfset var ready = false>
-
 		<cfif this.pageMemoryReady>
 			<cfreturn this.pageMemory>
 		</cfif>
@@ -609,14 +609,12 @@
 		</cfif>
 
 		<cftry>
-			<cftry>
-				<cfset ready = StructKeyExists(application, "ColdIgniter")>
+			<!--- the front controller (public/index.cfm) switches the scope on and sets the flag --->
+			<cfif NOT StructKeyExists(request, "ColdIgniterApplication") OR NOT request.ColdIgniterApplication>
+				<cfset this.pageMemory = "">
 
-				<cfcatch type="any">
-					<!--- the scope is not enabled --->
-					<cfapplication name="ColdIgniter#md5(request.FCPATH)#">
-				</cfcatch>
-			</cftry>
+				<cfreturn this.pageMemory>
+			</cfif>
 
 			<cfif NOT StructKeyExists(application, "ColdIgniter") OR NOT StructKeyExists(application.ColdIgniter, "pageMemory")>
 				<cflock scope="application" type="exclusive" timeout="10">

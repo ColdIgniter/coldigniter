@@ -491,8 +491,8 @@
 	 * Not in the original. The map that keeps what is found out about
 	 * each class, with the class name as key.
 	 *
-	 * In production the map is in the memory of the server
-	 * (server.ColdIgniterClasses), so a class is looked up once and not
+	 * In production the map is in the memory of the site
+	 * (shared_().classes, in the application scope), so a class is looked up once and not
 	 * once per request. There is one map per application and per list of
 	 * namespaces: the first autoloader, which Boot makes by hand with two
 	 * namespaces, has its own map, so it never answers for the real one.
@@ -500,12 +500,15 @@
 	 * file that is added or moved is seen on the next request.
 	 *
 	 * The map only holds class names and file paths, never a value of the
-	 * configuration. Other applications on the same server can read it,
-	 * and it stays until the server is restarted.
+	 * configuration. A template that names the same application can read it,
+	 * and it stays until the application times out or the server is
+	 * restarted.
 	 *
 	 * In production, what is kept is used as long as it creates a
 	 * component. So after class files are changed in one of these ways,
-	 * restart the server or run StructDelete(server, "ColdIgniterClasses"):
+	 * restart the server, or run StructDelete(application.ColdIgniter, "shared")
+	 * from a template that names the same application (it takes effect from
+	 * the next request):
 	 * the "parent" attribute or "extends" of a class is changed, a class
 	 * file is copied to a new place and the old file stays, or a namespace
 	 * or a folder is added that would now find another file first. A file
@@ -517,6 +520,7 @@
 	--->
 	<cffunction name="keptClasses" access="private" returntype="struct" output="no">
 		<cfset var key = "">
+		<cfset var kept = "">
 
 		<cfif NOT StructKeyExists(request, "ENVIRONMENT") OR request.ENVIRONMENT NEQ "production">
 			<cfreturn StructNew()>
@@ -524,19 +528,14 @@
 
 		<cfset key = request.SYSTEMPATH & "|" & request.APPPATH & "|" & this.prefixes.keySet().toString()>
 
-		<cfif NOT StructKeyExists(server, "ColdIgniterClasses") OR NOT StructKeyExists(server.ColdIgniterClasses, key)>
-			<cflock name="ColdIgniterClasses" type="exclusive" timeout="10">
-				<cfif NOT StructKeyExists(server, "ColdIgniterClasses")>
-					<cfset server.ColdIgniterClasses = StructNew()>
-				</cfif>
+		<cfset kept = shared_().classes>
 
-				<cfif NOT StructKeyExists(server.ColdIgniterClasses, key)>
-					<cfset server.ColdIgniterClasses[key] = StructNew()>
-				</cfif>
-			</cflock>
+		<!--- the map of this key is complete (empty) before it is stored --->
+		<cfif NOT StructKeyExists(kept, key)>
+			<cfset kept[key] = StructNew()>
 		</cfif>
 
-		<cfreturn server.ColdIgniterClasses[key]>
+		<cfreturn kept[key]>
 	</cffunction>
 
 	<!---

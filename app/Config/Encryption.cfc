@@ -14,6 +14,13 @@
  *
  * The key is only read from here (and the .env file) for the request. It
  * is never stored in the server or the application scope or in a cache.
+ *
+ * To use AES-256, install the Java unlimited-strength policy files on every
+ * server, then set the cipher to AES-256-CTR (here, or in the .env file as
+ * encryption.cipher) and a key of 32 bytes. A stock server keeps AES-128 and
+ * needs nothing installed. Behind a load balancer, every server needs the
+ * same key, cipher and policy, or data written on one server cannot be read
+ * on another.
 --->
 <cfcomponent output="no" parent="ColdIgniter\Config\BaseConfig" hint="Encryption configuration">
 
