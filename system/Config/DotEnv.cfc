@@ -38,6 +38,14 @@
  * file that was not written with the keys, or that was changed, is not
  * used. After a restart of the server the keys are new, the old file
  * cannot be read any more, and it is written again from the .env file.
+ *
+ * Each server has its own file. The name has a hash of the host name and
+ * the root directory of ColdFusion (kept next to the keys), so servers
+ * behind a load balancer that share one writable/ folder do not
+ * overwrite each other's file and parse the .env file again on every
+ * request. The name is the same after a restart, so the old file is
+ * overwritten and files do not pile up. When the host name cannot be
+ * read, only the root directory is used.
 --->
 <cfcomponent output="no" hint="Environment-specific configuration">
 
@@ -74,7 +82,7 @@
 		<!--- See the top of this file: the values that are kept. --->
 		<cfif StructIsEmpty(request.ColdIgniter.env) AND StructKeyExists(request, "WRITEPATH") AND file.isFile()>
 			<cfset stamp = file.lastModified() & "|" & file.length()>
-			<cfset cacheFile = request.WRITEPATH & "cache" & request.DIRECTORY_SEPARATOR & "dotenv_" & LCase(Hash(this.path))>
+			<cfset cacheFile = request.WRITEPATH & "cache" & request.DIRECTORY_SEPARATOR & "dotenv_" & LCase(Hash(this.path & "|" & keptKeys().id))>
 
 			<cfif readKept(cacheFile, stamp)>
 				<cfreturn true>
@@ -93,10 +101,12 @@
 	<!---
 	 * Not in the original. The two keys of the file that is kept: made at
 	 * random the first time, and from then on in the memory of the server.
+	 * It also holds id, a hash of the identity of the server.
 	--->
 	<cffunction name="keptKeys" access="private" returntype="struct" output="no">
 		<cfset var keys = "">
 		<cfset var generator = "">
+		<cfset var host = "">
 
 		<cfif NOT StructKeyExists(server, "ColdIgniterDotEnvKeys")>
 			<cflock name="ColdIgniterDotEnvKeys" type="exclusive" timeout="10">
@@ -106,6 +116,14 @@
 					<cfset generator.init(JavaCast("int", 128))>
 					<cfset keys.cipher = generator.generateKey()>
 					<cfset keys.mac = CreateObject("java", "javax.crypto.KeyGenerator").getInstance("HmacSHA1").generateKey()>
+					<!--- the identity of this server, for the name of the file --->
+					<cftry>
+						<cfset host = CreateObject("java", "java.net.InetAddress").getLocalHost().getHostName()>
+						<cfcatch type="any">
+							<cfset host = "">
+						</cfcatch>
+					</cftry>
+					<cfset keys.id = LCase(Hash(host & "|" & server.coldfusion.rootdir))>
 					<cfset server.ColdIgniterDotEnvKeys = keys>
 				</cfif>
 			</cflock>

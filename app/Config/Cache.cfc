@@ -14,6 +14,12 @@
 	 *
 	 * The name of the preferred handler that should be used. If for some reason
 	 * it is not available, the $backupHandler will be used in its place.
+	 *
+	 * The file cache and the front page cache belong to each server, unless
+	 * writable/cache is a folder that the servers share. They check the
+	 * change time of each file, so a shared folder stays correct. Without a
+	 * shared folder, a cached page or a cache delete only affects that one
+	 * server.
 	--->
 	<cfset this.handler = "file">
 
