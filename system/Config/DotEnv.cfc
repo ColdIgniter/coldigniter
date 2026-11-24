@@ -17,27 +17,18 @@
  * Difference: there is no null, so a variable that is not set and a
  * variable with an empty value are the same to a nested ${name}.
  *
- * Difference: load() keeps the values that the file gave in a file in
- * WRITEPATH/cache, with the time the .env file was last changed and its
- * size. The original reads and parses the .env file on every request, and
- * here that is only done when the time or the size is not the one that
- * was kept. The values are kept as data and are never run as code. They
- * are only kept when no environment value is set yet, as a value that is
- * already set changes what the file gives. parse() always reads the file.
- * Two cases are not seen: a change of the .env file that leaves both its
- * time and its size as they were (the time is compared to 10
- * milliseconds), and a .env file that can no longer be read while it
- * still has its time and size, where parse() would throw.
+ * Nothing is kept. The original reads and parses the .env
+ * file on every request, and so does load() here: the file is read once
+ * and walked with one compiled regular expression (see parse()), which is
+ * fast enough that a copy of the values is not worth having. The values
+ * exist only in the request scope: no copy is written to a file, and
+ * nothing is put in the server or application scope. That also means it
+ * works the same on several servers, with one WRITEPATH or one for each,
+ * as there is no state to share or to get out of step.
  *
- * The file that is kept is encrypted (AES, 128 bit, CBC) and signed
- * (HMAC-SHA1 of the vector and the encrypted text, the strongest the
- * Java of the server has). The two keys are random and are only in the
- * memory of the server (server.ColdIgniterDotEnvKeys), never on disk, so
- * both parts are needed: the file is of no use without the memory of the
- * running server, and the keys alone hold no value of the .env file. A
- * file that was not written with the keys, or that was changed, is not
- * used. After a restart of the server the keys are new, the old file
- * cannot be read any more, and it is written again from the .env file.
+ * Upgrade step: an earlier version kept an encrypted copy in
+ * WRITEPATH/cache, in files named dotenv_ and a hash. They are not used
+ * any more and are not deleted by this code: delete them by hand.
 --->
 <cfcomponent output="no" hint="Environment-specific configuration">
 
@@ -66,180 +57,32 @@
 	 * (request.ColdIgniter.env, see the top of this file)
 	--->
 	<cffunction name="load" access="public" returntype="boolean" output="no">
-		<cfset var vars = "">
-		<cfset var file = CreateObject("java", "java.io.File").init(this.path)>
-		<cfset var cacheFile = "">
-		<cfset var stamp = "">
-
-		<!--- See the top of this file: the values that are kept. --->
-		<cfif StructIsEmpty(request.ColdIgniter.env) AND StructKeyExists(request, "WRITEPATH") AND file.isFile()>
-			<cfset stamp = file.lastModified() & "|" & file.length()>
-			<cfset cacheFile = request.WRITEPATH & "cache" & request.DIRECTORY_SEPARATOR & "dotenv_" & LCase(Hash(this.path))>
-
-			<cfif readKept(cacheFile, stamp)>
-				<cfreturn true>
-			</cfif>
-		</cfif>
-
-		<cfset vars = parse()>
-
-		<cfif cacheFile NEQ "" AND NOT is_null(vars)>
-			<cfset writeKept(cacheFile, stamp)>
-		</cfif>
-
-		<cfreturn NOT is_null(vars)>
-	</cffunction>
-
-	<!---
-	 * Not in the original. The two keys of the file that is kept: made at
-	 * random the first time, and from then on in the memory of the server.
-	--->
-	<cffunction name="keptKeys" access="private" returntype="struct" output="no">
-		<cfset var keys = "">
-		<cfset var generator = "">
-
-		<cfif NOT StructKeyExists(server, "ColdIgniterDotEnvKeys")>
-			<cflock name="ColdIgniterDotEnvKeys" type="exclusive" timeout="10">
-				<cfif NOT StructKeyExists(server, "ColdIgniterDotEnvKeys")>
-					<cfset keys = StructNew()>
-					<cfset generator = CreateObject("java", "javax.crypto.KeyGenerator").getInstance("AES")>
-					<cfset generator.init(JavaCast("int", 128))>
-					<cfset keys.cipher = generator.generateKey()>
-					<cfset keys.mac = CreateObject("java", "javax.crypto.KeyGenerator").getInstance("HmacSHA1").generateKey()>
-					<cfset server.ColdIgniterDotEnvKeys = keys>
-				</cfif>
-			</cflock>
-		</cfif>
-
-		<cfreturn server.ColdIgniterDotEnvKeys>
-	</cffunction>
-
-	<!---
-	 * Not in the original. Sets the environment values from the file that
-	 * is kept. False when there is no file, when it was not written with
-	 * the keys of this server, or when the .env file has changed since.
-	--->
-	<cffunction name="readKept" access="private" returntype="boolean" output="no">
-		<cfargument name="cacheFile" type="string" required="yes">
-		<cfargument name="stamp" type="string" required="yes">
-		<cfset var keys = "">
-		<cfset var packet = "">
-		<cfset var parts = "">
-		<cfset var vector = "">
-		<cfset var encrypted = "">
-		<cfset var mac = "">
-		<cfset var cipher = "">
-		<cfset var kept = "">
-		<cfset var i = 0>
-
-		<cfif NOT FileExists(arguments.cacheFile)>
-			<cfreturn false>
-		</cfif>
-
-		<!--- A file that cannot be read, or that another request is writing, is the same as no file. --->
-		<cftry>
-			<cfset keys = keptKeys()>
-			<cffile action="read" file="#arguments.cacheFile#" variable="packet" charset="utf-8">
-			<cfset parts = ListToArray(packet, "|")>
-
-			<cfif ArrayLen(parts) NEQ 3>
-				<cfreturn false>
-			</cfif>
-
-			<cfset vector = ToBinary(parts[1])>
-			<cfset encrypted = ToBinary(parts[2])>
-
-			<!--- The signature is checked before anything is decrypted. --->
-			<cfset mac = CreateObject("java", "javax.crypto.Mac").getInstance("HmacSHA1")>
-			<cfset mac.init(keys.mac)>
-			<cfset mac.update(vector)>
-
-			<cfif NOT hash_equals(ToBase64(mac.doFinal(encrypted)), parts[3])>
-				<cfreturn false>
-			</cfif>
-
-			<cfset cipher = CreateObject("java", "javax.crypto.Cipher").getInstance("AES/CBC/PKCS5Padding")>
-			<cfset cipher.init(cipher.DECRYPT_MODE, keys.cipher, CreateObject("java", "javax.crypto.spec.IvParameterSpec").init(vector))>
-			<cfset packet = CreateObject("java", "java.lang.String").init(cipher.doFinal(encrypted), "UTF-8")>
-			<cfwddx action="wddx2cfml" input="#packet#" output="kept">
-
-			<cfif Compare(kept.path, this.path) NEQ 0 OR Compare(kept.stamp, arguments.stamp) NEQ 0 OR ArrayLen(kept.names) NEQ ArrayLen(kept.values)>
-				<cfreturn false>
-			</cfif>
-
-			<cfloop from="1" to="#ArrayLen(kept.names)#" index="i">
-				<cfset request.ColdIgniter.env[kept.names[i]] = kept.values[i]>
-			</cfloop>
-
-			<cfreturn true>
-
-			<cfcatch type="any">
-				<cfset StructClear(request.ColdIgniter.env)>
-			</cfcatch>
-		</cftry>
-
-		<cfreturn false>
-	</cffunction>
-
-	<!---
-	 * Not in the original. Keeps the environment values, encrypted and
-	 * signed. The names and the values are two arrays, so that the case of
-	 * a name stays as it is.
-	--->
-	<cffunction name="writeKept" access="private" returntype="void" output="no">
-		<cfargument name="cacheFile" type="string" required="yes">
-		<cfargument name="stamp" type="string" required="yes">
-		<cfset var keys = "">
-		<cfset var kept = StructNew()>
-		<cfset var packet = "">
-		<cfset var cipher = "">
-		<cfset var vector = "">
-		<cfset var encrypted = "">
-		<cfset var mac = "">
-		<cfset var i = 0>
-
-		<cfset kept.path = this.path>
-		<cfset kept.stamp = arguments.stamp>
-		<cfset kept.names = StructKeyArray(request.ColdIgniter.env)>
-		<cfset kept.values = ArrayNew(1)>
-
-		<cfloop from="1" to="#ArrayLen(kept.names)#" index="i">
-			<cfset ArrayAppend(kept.values, request.ColdIgniter.env[kept.names[i]])>
-		</cfloop>
-
-		<!--- The file is a help only: when it cannot be written, the request goes on. --->
-		<cftry>
-			<cfset keys = keptKeys()>
-			<cfwddx action="cfml2wddx" input="#kept#" output="packet">
-
-			<!--- The cipher makes a new random vector for every file. --->
-			<cfset cipher = CreateObject("java", "javax.crypto.Cipher").getInstance("AES/CBC/PKCS5Padding")>
-			<cfset cipher.init(cipher.ENCRYPT_MODE, keys.cipher)>
-			<cfset vector = cipher.getIV()>
-			<cfset encrypted = cipher.doFinal(JavaCast("string", packet).getBytes("UTF-8"))>
-
-			<cfset mac = CreateObject("java", "javax.crypto.Mac").getInstance("HmacSHA1")>
-			<cfset mac.init(keys.mac)>
-			<cfset mac.update(vector)>
-
-			<cffile action="write" file="#arguments.cacheFile#" output="#ToBase64(vector)#|#ToBase64(encrypted)#|#ToBase64(mac.doFinal(encrypted))#" charset="utf-8" addnewline="no">
-
-			<cfcatch type="any"></cfcatch>
-		</cftry>
+		<cfreturn NOT is_null(parse())>
 	</cffunction>
 
 	<!---
 	 * Parse the .env file into a map of key => value
 	 *
+	 * Difference: the file is read as one string and walked with one
+	 * compiled regular expression, so a blank line and a comment line are
+	 * never seen by CFML code. A plain line (a simple name, and a value
+	 * without whitespace, quote, ##, $ or backslash) is set from the two
+	 * groups of the match. Every other line with an equal sign goes through
+	 * normaliseVariable() as before, so quotes, export, a comment after the
+	 * value, nested ${name} and the error for spaces are the same. The
+	 * order of the file is kept. A byte order mark at the start is dropped,
+	 * and a carriage return is dropped wherever it is.
+	 *
 	 * @return A map, or an empty string when there is no file
 	--->
 	<cffunction name="parse" access="public" returntype="any" output="no">
 		<cfset var content = "">
-		<cfset var lines = ArrayNew(1)>
+		<cfset var matcher = "">
 		<cfset var vars = "">
+		<cfset var env = request.ColdIgniter.env>
 		<cfset var parts = "">
-		<cfset var line = "">
-		<cfset var i = 0>
+		<cfset var name = "">
+		<cfset var value = "">
 
 		<!--- We don't want to enforce the presence of a .env file, they should be optional. --->
 		<cfif NOT is_file(this.path)>
@@ -254,22 +97,38 @@
 			</cfcatch>
 		</cftry>
 
-		<!--- FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES --->
-		<cfset lines = explode(Chr(10), Replace(content, Chr(13), "", "all"))>
+		<!--- A byte order mark would end up in the first name. --->
+		<cfif Len(content) GT 0 AND Asc(Left(content, 1)) EQ 65279>
+			<cfset content = Mid(content, 2, Len(content) - 1)>
+		</cfif>
+
+		<!---
+		 (?m): ^ and $ are at every line; (?d): only a line feed ends a line.
+		 Group 1 and 2: a plain line, name = value, nothing to clean.
+		 Group 3: any other line that is not a comment and has an equal sign.
+		 A blank line, a comment line and a line without an equal sign do
+		 not match at all.
+		--->
+		<cfset matcher = CreateObject("java", "java.util.regex.Pattern").compile(JavaCast("string", "(?md)^[ \t]*(?:([A-Za-z0-9_.\-]+)[ \t]*=[ \t]*([^\s'""##$\\]*)[ \t]*|([^##\s][^\n]*=[^\n]*))$")).matcher(JavaCast("string", Replace(content, Chr(13), "", "all")))>
 
 		<cfset vars = array_()>
 
-		<cfloop from="1" to="#ArrayLen(lines)#" index="i">
-			<cfset line = lines[i]>
+		<cfloop condition="matcher.find()">
+			<cfif matcher.start(JavaCast("int", 3)) GTE 0>
+				<!--- The slow way, as before. --->
+				<cfset parts = normaliseVariable(matcher.group(JavaCast("int", 3)))>
+				<cfset name = parts[1]>
+				<cfset value = parts[2]>
+			<cfelse>
+				<cfset name = matcher.group(JavaCast("int", 1))>
+				<cfset value = matcher.group(JavaCast("int", 2))>
+			</cfif>
 
-			<!--- Is it a comment? An empty line is skipped like one. --->
-			<cfif Compare(line, "") NEQ 0 AND Compare(Left(trim_(line), 1), "##") NEQ 0>
-				<!--- If there is an equal sign, then we know we are assigning a variable. --->
-				<cfif Find("=", line) GT 0>
-					<cfset parts = normaliseVariable(line)>
-					<cfset vars[parts[1]] = parts[2]>
-					<cfset setVariable_(parts[1], parts[2])>
-				</cfif>
+			<cfset vars[name] = value>
+
+			<!--- setVariable_(), written out to save a call --->
+			<cfif NOT StructKeyExists(env, name) OR Compare(env[name], "") EQ 0 OR Compare(env[name], "0") EQ 0>
+				<cfset env[name] = value>
 			</cfif>
 		</cfloop>
 
