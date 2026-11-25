@@ -17,6 +17,8 @@ What is in it:
 - Helpers: html and text. `highlight_code()` is not ported, and throws.
 - Config: `ForeignCharacters`, used by `convert_accented_characters()`.
 - `Config\DocTypes` now decides whether `img()` and the other html tags close with ` /`.
+- Router: reverse routing with named routes (`reverseRoute()`, `route_to()`, `url_to()` and `redirect()->route()`), and the `{locale}` placeholder with `useSupportedLocalesOnly()`.
+- Router: `AutoRouterImproved`, with `RouterException` and `MethodNotFoundException`. The old `AutoRouter` is not ported, so with `autoRoutesImproved` off, auto-routing finds no route.
 
 ## 4.0.0
 

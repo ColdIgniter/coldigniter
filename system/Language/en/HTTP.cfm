@@ -28,3 +28,8 @@
 <cfset lines["uploadErrNoTmpDir"] = "File could not be uploaded: missing temporary directory.">
 <cfset lines["uploadErrExtension"] = "File upload was stopped by an extension.">
 <cfset lines["uploadErrUnknown"] = "The file ""%s"" was not uploaded due to an unknown error.">
+
+<!--- Routing --->
+<cfset lines["invalidRoute"] = "The route for ""{0}"" cannot be found.">
+<cfset lines["controllerNotFound"] = "Controller or its method is not found: {0}::{1}">
+<cfset lines["localeNotSupported"] = "Locale is not supported: {0}">

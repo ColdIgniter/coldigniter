@@ -122,7 +122,7 @@
 	 *       'blog' => 'Acme\Blog\Controllers',
 	 *   ]
 	--->
-	<cfset this.moduleRoutes = ArrayNew(1)>
+	<cfset this.moduleRoutes = CreateObject("java", "java.util.LinkedHashMap").init()>
 
 	<!---
 	 * For Auto Routing (Improved).

@@ -719,9 +719,6 @@
  * NOTE: This requires the controller/method to
  * have a route defined in the routes Config file.
  *
- * Not ported yet: RouteCollection::reverseRoute (see route_to), so a
- * route is never found.
- *
  * @param controller Route name or Controller::method
  * @param args       One or more parameters to be passed to the route.
  *                   The last parameter allows you to set the locale.
@@ -745,10 +742,10 @@
 		<cfset parts = explode("::", arguments.controller)>
 
 		<cfif ArrayLen(parts) GTE 2>
-			<cfthrow type="ColdIgniter.Router.Exceptions.RouterException" message="Controller or its method is not found: #parts[1]#::#parts[2]#">
+			<cfset static_("ColdIgniter\Router\Exceptions\RouterException").forControllerNotFound(parts[1], parts[2])>
 		</cfif>
 
-		<cfthrow type="ColdIgniter.Router.Exceptions.RouterException" message="The route for ""#arguments.controller#"" cannot be found.">
+		<cfset static_("ColdIgniter\Router\Exceptions\RouterException").forInvalidRoute(arguments.controller)>
 	</cfif>
 
 	<cfreturn site_url(route)>
