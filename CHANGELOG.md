@@ -32,6 +32,7 @@ What is in it:
 - Config: `Factory`. `Factories` now follows CodeIgniter: `define()`, `getOptions()`, `setOptions()`, `reset()`, `injectMock()` and the options `component`, `path`, `instanceOf`, `getShared` and `preferApp`. `model()` is added.
 - Fix: `config("Config\App")` and then `config("App")` made two objects. Now they share one.
 - Fix: RESTful resource controllers now get their model through `model()`, so the shared instance and not a new one each time.
+- Fix: the default ellipsis of `ellipsize()` is `&hellip;`, as in CodeIgniter. It was `&amp;hellip;`.
 
 ## 4.0.0
 

@@ -540,7 +540,7 @@
 	<cfargument name="str" type="string" required="yes">
 	<cfargument name="maxLength" type="numeric" required="yes">
 	<cfargument name="position" type="numeric" required="no" default="1">
-	<cfargument name="ellipsis" type="string" required="no" default="&amp;hellip;">
+	<cfargument name="ellipsis" type="string" required="no" default="&hellip;">
 	<cfset var beg = "">
 	<cfset var end = "">
 	<cfset var rest = 0>
