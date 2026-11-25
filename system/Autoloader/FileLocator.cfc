@@ -146,7 +146,9 @@
 	 * namespace whose folder holds the file (the longest folder, when
 	 * there are several), and the path below it without the ".cfc". A file
 	 * that is not a .cfc, or that no namespace folder holds, has no class
-	 * name (an empty string).
+	 * name (an empty string). A folder holds a file only as a whole folder
+	 * (/x/app does not hold /x/application/Foo.cfc), as the name here is
+	 * not checked with class_exists().
 	--->
 	<cffunction name="getClassname" access="public" returntype="string" output="no">
 		<cfargument name="file" type="string" required="yes">
@@ -339,10 +341,14 @@
 			</cfif>
 
 			<!--- there is no continue: the rest of the body is in the branch --->
-			<cfset namespacePath = REReplace(namespacePath, "[\\/]+$", "")>
-
-			<cfif namespacePath NEQ "" AND Compare(Left(arguments.path, Len(namespacePath)), namespacePath) EQ 0 AND REFind("[\\/]", Mid(arguments.path, Len(namespacePath) + 1, 1)) GT 0>
-				<cfset className = namespaces[i].prefix & "\" & REReplace(Replace(Mid(arguments.path, Len(namespacePath) + 2, Len(arguments.path)), "/", "\", "all"), "^\\+", "")>
+			<!---
+			 * As in the original, the folder is not tested as a whole: the folder
+			 * /x/app also matches /x/application/Foo.cfc, and the class name
+			 * that comes of it does not exist, so it is skipped below. Only
+			 * getClassname() tests the boundary (it has no class_exists()).
+			--->
+			<cfif namespacePath NEQ "" AND Compare(Left(arguments.path, Len(namespacePath)), namespacePath) EQ 0>
+				<cfset className = namespaces[i].prefix & "\" & REReplace(Replace(substr(arguments.path, Len(namespacePath)), "/", "\", "all"), "^\\+", "")>
 
 				<!--- Remove the file extension (.cfc) --->
 				<cfset className = Left(className, Len(className) - 4)>

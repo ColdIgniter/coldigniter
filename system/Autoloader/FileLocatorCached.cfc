@@ -8,12 +8,14 @@
  * value of the configuration or a secret.
  *
  * Difference: the original saves the cache in __destruct(). There is no
- * destructor (cannot express), so saveCache() is public and is called as
- * soon as something was added to the cache. A listener on the post_system
- * event would run at the end of the request, but it would also turn off
- * the page cache in front (see ResponseCache), and it would be lost when a
- * request ends in an error or in an exit before that event. A request that
- * finds everything in the cache does no writing at all.
+ * destructor (cannot express), so saveCache() is public and ColdIgniter
+ * calls it at the end of the request, after the post_system event, when
+ * the locator exists. A change only sets a flag, so a request that finds
+ * everything in the cache does no writing, and one that adds several
+ * entries writes once. It is not an event listener, as a listener on
+ * post_system would turn off the page cache in front (see ResponseCache).
+ * A save that is lost, as the request ends in an error or an exit, only
+ * means that the lookups are done again.
  *
  * Difference: the default cache handler is the cache service (the handler
  * of Config\Cache), where the original makes a FileVarExportHandler, which
@@ -93,12 +95,11 @@
 	</cffunction>
 
 	<!---
-	 * Not in the original. Notes that the cache has changed, and saves it
-	 * (see the top of this file).
+	 * Not in the original. Notes that the cache has changed (see the top of
+	 * this file).
 	--->
 	<cffunction name="updated" access="private" returntype="void" output="no">
 		<cfset variables.cacheUpdated = true>
-		<cfset saveCache()>
 	</cffunction>
 
 	<!---

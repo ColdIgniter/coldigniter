@@ -432,6 +432,11 @@
  * namespace is added or one is changed, the locator searches as in the
  * original.
  *
+ * Difference: the paths of the speed path are not passed through
+ * realpath(), where search() of the locator gives resolved ones. The
+ * files are the same, only the way the path is written can differ
+ * (performance).
+ *
  * The functions of a helper file become global (see require_once) and
  * the first definition of a name wins, which is how an app helper
  * overrides a system one. The caller gets the functions at once, also
