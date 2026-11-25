@@ -12,7 +12,7 @@ The list is made by file name only:
 
 ColdIgniter has its own version numbers. They do not follow the numbers of CodeIgniter. See `CHANGELOG.md`.
 
-Total: 237 of 492 files.
+Total: 240 of 492 files.
 
 | Area | Files in CodeIgniter | Ported | State |
 |---|---|---|---|
@@ -22,7 +22,7 @@ Total: 237 of 492 files.
 | `Cache` | 14 | 7 | Part |
 | `CLI` | 8 | 0 | None |
 | `Commands` | 61 | 0 | None |
-| `Config` | 12 | 9 | Part |
+| `Config` | 12 | 10 | Part |
 | `Cookie` | 5 | 5 | All |
 | `Database` | 52 | 24 | Part |
 | `DataCaster` | 15 | 14 | Part |
@@ -36,7 +36,7 @@ Total: 237 of 492 files.
 | `Files` | 6 | 3 | Part |
 | `Filters` | 12 | 11 | Part |
 | `Format` | 5 | 5 | All |
-| `Helpers` | 15 | 9 | Part |
+| `Helpers` | 15 | 11 | Part |
 | `Honeypot` | 2 | 2 | All |
 | `HotReloader` | 3 | 0 | None |
 | `HTTP` | 33 | 21 | Part |
@@ -161,7 +161,6 @@ Total: 237 of 492 files.
 ### Config
 
 - `Factory.php`
-- `ForeignCharacters.php`
 - `Publisher.php`
 
 ### Database
@@ -245,10 +244,8 @@ Total: 237 of 492 files.
 
 - `date_helper.php`
 - `filesystem_helper.php`
-- `html_helper.php`
 - `kint_helper.php`
 - `test_helper.php`
-- `text_helper.php`
 
 ### HotReloader
 
