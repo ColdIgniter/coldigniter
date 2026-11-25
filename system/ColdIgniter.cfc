@@ -123,6 +123,7 @@
 		<cfargument name="returnResponse" type="boolean" required="no" default="false">
 		<cfset var e = "">
 		<cfset var filters = "">
+		<cfset var locator = "">
 		<cfset var possibleResponse = "">
 
 		<cfif is_null(this.context)>
@@ -207,6 +208,22 @@
 
 		<!--- Is there a post-system event? --->
 		<cfset static_("ColdIgniter\Events\Events").trigger("post_system")>
+
+		<!---
+		 * Difference: the cached locator saves its cache here, where the
+		 * original does it in __destruct() (there is no destructor, cannot
+		 * express). The locator is not made for this: when no code asked for
+		 * it, it does not exist and nothing is done. It is not an event
+		 * listener, as a listener on post_system turns off the page cache in
+		 * front (see ResponseCache).
+		--->
+		<cfif static_("Config\Services").has("locator")>
+			<cfset locator = static_("Config\Services").get("locator")>
+
+			<cfif StructKeyExists(locator, "saveCache")>
+				<cfset locator.saveCache()>
+			</cfif>
+		</cfif>
 
 		<!---
 		 * Difference: the session is written and closed here, where the

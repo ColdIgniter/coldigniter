@@ -634,7 +634,8 @@
 	 * Create a migration object from a file path.
 	 *
 	 * Difference: the class is the namespace, Database\Migrations and the
-	 * file name, as the file locator is not ported to read it from the file.
+	 * file name. Not ported yet: the use of the file locator (getClassname)
+	 * to read it.
 	 *
 	 * @param path Full path to a valid migration file.
 	 *
