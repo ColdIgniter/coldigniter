@@ -975,7 +975,8 @@
 	<cfset var config_ = config("Config\App")>
 	<cfset var configItem = "">
 
-	<cfif NOT StructKeyExists(config_, arguments.item)>
+	<!--- a function of the config object is not an item --->
+	<cfif NOT StructKeyExists(config_, arguments.item) OR IsCustomFunction(config_[arguments.item])>
 		<cfreturn "">
 	</cfif>
 

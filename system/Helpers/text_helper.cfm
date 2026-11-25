@@ -165,7 +165,7 @@
 		<cfset out.append(JavaCast("string", substr(arguments.str, position, matcher.start() - position)))>
 		<cfset digits = matcher.group(JavaCast("int", 1))>
 
-		<cfif Len(digits) LTE 5 AND Val(digits) LTE 65535>
+		<cfif Val(digits) LTE 65535>
 			<cfset out.append(JavaCast("string", Chr(Val(digits))))>
 		<cfelse>
 			<cfset out.append(JavaCast("string", matcher.group()))>
@@ -205,6 +205,9 @@
  * matched words will be converted to #### or to the replacement
  * word you've submitted.
  *
+ * Difference: a word is replaced by one ## for each of its characters (the
+ * original counts the bytes of UTF-8).
+ *
  * @param str         The text string
  * @param censored    The array of censored words
  * @param replacement The optional replacement value
@@ -237,6 +240,11 @@
 
 	<cfloop from="1" to="#ArrayLen(arguments.censored)#" index="i">
 		<cfset badword = Replace(preg_quote(arguments.censored[i]), "\*", "\w*?", "all")>
+
+		<!--- Difference: a word with a wildcard makes a pattern that can backtrack, so the length of the text is limited --->
+		<cfif Find("*", arguments.censored[i]) GT 0>
+			<cfset regex_guard_(arguments.str)>
+		</cfif>
 
 		<cfif arguments.replacement NEQ "">
 			<cfset arguments.str = preg_replace("/(" & delim & ")(" & badword & ")(" & delim & ")/i", "\1" & arguments.replacement & "\3", arguments.str, true)>
@@ -330,6 +338,12 @@
  * Anything placed between {unwrap}{/unwrap} will not be word wrapped, nor
  * will URLs.
  *
+ * Difference: the length of a line is counted in characters (the native
+ * wordwrap of the original counts the bytes of UTF-8), and the {unwrap}
+ * chunks are found with Find(), not with the pattern
+ * |\{unwrap\}(.+?)\{/unwrap\}|s, which gives the same chunks and cannot
+ * backtrack.
+ *
  * @param str     the text string
  * @param charlim = 76    the number of characters to wrap at
 --->
@@ -338,12 +352,16 @@
 	<cfargument name="charlim" type="numeric" required="no" default="76">
 	<cfset var unwrap = ArrayNew(1)>
 	<cfset var whole = ArrayNew(1)>
-	<cfset var matcher = "">
 	<cfset var search = ArrayNew(1)>
 	<cfset var lines = ArrayNew(1)>
 	<cfset var line = "">
 	<cfset var temp = "">
 	<cfset var output = "">
+	<cfset var isUrl = false>
+	<cfset var urlAt = 0>
+	<cfset var opened = 0>
+	<cfset var closed = 0>
+	<cfset var position = 1>
 	<cfset var i = 0>
 
 	<!--- Reduce multiple spaces --->
@@ -360,11 +378,22 @@
 	 * If the current word is surrounded by {unwrap} tags we'll
 	 * strip the entire chunk and replace it with a marker.
 	--->
-	<cfset matcher = preg_pattern("|\{unwrap\}(.+?)\{/unwrap\}|s").matcher(JavaCast("string", arguments.str))>
+	<cfloop condition="position + 17 LTE Len(arguments.str)">
+		<cfset opened = Find("{unwrap}", arguments.str, position)>
 
-	<cfloop condition="matcher.find()">
-		<cfset ArrayAppend(whole, matcher.group())>
-		<cfset ArrayAppend(unwrap, matcher.group(JavaCast("int", 1)))>
+		<cfif opened EQ 0 OR opened + 9 GT Len(arguments.str)>
+			<cfbreak>
+		</cfif>
+
+		<cfset closed = Find("{/unwrap}", arguments.str, opened + 9)>
+
+		<cfif closed EQ 0>
+			<cfbreak>
+		</cfif>
+
+		<cfset ArrayAppend(whole, Mid(arguments.str, opened, closed + 9 - opened))>
+		<cfset ArrayAppend(unwrap, Mid(arguments.str, opened + 8, closed - opened - 8))>
+		<cfset position = closed + 9>
 	</cfloop>
 
 	<cfloop from="1" to="#ArrayLen(whole)#" index="i">
@@ -391,15 +420,28 @@
 			<cfset temp = "">
 
 			<!---
+			 * If the over-length word is a URL we won't wrap it
+			 *
+			 * Difference: the original tests this in every pass of the loop with
+			 * the pattern !\[url.+\]|://|www\.! - a rest of the line can only
+			 * match when the whole line does, so one test before the loop gives
+			 * the same, and it is done with Find(), which cannot backtrack.
+			--->
+			<cfset isUrl = Find("://", line) GT 0 OR Find("www.", line) GT 0>
+
+			<cfif NOT isUrl>
+				<cfset urlAt = Find("[url", line)>
+
+				<cfif urlAt GT 0 AND urlAt + 5 LTE Len(line)>
+					<cfset isUrl = Find("]", line, urlAt + 5) GT 0>
+				</cfif>
+			</cfif>
+
+			<!---
 			 * A limit of 1 can't be used to split a word (each piece needs room for
 			 * the continuation), so the word is kept whole, like a long URL.
 			--->
-			<cfloop condition="arguments.charlim GT 1 AND mb_strlen(line) GT arguments.charlim">
-				<!--- If the over-length word is a URL we won't wrap it --->
-				<cfif preg_match("!\[url.+\]|://|www\.!", line, true) EQ 1>
-					<cfbreak>
-				</cfif>
-
+			<cfloop condition="NOT isUrl AND arguments.charlim GT 1 AND mb_strlen(line) GT arguments.charlim">
 				<!--- Trim the word down --->
 				<cfset temp = temp & substr(line, 0, arguments.charlim - 1)>
 				<cfset line = substr(line, arguments.charlim - 1)>
@@ -459,7 +501,11 @@
 
 			<cfset lastspace = current>
 		<cfelseif current - laststart GTE arguments.width AND laststart NEQ lastspace>
-			<cfset ArrayAppend(breaks, lastspace)>
+			<!--- the original writes the newline over the space, so a second time changes nothing; here a break is listed once --->
+			<cfif ArrayLen(breaks) EQ 0 OR breaks[ArrayLen(breaks)] NEQ lastspace>
+				<cfset ArrayAppend(breaks, lastspace)>
+			</cfif>
+
 			<cfset laststart = lastspace + 1>
 		</cfif>
 	</cfloop>
@@ -550,7 +596,7 @@
 	<cfset var i = 0>
 
 	<cfif NOT is_array(arguments.str)>
-		<!--- Difference: stripslashes() of the original is a replacement of a backslash and the character that it quotes --->
+		<!--- Difference: stripslashes() of the original is a replacement of a backslash and the character that it quotes; a backslash and 0 gives 0 here, where the original gives a NUL character --->
 		<cfreturn JavaCast("string", arguments.str).replaceAll("(?s)\\(.?)", "$1")>
 	</cfif>
 
@@ -686,6 +732,11 @@
 		<cfset pool = "123456789">
 		<cfreturn _from_random(arguments.len, pool)>
 	<cfelseif Compare(arguments.type, "numeric") EQ 0>
+		<!--- a length of 0 gives "0" in the original (sprintf with %00d) --->
+		<cfif arguments.len EQ 0>
+			<cfreturn "0">
+		</cfif>
+
 		<cfreturn _from_random(arguments.len, "0123456789")>
 	<cfelseif Compare(arguments.type, "crypto") EQ 0>
 		<cfif arguments.len MOD 2 NEQ 0>
@@ -876,7 +927,7 @@
 	<cfset var i = 0>
 
 	<cfif hasPhrase>
-		<!--- a phrase that is not found is at 0, as false is in the original --->
+		<!--- Difference: a phrase that is not found is at 0; the original throws a TypeError then --->
 		<cfset phrasePosition = Max(FindNoCase(arguments.phrase, arguments.text) - 1, 0)>
 		<cfset phraseLength = mb_strlen(arguments.phrase)>
 		<cfset phraseText = arguments.phrase>

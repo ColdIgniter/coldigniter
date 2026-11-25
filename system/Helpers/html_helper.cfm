@@ -202,6 +202,7 @@
 	<cfset var file = CreateObject("java", "java.io.File").init(arguments.path)>
 	<cfset var data = "">
 	<cfset var extension = "">
+	<cfset var dot = 0>
 
 	<cfif NOT is_file(arguments.path) OR NOT file.canRead()>
 		<cfset static_("ColdIgniter\Files\Exceptions\FileNotFoundException").forFileNotFound(arguments.path)>
@@ -216,10 +217,12 @@
 
 	<!--- Figure out the type (Hail Mary to JPEG) --->
 	<cfif NOT StructKeyExists(arguments, "mime")>
+		<!--- what follows the last dot of the name, also of a name that starts with its only dot --->
 		<cfset extension = basename(arguments.path)>
+		<cfset dot = Find(".", Reverse(extension))>
 
-		<cfif ListLen(extension, ".") GT 1>
-			<cfset extension = ListLast(extension, ".")>
+		<cfif dot GT 1>
+			<cfset extension = Right(extension, dot - 1)>
 		<cfelse>
 			<cfset extension = "">
 		</cfif>
