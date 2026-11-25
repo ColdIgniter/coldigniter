@@ -12,7 +12,7 @@ The list is made by file name only:
 
 ColdIgniter has its own version numbers. They do not follow the numbers of CodeIgniter. See `CHANGELOG.md`.
 
-Total: 244 of 492 files.
+Total: 245 of 492 files.
 
 | Area | Files in CodeIgniter | Ported | State |
 |---|---|---|---|
@@ -22,7 +22,7 @@ Total: 244 of 492 files.
 | `Cache` | 14 | 7 | Part |
 | `CLI` | 8 | 0 | None |
 | `Commands` | 61 | 0 | None |
-| `Config` | 12 | 10 | Part |
+| `Config` | 12 | 11 | Part |
 | `Cookie` | 5 | 5 | All |
 | `Database` | 52 | 24 | Part |
 | `DataCaster` | 15 | 14 | Part |
@@ -158,7 +158,6 @@ Total: 244 of 492 files.
 
 ### Config
 
-- `Factory.php`
 - `Publisher.php`
 
 ### Database

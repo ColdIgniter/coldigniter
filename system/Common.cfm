@@ -652,6 +652,37 @@
 </cffunction>
 
 <!---
+ * More simple way of getting model instances from Factories
+ *
+ * Difference: platform. The original passes $conn by reference, so that a
+ * connection made by the model is written back. That cannot be expressed
+ * here: the connection is only passed on to the constructor.
+ *
+ * @param name      The model class name
+ * @param getShared Whether to return the shared instance
+ * @param conn      A connection, or nothing
+ *
+ * @return The model instance, or an empty string if it is not found
+--->
+<cffunction name="model" returntype="any" output="no" hint="More simple way of getting model instances from Factories">
+	<cfargument name="name" type="string" required="yes">
+	<cfargument name="getShared" type="boolean" required="no" default="true">
+	<cfargument name="conn" type="any" required="no">
+	<cfset var arguments_ = ArrayNew(1)>
+	<cfset var options = StructNew()>
+
+	<cfset options["getShared"] = arguments.getShared>
+	<cfset ArrayAppend(arguments_, arguments.name)>
+	<cfset ArrayAppend(arguments_, options)>
+
+	<cfif StructKeyExists(arguments, "conn")>
+		<cfset ArrayAppend(arguments_, arguments.conn)>
+	</cfif>
+
+	<cfreturn static_("ColdIgniter\Config\Factories").__callStatic("models", arguments_)>
+</cffunction>
+
+<!---
  * Provides access to "old input" that was set in the session
  * during a redirect().withInput().
  *
