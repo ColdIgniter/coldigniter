@@ -424,10 +424,13 @@
  * has (ColdIgniter, Config and the App namespace, each with one folder,
  * App being the app folder), the locator is not asked: app/Helpers and
  * system/Helpers are tested directly. The search of the locator would
- * test the folder of the Config namespace as well, which costs a file
- * check for each helper in every request, and finds the same files. As
- * soon as a namespace is added or one is changed, the locator searches
- * as in the original (performance).
+ * test the Helpers folder of the Config namespace (app/Config/Helpers)
+ * as well, which is not done here: it costs a file check for each helper
+ * in every request, and a helper in that folder is not loaded (a
+ * difference from the original, for performance). The speed path is used
+ * only when the Config namespace is the folder app/Config. As soon as a
+ * namespace is added or one is changed, the locator searches as in the
+ * original.
  *
  * The functions of a helper file become global (see require_once) and
  * the first definition of a name wins, which is how an app helper
@@ -451,6 +454,7 @@
 	<cfset var loader = "">
 	<cfset var prefixes = request.ColdIgniter.autoloader.prefixes>
 	<cfset var fast = false>
+	<cfset var file_ = "">
 	<cfset var paths = "">
 	<cfset var path = "">
 	<cfset var i = 0>
@@ -465,7 +469,7 @@
 		<cfset fast = ArrayLen(prefixes["ColdIgniter"]) EQ 1 AND ArrayLen(prefixes["Config"]) EQ 1 AND ArrayLen(prefixes[request.APP_NAMESPACE]) EQ 1>
 
 		<cfif fast>
-			<cfset fast = Compare(prefixes["ColdIgniter"][1], request.SYSTEMPATH) EQ 0 AND Compare(prefixes[request.APP_NAMESPACE][1], request.APPPATH) EQ 0>
+			<cfset fast = Compare(prefixes["ColdIgniter"][1], request.SYSTEMPATH) EQ 0 AND Compare(prefixes[request.APP_NAMESPACE][1], request.APPPATH) EQ 0 AND Compare(prefixes["Config"][1], request.APPPATH & "Config" & request.DIRECTORY_SEPARATOR) EQ 0>
 		</cfif>
 	</cfif>
 
@@ -512,11 +516,18 @@
 			<cfelse>
 				<!--- No namespaces, so search in all available locations --->
 				<cfif fast>
-					<cfif is_file(request.APPPATH & "Helpers" & request.DIRECTORY_SEPARATOR & filename & ".cfm")>
-						<cfset appHelper = request.APPPATH & "Helpers" & request.DIRECTORY_SEPARATOR & filename & ".cfm">
+					<!--- ensureExt() of the locator: add the extension only when it is missing --->
+					<cfset file_ = filename>
+
+					<cfif Compare(Right(file_, 4), ".cfm") NEQ 0>
+						<cfset file_ = file_ & ".cfm">
 					</cfif>
-					<cfif is_file(request.SYSTEMPATH & "Helpers" & request.DIRECTORY_SEPARATOR & filename & ".cfm")>
-						<cfset systemHelper = request.SYSTEMPATH & "Helpers" & request.DIRECTORY_SEPARATOR & filename & ".cfm">
+
+					<cfif is_file(request.APPPATH & "Helpers" & request.DIRECTORY_SEPARATOR & file_)>
+						<cfset appHelper = request.APPPATH & "Helpers" & request.DIRECTORY_SEPARATOR & file_>
+					</cfif>
+					<cfif is_file(request.SYSTEMPATH & "Helpers" & request.DIRECTORY_SEPARATOR & file_)>
+						<cfset systemHelper = request.SYSTEMPATH & "Helpers" & request.DIRECTORY_SEPARATOR & file_>
 					</cfif>
 				<cfelse>
 					<cfif NOT IsObject(loader)>

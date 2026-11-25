@@ -206,6 +206,10 @@
 	 * cannot be loaded and kept for later here (see the top of this file),
 	 * so the file name is returned and instantiate() creates the object.
 	 *
+	 * Difference: the file is checked here (is_file), where the original
+	 * checks it in includeFile(), as there is nothing to include here and
+	 * the caller needs to know that the file is there (cannot express).
+	 *
 	 * @param class The fully qualified class name.
 	 *
 	 * @return The mapped file name on success, or an empty string on fail

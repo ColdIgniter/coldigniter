@@ -8,18 +8,25 @@
  * value of the configuration or a secret.
  *
  * Difference: the original saves the cache in __destruct(). There is no
- * destructor, so saveCache() is public and is called by the post_system
- * event (see the first change of the cache). It is registered only when
- * something was added to the cache, so a request that finds everything in
- * the cache does no registering and no writing.
+ * destructor (cannot express), so saveCache() is public and is called as
+ * soon as something was added to the cache. A listener on the post_system
+ * event would run at the end of the request, but it would also turn off
+ * the page cache in front (see ResponseCache), and it would be lost when a
+ * request ends in an error or in an exit before that event. A request that
+ * finds everything in the cache does no writing at all.
  *
  * Difference: the default cache handler is the cache service (the handler
  * of Config\Cache), where the original makes a FileVarExportHandler, which
  * is not ported.
  *
  * Difference: a result that is "not found" is an empty string, as in
- * FileLocator, so it is stored and read back as text. The key of
- * prioritizeApp is 1 or 0.
+ * FileLocator, so it is stored and read back as text.
+ *
+ * Difference: the names of a struct are not case-sensitive, and a path is,
+ * so the key of an entry is Hash() of the arguments joined with Chr(1)
+ * (performance and cannot express: one call and one level, where nested
+ * structs by path, ext and prioritizeApp would need several; a Java map
+ * would be exact too, but the cache handler has to keep plain structs).
 --->
 <cfcomponent output="no" hint="FileLocator with Cache">
 
@@ -42,9 +49,6 @@
 	 * Is the cache updated?
 	--->
 	<cfset variables.cacheUpdated = false>
-
-	<!--- Is saveCache() registered with the post_system event? --->
-	<cfset variables.saveRegistered = false>
 
 	<cfset variables.cacheKey = "FileLocatorCache">
 
@@ -78,30 +82,23 @@
 	</cffunction>
 
 	<!---
-	 * Difference: public, see the top of this file.
+	 * Difference: public, see the top of this file. Not a destructor (cannot
+	 * express).
 	--->
 	<cffunction name="saveCache" access="public" returntype="void" output="no">
 		<cfif variables.cacheUpdated>
 			<cfset variables.cacheHandler.save(variables.cacheKey, variables.cache, 3600 * 24)>
+			<cfset variables.cacheUpdated = false>
 		</cfif>
 	</cffunction>
 
 	<!---
-	 * Not in the original. Notes that the cache has changed, and makes
-	 * sure that saveCache() runs at the end of the request.
+	 * Not in the original. Notes that the cache has changed, and saves it
+	 * (see the top of this file).
 	--->
 	<cffunction name="updated" access="private" returntype="void" output="no">
-		<cfset var pair = "">
-
 		<cfset variables.cacheUpdated = true>
-
-		<cfif NOT variables.saveRegistered>
-			<cfset pair = ArrayNew(1)>
-			<cfset ArrayAppend(pair, this)>
-			<cfset ArrayAppend(pair, "saveCache")>
-			<cfset static_("ColdIgniter\Events\Events").on("post_system", pair)>
-			<cfset variables.saveRegistered = true>
-		</cfif>
+		<cfset saveCache()>
 	</cffunction>
 
 	<!---
@@ -141,18 +138,39 @@
 		<cfset variables.cacheHandler.delete(variables.cacheKey)>
 	</cffunction>
 
+	<!---
+	 * Not in the original. The key of an entry (see the top of this file).
+	--->
+	<cffunction name="keyOf" access="private" returntype="string" output="no">
+		<cfargument name="parts" type="string" required="yes">
+
+		<cfreturn Hash(arguments.parts)>
+	</cffunction>
+
+	<!---
+	 * Not in the original. Whether the cache has a value for the method and
+	 * the key.
+	--->
+	<cffunction name="has" access="private" returntype="boolean" output="no">
+		<cfargument name="method" type="string" required="yes">
+		<cfargument name="key" type="string" required="yes">
+
+		<cfreturn StructKeyExists(variables.cache, arguments.method) AND IsStruct(variables.cache[arguments.method]) AND StructKeyExists(variables.cache[arguments.method], arguments.key)>
+	</cffunction>
+
 	<cffunction name="findQualifiedNameFromPath" access="public" returntype="string" output="no">
 		<cfargument name="path" type="string" required="yes">
+		<cfset var key = keyOf(arguments.path)>
 		<cfset var classname = "">
 
-		<cfif StructKeyExists(variables.cache, "findQualifiedNameFromPath") AND StructKeyExists(variables.cache["findQualifiedNameFromPath"], arguments.path)>
-			<cfreturn variables.cache["findQualifiedNameFromPath"][arguments.path]>
+		<cfif has("findQualifiedNameFromPath", key)>
+			<cfreturn variables.cache["findQualifiedNameFromPath"][key]>
 		</cfif>
 
 		<cfset classname = variables.locator.findQualifiedNameFromPath(arguments.path)>
 
 		<cfset section("findQualifiedNameFromPath")>
-		<cfset variables.cache["findQualifiedNameFromPath"][arguments.path] = classname>
+		<cfset variables.cache["findQualifiedNameFromPath"][key] = classname>
 		<cfset updated()>
 
 		<cfreturn classname>
@@ -160,16 +178,17 @@
 
 	<cffunction name="getClassname" access="public" returntype="string" output="no">
 		<cfargument name="file" type="string" required="yes">
+		<cfset var key = keyOf(arguments.file)>
 		<cfset var classname = "">
 
-		<cfif StructKeyExists(variables.cache, "getClassname") AND StructKeyExists(variables.cache["getClassname"], arguments.file)>
-			<cfreturn variables.cache["getClassname"][arguments.file]>
+		<cfif has("getClassname", key)>
+			<cfreturn variables.cache["getClassname"][key]>
 		</cfif>
 
 		<cfset classname = variables.locator.getClassname(arguments.file)>
 
 		<cfset section("getClassname")>
-		<cfset variables.cache["getClassname"][arguments.file] = classname>
+		<cfset variables.cache["getClassname"][key] = classname>
 		<cfset updated()>
 
 		<cfreturn classname>
@@ -182,35 +201,24 @@
 		<cfargument name="path" type="string" required="yes">
 		<cfargument name="ext" type="string" required="no" default="cfm">
 		<cfargument name="prioritizeApp" type="boolean" required="no" default="true">
+		<cfset var flag = "0">
+		<cfset var key = "">
 		<cfset var foundPaths = "">
-		<cfset var key = "0">
-		<cfset var entry = "">
 
 		<cfif arguments.prioritizeApp>
-			<cfset key = "1">
+			<cfset flag = "1">
 		</cfif>
 
-		<cfif StructKeyExists(variables.cache, "search") AND StructKeyExists(variables.cache["search"], arguments.path)>
-			<cfset entry = variables.cache["search"][arguments.path]>
+		<cfset key = keyOf(arguments.path & Chr(1) & arguments.ext & Chr(1) & flag)>
 
-			<cfif StructKeyExists(entry, arguments.ext) AND StructKeyExists(entry[arguments.ext], key)>
-				<cfreturn asList(entry[arguments.ext][key])>
-			</cfif>
+		<cfif has("search", key)>
+			<cfreturn asList(variables.cache["search"][key])>
 		</cfif>
 
 		<cfset foundPaths = variables.locator.search(arguments.path, arguments.ext, arguments.prioritizeApp)>
 
 		<cfset section("search")>
-
-		<cfif NOT StructKeyExists(variables.cache["search"], arguments.path)>
-			<cfset variables.cache["search"][arguments.path] = StructNew()>
-		</cfif>
-
-		<cfif NOT StructKeyExists(variables.cache["search"][arguments.path], arguments.ext)>
-			<cfset variables.cache["search"][arguments.path][arguments.ext] = StructNew()>
-		</cfif>
-
-		<cfset variables.cache["search"][arguments.path][arguments.ext][key] = foundPaths>
+		<cfset variables.cache["search"][key] = foundPaths>
 		<cfset updated()>
 
 		<cfreturn foundPaths>
@@ -218,16 +226,24 @@
 
 	<cffunction name="listFiles" access="public" returntype="array" output="no">
 		<cfargument name="path" type="string" required="yes">
+		<cfset var key = "">
 		<cfset var files = "">
 
-		<cfif StructKeyExists(variables.cache, "listFiles") AND StructKeyExists(variables.cache["listFiles"], arguments.path)>
-			<cfreturn asList(variables.cache["listFiles"][arguments.path])>
+		<!--- as in FileLocator: nothing to list, nothing to keep --->
+		<cfif arguments.path EQ "">
+			<cfreturn ArrayNew(1)>
+		</cfif>
+
+		<cfset key = keyOf(arguments.path)>
+
+		<cfif has("listFiles", key)>
+			<cfreturn asList(variables.cache["listFiles"][key])>
 		</cfif>
 
 		<cfset files = variables.locator.listFiles(arguments.path)>
 
 		<cfset section("listFiles")>
-		<cfset variables.cache["listFiles"][arguments.path] = files>
+		<cfset variables.cache["listFiles"][key] = files>
 		<cfset updated()>
 
 		<cfreturn files>
@@ -236,21 +252,24 @@
 	<cffunction name="listNamespaceFiles" access="public" returntype="array" output="no">
 		<cfargument name="prefix" type="string" required="yes">
 		<cfargument name="path" type="string" required="yes">
+		<cfset var key = "">
 		<cfset var files = "">
 
-		<cfif StructKeyExists(variables.cache, "listNamespaceFiles") AND StructKeyExists(variables.cache["listNamespaceFiles"], arguments.prefix) AND StructKeyExists(variables.cache["listNamespaceFiles"][arguments.prefix], arguments.path)>
-			<cfreturn asList(variables.cache["listNamespaceFiles"][arguments.prefix][arguments.path])>
+		<!--- as in FileLocator: nothing to list, nothing to keep --->
+		<cfif arguments.path EQ "" OR arguments.prefix EQ "">
+			<cfreturn ArrayNew(1)>
+		</cfif>
+
+		<cfset key = keyOf(arguments.prefix & Chr(1) & arguments.path)>
+
+		<cfif has("listNamespaceFiles", key)>
+			<cfreturn asList(variables.cache["listNamespaceFiles"][key])>
 		</cfif>
 
 		<cfset files = variables.locator.listNamespaceFiles(arguments.prefix, arguments.path)>
 
 		<cfset section("listNamespaceFiles")>
-
-		<cfif NOT StructKeyExists(variables.cache["listNamespaceFiles"], arguments.prefix)>
-			<cfset variables.cache["listNamespaceFiles"][arguments.prefix] = StructNew()>
-		</cfif>
-
-		<cfset variables.cache["listNamespaceFiles"][arguments.prefix][arguments.path] = files>
+		<cfset variables.cache["listNamespaceFiles"][key] = files>
 		<cfset updated()>
 
 		<cfreturn files>
@@ -260,36 +279,17 @@
 		<cfargument name="file" type="string" required="yes">
 		<cfargument name="folder" type="string" required="no" default="">
 		<cfargument name="ext" type="string" required="no" default="cfm">
-		<cfset var folderKey = arguments.folder>
+		<cfset var key = keyOf(arguments.file & Chr(1) & arguments.folder & Chr(1) & arguments.ext)>
 		<cfset var files = "">
-		<cfset var entry = "">
 
-		<!--- an empty key is not a key of a struct: the key of no folder is a single dash, which no folder name is --->
-		<cfif folderKey EQ "">
-			<cfset folderKey = "-">
-		</cfif>
-
-		<cfif StructKeyExists(variables.cache, "locateFile") AND StructKeyExists(variables.cache["locateFile"], arguments.file)>
-			<cfset entry = variables.cache["locateFile"][arguments.file]>
-
-			<cfif StructKeyExists(entry, folderKey) AND StructKeyExists(entry[folderKey], arguments.ext)>
-				<cfreturn entry[folderKey][arguments.ext]>
-			</cfif>
+		<cfif has("locateFile", key)>
+			<cfreturn variables.cache["locateFile"][key]>
 		</cfif>
 
 		<cfset files = variables.locator.locateFile(arguments.file, arguments.folder, arguments.ext)>
 
 		<cfset section("locateFile")>
-
-		<cfif NOT StructKeyExists(variables.cache["locateFile"], arguments.file)>
-			<cfset variables.cache["locateFile"][arguments.file] = StructNew()>
-		</cfif>
-
-		<cfif NOT StructKeyExists(variables.cache["locateFile"][arguments.file], folderKey)>
-			<cfset variables.cache["locateFile"][arguments.file][folderKey] = StructNew()>
-		</cfif>
-
-		<cfset variables.cache["locateFile"][arguments.file][folderKey][arguments.ext] = files>
+		<cfset variables.cache["locateFile"][key] = files>
 		<cfset updated()>
 
 		<cfreturn files>

@@ -185,8 +185,11 @@
 				<cfset namespacePath = namespaces[i].path>
 			</cfif>
 
-			<cfif namespacePath NEQ "" AND Len(namespacePath) GT Len(bestPath) AND Compare(Left(resolvedPath, Len(namespacePath)), namespacePath) EQ 0>
-				<cfset best = namespaces[i].prefix & "\" & REReplace(Replace(substr(resolvedPath, Len(namespacePath)), "/", "\", "all"), "^\\+", "")>
+			<!--- the folder must be a whole folder: /x/app does not hold /x/application/Foo.cfc --->
+			<cfset namespacePath = REReplace(namespacePath, "[\\/]+$", "")>
+
+			<cfif namespacePath NEQ "" AND Len(namespacePath) GT Len(bestPath) AND Compare(Left(resolvedPath, Len(namespacePath)), namespacePath) EQ 0 AND REFind("[\\/]", Mid(resolvedPath, Len(namespacePath) + 1, 1)) GT 0>
+				<cfset best = namespaces[i].prefix & "\" & REReplace(Replace(Mid(resolvedPath, Len(namespacePath) + 2, Len(resolvedPath)), "/", "\", "all"), "^\\+", "")>
 				<cfset bestPath = namespacePath>
 			</cfif>
 		</cfloop>
@@ -336,8 +339,10 @@
 			</cfif>
 
 			<!--- there is no continue: the rest of the body is in the branch --->
-			<cfif namespacePath NEQ "" AND Compare(Left(arguments.path, Len(namespacePath)), namespacePath) EQ 0>
-				<cfset className = namespaces[i].prefix & "\" & REReplace(Replace(substr(arguments.path, Len(namespacePath)), "/", "\", "all"), "^\\+", "")>
+			<cfset namespacePath = REReplace(namespacePath, "[\\/]+$", "")>
+
+			<cfif namespacePath NEQ "" AND Compare(Left(arguments.path, Len(namespacePath)), namespacePath) EQ 0 AND REFind("[\\/]", Mid(arguments.path, Len(namespacePath) + 1, 1)) GT 0>
+				<cfset className = namespaces[i].prefix & "\" & REReplace(Replace(Mid(arguments.path, Len(namespacePath) + 2, Len(arguments.path)), "/", "\", "all"), "^\\+", "")>
 
 				<!--- Remove the file extension (.cfc) --->
 				<cfset className = Left(className, Len(className) - 4)>
@@ -506,18 +511,21 @@
 		<cfset var i = 0>
 
 		<cfif folder.isDirectory()>
+			<!--- list() gives null for a folder that cannot be read, and the variable is then not defined --->
 			<cfset entries = folder.list()>
 
-			<cfloop from="1" to="#ArrayLen(entries)#" index="i">
-				<cfset name = entries[i]>
-				<cfset entry = CreateObject("java", "java.io.File").init(folder, JavaCast("string", name))>
+			<cfif IsDefined("entries")>
+				<cfloop from="1" to="#ArrayLen(entries)#" index="i">
+					<cfset name = entries[i]>
+					<cfset entry = CreateObject("java", "java.io.File").init(folder, JavaCast("string", name))>
 
-				<cfif entry.isDirectory()>
-					<cfset collectFilenames(entry.getPath(), arguments.found)>
-				<cfelseif Left(name, 1) NEQ ".">
-					<cfset arguments.found.add(entry.getPath())>
-				</cfif>
-			</cfloop>
+					<cfif entry.isDirectory()>
+						<cfset collectFilenames(entry.getPath(), arguments.found)>
+					<cfelseif Left(name, 1) NEQ ".">
+						<cfset arguments.found.add(entry.getPath())>
+					</cfif>
+				</cfloop>
+			</cfif>
 		</cfif>
 	</cffunction>
 
