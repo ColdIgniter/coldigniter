@@ -53,3 +53,11 @@ $RECYCLE.BIN/
 
 __pycache__/
 *.pyc
+
+#-------------------------
+# User guide
+#-------------------------
+/docs/dist/
+/docs/.cache/
+/docs/.wrangler/
+/docs/node_modules/
