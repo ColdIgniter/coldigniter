@@ -15,6 +15,7 @@ Unreleased. Ported from CodeIgniter 4.7.6, for ColdFusion MX 6.1.
 What is in it:
 
 - Helpers: html and text. `highlight_code()` is not ported, and throws.
+- Throttle: the `Throttler`, a token bucket rate limiter on the cache, and the `throttler` service.
 - Config: `ForeignCharacters`, used by `convert_accented_characters()`.
 - `Config\DocTypes` now decides whether `img()` and the other html tags close with ` /`.
 - Config: `Factory`. `Factories` now follows CodeIgniter: `define()`, `getOptions()`, `setOptions()`, `reset()`, `injectMock()` and the options `component`, `path`, `instanceOf`, `getShared` and `preferApp`. `model()` is added.
