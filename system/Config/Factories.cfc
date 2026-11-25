@@ -643,7 +643,7 @@
 
 		<!---
 		 * Difference: platform. After only define() there are aliases but no
-		 * instances or options: a missing struct is an empty one here, where
+		 * instances: a missing struct is an empty one here, where
 		 * the original gives null with a warning.
 		--->
 		<cfif NOT StructKeyExists(this.aliases, arguments.component)>
