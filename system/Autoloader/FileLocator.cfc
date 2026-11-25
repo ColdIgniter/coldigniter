@@ -110,7 +110,13 @@
 		<!--- Check each path in the namespace --->
 		<cfloop from="1" to="#ArrayLen(paths)#" index="i">
 			<!--- Ensure trailing slash --->
-			<cfset path = REReplace(paths[i], "/+$", "") & "/">
+			<!---
+			 * Difference: both kinds of slash are trimmed, as the folders of the
+			 * autoloader end in the directory separator, which can be a backslash
+			 * here. The original trims only "/" and so has "\/" in the path
+			 * there (cannot express a path that is the same on both systems).
+			--->
+			<cfset path = REReplace(paths[i], "[\\/]+$", "") & "/">
 
 			<!---
 			 * If we have a folder name, then the calling function
@@ -156,6 +162,11 @@
 		</cfif>
 
 		<cfif Compare(LCase(Right(arguments.file, 4)), ".cfc") NEQ 0>
+			<cfreturn "">
+		</cfif>
+
+		<!--- a file that does not exist has no class --->
+		<cfif NOT is_file(arguments.file)>
 			<cfreturn "">
 		</cfif>
 
