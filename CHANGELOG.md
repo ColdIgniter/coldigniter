@@ -17,6 +17,9 @@ What is in it:
 - Helpers: html and text. `highlight_code()` is not ported, and throws.
 - Config: `ForeignCharacters`, used by `convert_accented_characters()`.
 - `Config\DocTypes` now decides whether `img()` and the other html tags close with ` /`.
+- Common functions: `app_timezone()`, `cookie_()` (the name has an underscore, as `cookie` is a scope), `cookies()`, `function_usable()`, `is_cli()`, `is_really_writable()`, `is_windows()`, `response()`, `single_service()` and `timer()`. `esc()` has the `css` context and the encoding argument (new `ThirdParty\Escaper\Escaper`).
+- `Config\BaseService`: `serviceExists()`, `reset()`, `resetSingle()`, `injectMock()`, `resetServicesCache()`, `set()` and `override()`. Module discovery is not ported.
+- `Timer::record()`, and `View::render()` with the `cache` and `cache_name` options.
 
 ## 4.0.0
 

@@ -1,8 +1,8 @@
 <!---
  * Class View
  *
- * Not ported yet: layouts and sections, include, renderString, the
- * cache options, decorators and the file locator.
+ * Not ported yet: layouts and sections, include, renderString,
+ * decorators and the file locator.
 --->
 <cfcomponent output="no" hint="Class View">
 
@@ -118,6 +118,8 @@
 		<cfset var filtersClass = "">
 		<cfset var debugBarEnabled = false>
 		<cfset var debugOption = true>
+		<cfset var cacheName = "">
+		<cfset var savedVars = "">
 
 		<cfset this.renderVars["start"] = microtime(true)>
 
@@ -146,7 +148,25 @@
 			<cfset this.renderVars["options"] = arguments.options>
 		</cfif>
 
-		<!--- Not ported yet: Was it cached? --->
+		<!--- Was it cached? --->
+		<cfif array_key_exists("cache", this.renderVars["options"]) AND NOT is_null(this.renderVars["options"]["cache"])>
+			<cfif array_key_exists("cache_name", this.renderVars["options"]) AND NOT is_null(this.renderVars["options"]["cache_name"])>
+				<cfset cacheName = this.renderVars["options"]["cache_name"]>
+			<cfelse>
+				<cfset cacheName = Replace(this.renderVars["view"], ".cfm", "", "all")>
+			</cfif>
+			<cfset cacheName = Replace(Replace(cacheName, "\", "", "all"), "/", "", "all")>
+
+			<cfset this.renderVars["cacheName"] = cacheName>
+
+			<cfset output = cache(this.renderVars["cacheName"])>
+
+			<cfif NOT is_null(output)>
+				<cfset logPerformance(this.renderVars["start"], microtime(true), this.renderVars["view"])>
+
+				<cfreturn output>
+			</cfif>
+		</cfif>
 
 		<!--- Not ported yet: the overrides folder --->
 		<cfset this.renderVars["file"] = this.viewPath & this.renderVars["view"]>
@@ -167,6 +187,9 @@
 		<!--- Make our view data available to the view. --->
 		<cfset prepareTemplateData(arguments.saveData)>
 
+		<!--- Save current vars: a copy of the map --->
+		<cfset savedVars = CreateObject("java", "java.util.LinkedHashMap").init(this.renderVars)>
+
 		<!---
 		 The file is included in an object of its own, which is thrown
 		 away after the render: an include inside a method copies the
@@ -174,7 +197,10 @@
 		--->
 		<cfset output = new_("ColdIgniter\View\Closure").call(this.renderVars["file"], this.tempData)>
 
-		<!--- Not ported yet: layouts, decorators, cache --->
+		<!--- Get back current vars --->
+		<cfset this.renderVars = savedVars>
+
+		<!--- Not ported yet: layouts, decorators --->
 
 		<cfset logPerformance(this.renderVars["start"], microtime(true), this.renderVars["view"])>
 
@@ -215,6 +241,11 @@
 
 				<cfset output = "<!-- DEBUG-VIEW START " & this.renderVars["file"] & " -->" & Chr(10) & output & Chr(10) & "<!-- DEBUG-VIEW ENDED " & this.renderVars["file"] & " -->" & Chr(10)>
 			</cfif>
+		</cfif>
+
+		<!--- Should we cache? --->
+		<cfif array_key_exists("cache", this.renderVars["options"]) AND NOT is_null(this.renderVars["options"]["cache"])>
+			<cfset cache().save(this.renderVars["cacheName"], output, Int(this.renderVars["options"]["cache"]))>
 		</cfif>
 
 		<cfset this.tempData = "">

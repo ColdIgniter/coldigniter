@@ -7,6 +7,18 @@
 --->
 
 <!---
+ * Returns the timezone the application has been set to display
+ * dates in. This might be different than the timezone set
+ * at the server level, as you often want to stores dates in UTC
+ * and convert them on the fly for the user.
+--->
+<cffunction name="app_timezone" returntype="string" output="no" hint="Returns the timezone the application has been set to display dates in">
+	<cfset var config_ = variables.config("Config\App")>
+
+	<cfreturn config_.appTimezone>
+</cffunction>
+
+<!---
  * A convenience method to get the cache service, or an item of it.
  *
  * Examples:
@@ -81,6 +93,45 @@
 	<cfset ArrayAppend(arguments_, options)>
 
 	<cfreturn static_("ColdIgniter\Config\Factories").__callStatic("config", arguments_)>
+</cffunction>
+
+<!---
+ * Simpler way to create a new Cookie instance.
+ *
+ * Difference: the name has a trailing underscore, because the name of a
+ * scope (cookie) cannot be used for a function.
+ *
+ * @param name    Name of the cookie
+ * @param value   Value of the cookie
+ * @param options Cookie configuration options: a map (see array_()) with the
+ *                keys prefix, max-age, expires, path, domain, secure, httponly,
+ *                samesite and raw, or an empty string for none
+ *
+ * @throws CookieException
+--->
+<cffunction name="cookie_" returntype="any" output="no" hint="Simpler way to create a new Cookie instance">
+	<cfargument name="name" type="string" required="yes">
+	<cfargument name="value" type="string" required="no" default="">
+	<cfargument name="options" type="any" required="no" default="">
+
+	<cfreturn new_("ColdIgniter\Cookie\Cookie", arguments.name, arguments.value, arguments.options)>
+</cffunction>
+
+<!---
+ * Fetches the global `CookieStore` instance held by `Response`.
+ *
+ * @param cookies   If `getGlobal` is false, this is passed to CookieStore's constructor: a list of Cookie
+ * @param getGlobal If false, creates a new instance of CookieStore
+--->
+<cffunction name="cookies" returntype="any" output="no" hint="Fetches the global CookieStore instance held by Response">
+	<cfargument name="cookies" type="any" required="no" default="#ArrayNew(1)#">
+	<cfargument name="getGlobal" type="boolean" required="no" default="true">
+
+	<cfif arguments.getGlobal>
+		<cfreturn service("response").getCookieStore()>
+	</cfif>
+
+	<cfreturn new_("ColdIgniter\Cookie\CookieStore", arguments.cookies)>
 </cffunction>
 
 <!---
@@ -263,24 +314,31 @@
  *
  * If data is a string, then it simply escapes and returns it.
  *
- * Not ported yet: the "css" context and the encoding (the Escaper
- * library is not ported). The "js" context is a small stand-in for
- * Escaper::escapeJs().
- *
  * Differs from the original: a list or a map is escaped into a copy,
  * value by value, and the copy is returned (arrays are not copied on
  * the way in here).
  *
+ * Difference: an empty string is the null encoding (there is no null), so
+ * a blank encoding cannot be told from none, and the exception of the
+ * original for a blank encoding is not thrown from here.
+ *
+ * Difference: the one Escaper of an encoding is kept in
+ * request.ColdIgniter.escapers, for the request, where the original has
+ * a static variable. It is ColdIgniter\ThirdParty\Escaper\Escaper, see there.
+ *
  * @param data     The string
  * @param context  'attr', 'css', 'html', 'js', 'raw' or 'url'
+ * @param encoding Current encoding for escaping. If not UTF-8, we convert strings from this encoding
+ *                 pre-escaping and back to this encoding post-escaping. An empty string (null) for UTF-8.
+ *
+ * @throws InvalidArgumentException
 --->
 <cffunction name="esc" returntype="any" output="no" hint="Performs simple auto-escaping of data for security reasons">
 	<cfargument name="data" type="any" required="yes">
 	<cfargument name="context" type="string" required="no" default="html">
 	<cfargument name="encoding" type="string" required="no" default="">
-	<cfset var escaped = "">
-	<cfset var char = "">
-	<cfset var code = 0>
+	<cfset var escaper = "">
+	<cfset var cacheKey = "">
 	<cfset var i = 0>
 	<cfset var result = "">
 	<cfset var key = "">
@@ -315,39 +373,42 @@
 	</cfif>
 
 	<cfif IsSimpleValue(arguments.data)>
-		<cfif NOT ListFind("html,js,attr,url", arguments.context)>
+		<cfif NOT ListFind("html,js,css,url,attr", arguments.context)>
 			<cfthrow type="ColdIgniter.InvalidArgumentException" message="Invalid escape context provided.">
 		</cfif>
 
-		<!--- Everything but letters, digits and ",._" becomes \xHH or \uHHHH. --->
-		<cfif arguments.context EQ "js">
-			<cfloop from="1" to="#Len(arguments.data)#" index="i">
-				<cfset char = Mid(arguments.data, i, 1)>
-				<cfif REFind("[A-Za-z0-9,._]", char) GT 0>
-					<cfset escaped = escaped & char>
-				<cfelse>
-					<cfset code = Asc(char)>
-					<cfif code LT 256>
-						<cfset escaped = escaped & "\x" & UCase(Right("0" & FormatBaseN(code, 16), 2))>
-					<cfelse>
-						<cfset escaped = escaped & "\u" & UCase(Right("000" & FormatBaseN(code, 16), 4))>
-					</cfif>
-				</cfif>
-			</cfloop>
-
-			<cfreturn escaped>
+		<!--- static $escapers --->
+		<cfif NOT StructKeyExists(request.ColdIgniter, "escapers")>
+			<cfset request.ColdIgniter.escapers = StructNew()>
 		</cfif>
 
-		<cfif arguments.context EQ "url">
-			<cfreturn URLEncodedFormat(arguments.data)>
+		<cfif arguments.encoding EQ "">
+			<cfset cacheKey = "utf-8">
+		<cfelse>
+			<cfset cacheKey = LCase(arguments.encoding)>
 		</cfif>
 
-		<cfset arguments.data = HTMLEditFormat(arguments.data)>
-		<cfif arguments.context EQ "attr">
-			<cfset arguments.data = Replace(arguments.data, "'", "&##39;", "all")>
-		<cfelseif arguments.context EQ "html">
-			<!--- The original escapes the single quote too (ENT_QUOTES) --->
-			<cfset arguments.data = Replace(arguments.data, "'", "&##039;", "all")>
+		<cfif NOT StructKeyExists(request.ColdIgniter.escapers, cacheKey)>
+			<cfif arguments.encoding EQ "">
+				<cfset request.ColdIgniter.escapers[cacheKey] = new_("ColdIgniter\ThirdParty\Escaper\Escaper")>
+			<cfelse>
+				<cfset request.ColdIgniter.escapers[cacheKey] = new_("ColdIgniter\ThirdParty\Escaper\Escaper", arguments.encoding)>
+			</cfif>
+		</cfif>
+
+		<!--- Difference: the method is chosen here, as a call by name with Evaluate is slow --->
+		<cfset escaper = request.ColdIgniter.escapers[cacheKey]>
+
+		<cfif arguments.context EQ "html">
+			<cfset arguments.data = escaper.escapeHtml(arguments.data)>
+		<cfelseif arguments.context EQ "attr">
+			<cfset arguments.data = escaper.escapeHtmlAttr(arguments.data)>
+		<cfelseif arguments.context EQ "js">
+			<cfset arguments.data = escaper.escapeJs(arguments.data)>
+		<cfelseif arguments.context EQ "css">
+			<cfset arguments.data = escaper.escapeCss(arguments.data)>
+		<cfelse>
+			<cfset arguments.data = escaper.escapeUrl(arguments.data)>
 		</cfif>
 	</cfif>
 
@@ -372,7 +433,7 @@
  * RedirectException): the caller takes the redirect from the response it
  * passed in.
  *
- * Not ported yet: is_cli(), the session ID regeneration, the testing
+ * Not ported yet: the session ID regeneration, the testing
  * environment, withScheme() (the scheme is replaced in the string of the
  * URI) and clearing the cookies of the response (there is no cookie store).
 --->
@@ -409,6 +470,38 @@
 	<cfset arguments.response.setBody("")>
 
 	<cfset static_("ColdIgniter\HTTP\Exceptions\RedirectException").forResponse()>
+</cffunction>
+
+<!---
+ * Function usable
+ *
+ * Executes a function_exists() check, and if the Suhosin extension is
+ * loaded - checks whether the function that is checked might be disabled
+ * in there as well.
+ *
+ * Difference: there is no function_exists() and no Suhosin here (so the
+ * blacklist of the original is always empty). A function exists if it is
+ * a built-in function of the engine (GetFunctionList()) or a function that
+ * has been defined with the name in the variables scope (the global
+ * functions of ColdIgniter).
+ *
+ * @param functionName Function to check for
+ *
+ * @return TRUE if the function exists and is safe to call,
+ *         FALSE otherwise.
+--->
+<cffunction name="function_usable" returntype="boolean" output="no" hint="Executes a function_exists() check">
+	<cfargument name="functionName" type="string" required="yes">
+
+	<cfif StructKeyExists(GetFunctionList(), arguments.functionName)>
+		<cfreturn true>
+	</cfif>
+
+	<cfif StructKeyExists(variables, arguments.functionName)>
+		<cfreturn IsCustomFunction(variables[arguments.functionName])>
+	</cfif>
+
+	<cfreturn false>
 </cffunction>
 
 <!---
@@ -509,10 +602,115 @@
 </cffunction>
 
 <!---
+ * Check if the application was invoked from the command line.
+ *
+ * Difference: the engine always serves a request from the web server, so
+ * the check of the SAPI of the original (cli and the debugger) is left out. The
+ * second check is the same: there is no client address and no request
+ * method.
+--->
+<cffunction name="is_cli" returntype="boolean" output="no" hint="Check if the application was invoked from the command line">
+	<!--- the original reads $_SERVER; it is the CGI variables, see server_value() --->
+	<cfreturn server_value("REMOTE_ADDR") EQ "" AND server_value("REQUEST_METHOD") EQ "">
+</cffunction>
+
+<!---
+ * Tests for file writability
+ *
+ * is_writable() returns TRUE on Windows servers when you really can't write to
+ * the file, based on the read-only attribute. is_writable() is also unreliable
+ * on Unix servers if safe_mode is on.
+ *
+ * Difference: the permission bits are not set (chmod is not there), as the
+ * test file is deleted right away.
+ *
+ * @throws Exception
+--->
+<cffunction name="is_really_writable" returntype="boolean" output="no" hint="Tests for file writability">
+	<cfargument name="file" type="string" required="yes">
+	<cfset var fileObject = CreateObject("java", "java.io.File").init(JavaCast("string", arguments.file))>
+	<cfset var fp = "">
+
+	<!--- If we're on a Unix server we call is_writable --->
+	<cfif NOT is_windows()>
+		<cfreturn fileObject.canWrite()>
+	</cfif>
+
+	<!---
+	 * For Windows servers and safe_mode "on" installations we'll actually
+	 * write a file then read it. Bah...
+	--->
+	<cfif fileObject.isDirectory()>
+		<cfset arguments.file = rtrim_(arguments.file, "/") & "/" & bin2hex(random_bytes(16))>
+
+		<cftry>
+			<cfset fp = CreateObject("java", "java.io.FileOutputStream").init(JavaCast("string", arguments.file), JavaCast("boolean", true))>
+
+			<cfcatch type="any">
+				<cfreturn false>
+			</cfcatch>
+		</cftry>
+
+		<cfset fp.close()>
+		<cfset CreateObject("java", "java.io.File").init(JavaCast("string", arguments.file)).delete()>
+
+		<cfreturn true>
+	</cfif>
+
+	<cfif NOT fileObject.isFile()>
+		<cfreturn false>
+	</cfif>
+
+	<cftry>
+		<cfset fp = CreateObject("java", "java.io.FileOutputStream").init(JavaCast("string", arguments.file), JavaCast("boolean", true))>
+
+		<cfcatch type="any">
+			<cfreturn false>
+		</cfcatch>
+	</cftry>
+
+	<cfset fp.close()>
+
+	<cfreturn true>
+</cffunction>
+
+<!---
+ * Detect if platform is running in Windows.
+ *
+ * Difference: the mocked value is kept in request.ColdIgniter.isWindows for
+ * the request, where the original has a static variable. An empty string
+ * (null) as the argument clears the mock.
+ *
+ * @param mock An empty string (null), true or false
+--->
+<cffunction name="is_windows" returntype="boolean" output="no" hint="Detect if platform is running in Windows">
+	<cfargument name="mock" type="any" required="no">
+
+	<!--- func_num_args() === 1 --->
+	<cfif StructKeyExists(arguments, "mock")>
+		<cfif is_null(arguments.mock)>
+			<cfset StructDelete(request.ColdIgniter, "isWindows")>
+		<cfelse>
+			<cfset request.ColdIgniter.isWindows = arguments.mock IS true>
+		</cfif>
+	</cfif>
+
+	<cfif StructKeyExists(request.ColdIgniter, "isWindows")>
+		<cfreturn request.ColdIgniter.isWindows>
+	</cfif>
+
+	<cfreturn Compare(request.DIRECTORY_SEPARATOR, "\") EQ 0>
+</cffunction>
+
+<!---
  * A convenience method to translate a string or array of them and format
  * the result.
  *
- * Not ported yet: the intl extension's MessageFormatter, see Language.
+ * Difference: there is no intl MessageFormatter, Language formats the message.
+ * Supported: {name}, {0}, and the English plural form
+ * {n,plural,=1{...} other{...}} with # as the number. Not supported: the
+ * select, number and date forms, the plural rules of other locales, quoting
+ * with apostrophes, and the exception for a bad pattern.
  *
  * lang(line, args, locale)
  *
@@ -771,6 +969,13 @@
 </cffunction>
 
 <!---
+ * Returns the shared Response.
+--->
+<cffunction name="response" returntype="any" output="no" hint="Returns the shared Response">
+	<cfreturn service("response")>
+</cffunction>
+
+<!---
  * Given a route name or controller/method string and any params,
  * will attempt to build the relative URL to the
  * matching route.
@@ -962,6 +1167,58 @@
 </cffunction>
 
 <!---
+ * Always returns a new instance of the class.
+ *
+ * single_service(name, param, param, ...)
+ *
+ * Difference: the original reads the parameters of the method with
+ * ReflectionMethod and fills the ones that were not given with their default
+ * values, up to the last, which is the flag for the shared instance and is
+ * set to false. A call can skip arguments by name here, so the given
+ * parameters are put under the names of the parameters of the method
+ * (GetMetaData()), the flag is set to false, and the defaults of the
+ * method fill the rest.
+ *
+ * @return The service, or an empty string (null) if it is not defined anywhere
+--->
+<cffunction name="single_service" returntype="any" output="no" hint="Always returns a new instance of the class">
+	<cfargument name="name" type="string" required="yes">
+	<cfset var service_ = static_("Config\Services").serviceExists(arguments.name)>
+	<cfset var target = "">
+	<cfset var meta = "">
+	<cfset var named = StructNew()>
+	<cfset var count = 0>
+	<cfset var given = ArrayLen(arguments) - 1>
+	<cfset var i = 0>
+
+	<cfif is_null(service_)>
+		<!--- The service is not defined anywhere so just return. --->
+		<cfreturn "">
+	</cfif>
+
+	<cfset target = static_(service_)>
+	<cfset meta = GetMetaData(target[LCase(arguments.name)])>
+	<cfset count = ArrayLen(meta.parameters)>
+
+	<!--- This service needs only one argument, which is the shared instance flag, wrapped up with false --->
+	<cfif count GT 1>
+		<!--- Fill in the params, but stop before the last --->
+		<cfif given GT count - 1>
+			<cfset given = count - 1>
+		</cfif>
+
+		<cfloop from="1" to="#given#" index="i">
+			<cfset named[meta.parameters[i].name] = arguments[i + 1]>
+		</cfloop>
+	</cfif>
+
+	<!--- Ensure the last argument will not create a shared instance --->
+	<cfset named[meta.parameters[count].name] = false>
+
+	<cfreturn Evaluate("target.#LCase(arguments.name)#(argumentCollection=named)")>
+</cffunction>
+
+<!---
  * Fetch a config file item with slash appended (if not empty)
  *
  * Difference: an item that does not exist gives an empty string (null).
@@ -1039,6 +1296,38 @@
 	</cfif>
 
 	<cfreturn rtrim_(atts, ",")>
+</cffunction>
+
+<!---
+ * A convenience method for working with the timer.
+ * If no parameter is passed, it will return the timer instance.
+ * If callable is passed, it measures time of callable and
+ * returns its return value if any.
+ * Otherwise will start or stop the timer intelligently.
+ *
+ * @param name     An empty string (null) for the timer, or the name of the timer
+ * @param callable A pair [object-or-class-name, "method"] (see Timer::record()), or an empty string (null)
+ *
+ * @return The Timer, or the value that the callable returned
+--->
+<cffunction name="timer" returntype="any" output="no" hint="A convenience method for working with the timer">
+	<cfargument name="name" type="string" required="no" default="">
+	<cfargument name="callable" type="any" required="no" default="">
+	<cfset var timerService = service("timer")>
+
+	<cfif is_null(arguments.name)>
+		<cfreturn timerService>
+	</cfif>
+
+	<cfif NOT is_null(arguments.callable)>
+		<cfreturn timerService.record(arguments.name, arguments.callable)>
+	</cfif>
+
+	<cfif timerService.has(arguments.name)>
+		<cfreturn timerService.stop(arguments.name)>
+	</cfif>
+
+	<cfreturn timerService.start(arguments.name)>
 </cffunction>
 
 <!---
