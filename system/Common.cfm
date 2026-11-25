@@ -1229,7 +1229,9 @@
 
 	<cfset target = static_(service_)>
 	<cfset meta = GetMetaData(target[LCase(arguments.name)])>
-	<cfset count = ArrayLen(meta.parameters)>
+	<cfif StructKeyExists(meta, "parameters")>
+		<cfset count = ArrayLen(meta.parameters)>
+	</cfif>
 
 	<!--- This service needs only one argument, which is the shared instance flag, wrapped up with false --->
 	<cfif count GT 1>
@@ -1244,7 +1246,9 @@
 	</cfif>
 
 	<!--- Ensure the last argument will not create a shared instance --->
-	<cfset named[meta.parameters[count].name] = false>
+	<cfif count GT 0>
+		<cfset named[meta.parameters[count].name] = false>
+	</cfif>
 
 	<cfreturn Evaluate("target.#LCase(arguments.name)#(argumentCollection=named)")>
 </cffunction>

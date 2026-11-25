@@ -170,6 +170,11 @@
 			<cfset target = static_(target)>
 		</cfif>
 
+		<!--- the method is put in the Evaluate below, so only the name of a method of the object is let through --->
+		<cfif NOT method_exists(target, method)>
+			<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="The callable has no method ""#method#"".">
+		</cfif>
+
 		<cfset start(arguments.name)>
 		<cfset returnValue = Evaluate("target.#method#()")>
 		<cfset stop(arguments.name)>
