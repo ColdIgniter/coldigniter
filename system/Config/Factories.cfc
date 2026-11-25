@@ -138,19 +138,32 @@
 		<cfset var options = "">
 		<cfset var instance = "">
 		<cfset var class = "">
+		<cfset var rest = ArrayNew(1)>
+		<cfset var i = 0>
 
 		<cfset arguments.component = LCase(arguments.component)>
 
 		<!--- First argument is the class alias, second is options --->
 		<cfset alias = trim_(arguments.arguments_[1], "\ ")>
-		<cfset ArrayDeleteAt(arguments.arguments_, 1)>
 
-		<cfif ArrayLen(arguments.arguments_) GT 0>
-			<cfif IsStruct(arguments.arguments_[1])>
-				<cfset given = arguments.arguments_[1]>
+		<!---
+		 * Difference: platform. An array is not copied on the way in, so the
+		 * rest of the arguments (the ones for the constructor) are copied to
+		 * a new list instead of shifted off the list of the caller.
+		--->
+		<cfif ArrayLen(arguments.arguments_) GT 1>
+			<!--- Difference: platform. The original fails with a TypeError when the options are not an array; here an exception is thrown. --->
+			<cfif NOT IsStruct(arguments.arguments_[2]) AND NOT is_null(arguments.arguments_[2])>
+				<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="The options of Factories::#arguments.component#() must be a struct.">
 			</cfif>
 
-			<cfset ArrayDeleteAt(arguments.arguments_, 1)>
+			<cfif IsStruct(arguments.arguments_[2])>
+				<cfset given = arguments.arguments_[2]>
+			</cfif>
+
+			<cfloop from="3" to="#ArrayLen(arguments.arguments_)#" index="i">
+				<cfset ArrayAppend(rest, arguments.arguments_[i])>
+			</cfloop>
 		</cfif>
 
 		<!---
@@ -170,20 +183,20 @@
 			<cfif StructKeyExists(this.aliases, options["component"]) AND StructKeyExists(this.aliases[options["component"]], alias)>
 				<cfset class = this.aliases[options["component"]][alias]>
 
-				<cfreturn newClass(class, arguments.arguments_)>
+				<cfreturn newClass(class, rest)>
 			</cfif>
 
 			<!--- Try to locate the class --->
 			<cfset class = locateClass(options, alias)>
 			<cfif class NEQ "">
-				<cfreturn newClass(class, arguments.arguments_)>
+				<cfreturn newClass(class, rest)>
 			</cfif>
 
 			<cfreturn "">
 		</cfif>
 
 		<!--- Check for an existing definition --->
-		<cfset instance = getDefinedInstance(options, alias, arguments.arguments_)>
+		<cfset instance = getDefinedInstance(options, alias, rest)>
 		<cfif IsObject(instance)>
 			<cfreturn instance>
 		</cfif>
@@ -194,7 +207,7 @@
 			<cfreturn "">
 		</cfif>
 
-		<cfset createInstance(options["component"], class, arguments.arguments_)>
+		<cfset createInstance(options["component"], class, rest)>
 		<cfset setAlias(options["component"], alias, class)>
 
 		<cfreturn this.instances[options["component"]][class]>
@@ -628,6 +641,11 @@
 		<cfargument name="component" type="string" required="yes">
 		<cfset var data = StructNew()>
 
+		<!---
+		 * Difference: platform. After only define() there are aliases but no
+		 * instances or options: a missing struct is an empty one here, where
+		 * the original gives null with a warning.
+		--->
 		<cfif NOT StructKeyExists(this.aliases, arguments.component)>
 			<cfset data["options"] = StructNew()>
 			<cfset data["aliases"] = StructNew()>
@@ -636,9 +654,18 @@
 			<cfreturn data>
 		</cfif>
 
-		<cfset data["options"] = this.options[arguments.component]>
+		<cfset data["options"] = StructNew()>
+		<cfset data["instances"] = StructNew()>
+
+		<cfif StructKeyExists(this.options, arguments.component)>
+			<cfset data["options"] = this.options[arguments.component]>
+		</cfif>
+
 		<cfset data["aliases"] = this.aliases[arguments.component]>
-		<cfset data["instances"] = this.instances[arguments.component]>
+
+		<cfif StructKeyExists(this.instances, arguments.component)>
+			<cfset data["instances"] = this.instances[arguments.component]>
+		</cfif>
 
 		<cfreturn data>
 	</cffunction>
@@ -726,8 +753,13 @@
 			<cfreturn files>
 		</cfif>
 
+		<!--- App first, then the others, ColdIgniter last --->
+		<cfif StructKeyExists(namespaces, request.APP_NAMESPACE)>
+			<cfset ArrayAppend(names, request.APP_NAMESPACE)>
+		</cfif>
+
 		<cfloop collection="#namespaces#" item="namespace">
-			<cfif Compare(namespace, "ColdIgniter") NEQ 0>
+			<cfif Compare(namespace, "ColdIgniter") NEQ 0 AND Compare(namespace, request.APP_NAMESPACE) NEQ 0>
 				<cfset ArrayAppend(names, namespace)>
 			</cfif>
 		</cfloop>
