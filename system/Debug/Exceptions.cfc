@@ -186,7 +186,7 @@
 		 implement it. The exit code comes from getExitCode() of the
 		 component of the type.
 		--->
-		<cfif ListFindNoCase("ColdIgniter.Exceptions.ConfigException,ColdIgniter.Entity.Exceptions.CastException,ColdIgniter.Database.Exceptions.DatabaseException", arguments.exception.type) GT 0>
+		<cfif ListFindNoCase("ColdIgniter.Exceptions.ConfigException,ColdIgniter.Filters.Exceptions.FilterException,ColdIgniter.Honeypot.Exceptions.HoneypotException,ColdIgniter.Entity.Exceptions.CastException,ColdIgniter.Database.Exceptions.DatabaseException", arguments.exception.type) GT 0>
 			<cfset exitStatus = static_(Replace(arguments.exception.type, ".", "\", "all")).getExitCode()>
 		</cfif>
 

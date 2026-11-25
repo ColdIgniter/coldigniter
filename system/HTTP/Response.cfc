@@ -262,6 +262,12 @@
 	<!---
 	 * Sets the date header
 	 *
+	 * Difference: the original takes a DateTime, and its setTimezone() changes
+	 * the object of the caller to UTC. CFML has no DateTime: the only date
+	 * object is the Time of the port, which is immutable, so setTimezone()
+	 * returns a new Time and the object of the caller keeps its zone. The
+	 * header is the same.
+	 *
 	 * @param date A Time
 	--->
 	<cffunction name="setDate" access="public" returntype="any" output="no">
@@ -357,16 +363,20 @@
 		<cfloop condition="it.hasNext()">
 			<cfset key = it.next()>
 
-			<!--- ETag --->
-			<cfif Compare(key, "etag") EQ 0>
-				<cfset setHeader("ETag", arguments.options.get(key))>
-			<!--- Last Modified --->
-			<cfelseif Compare(key, "last-modified") EQ 0>
-				<cfset setLastModified(arguments.options.get(key))>
-			<cfelse>
+			<cfif Compare(key, "etag") NEQ 0 AND Compare(key, "last-modified") NEQ 0>
 				<cfset rest[key] = arguments.options.get(key)>
 			</cfif>
 		</cfloop>
+
+		<!--- ETag --->
+		<cfif arguments.options.containsKey("etag")>
+			<cfset setHeader("ETag", arguments.options.get("etag"))>
+		</cfif>
+
+		<!--- Last Modified --->
+		<cfif arguments.options.containsKey("last-modified")>
+			<cfset setLastModified(arguments.options.get("last-modified"))>
+		</cfif>
 
 		<cfset setHeader("Cache-Control", rest)>
 
@@ -378,6 +388,12 @@
 	 *
 	 * date can be either a string representation of the date or,
 	 * preferably, a Time.
+	 *
+	 * Difference: the original takes a DateTime (see setDate()). A date value
+	 * of CFML (Now()) is a string for the type check here, and cannot be told
+	 * from the string form of a date, so it is set as it is, and is not
+	 * converted to UTC. Pass a Time to have it converted. The Time of the
+	 * caller is not changed.
 	 *
 	 * @param date Time|string
 	--->
@@ -435,9 +451,9 @@
 		</cfif>
 
 		<!---
-		 Difference: the Date header is not set here when it is missing (b,
-		 performance): IIS adds the header itself, and a Time would be made
-		 for each request.
+		 Difference: the Date header is not set here when it is missing. IIS adds
+		 the header itself, and making a Time for each request would only cost
+		 time.
 		--->
 
 		<!--- HTTP Status --->

@@ -363,7 +363,7 @@
 		<cfset var location = "">
 		<cfset var found = "">
 		<cfset var str = "">
-		<cfset var session = "">
+		<cfset var state = "">
 
 		<cfif NOT IsSimpleValue(arguments.message)>
 			<cfreturn print_r(arguments.message)>
@@ -421,15 +421,16 @@
 		 isset($_SESSION)
 
 		 Difference: the session is looked at only when the message has the
-		 placeholder (b, performance), and a request that has not touched the
-		 session has no session state at all (see session_state()), which is
-		 the same as an unset $_SESSION.
+		 placeholder, because most messages have none and the look costs time on
+		 every log line. A request that has not touched the session has no
+		 session state at all (see session_state()), which is the same as an
+		 unset $_SESSION.
 		--->
 		<cfif Find("{session_vars}", arguments.message) GT 0 AND StructKeyExists(request.ColdIgniter, "session")>
-			<cfset session = request.ColdIgniter.session>
+			<cfset state = request.ColdIgniter.session>
 
-			<cfif Compare(session.status, "active") EQ 0 OR Compare(session.id, "") NEQ 0>
-				<cfset replace["{session_vars}"] = "$_SESSION: " & print_r(session.data)>
+			<cfif Compare(state.status, "active") EQ 0 OR Compare(state.id, "") NEQ 0>
+				<cfset replace["{session_vars}"] = "$_SESSION: " & print_r(state.data)>
 			</cfif>
 		</cfif>
 

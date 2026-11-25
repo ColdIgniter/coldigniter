@@ -231,7 +231,7 @@
 					 directive without a value (see Response::setCache()).
 					 CFML cannot mix the two kinds of key.
 					--->
-					<cfif IsNumeric(key)>
+					<cfif REFind("^[0-9]+$", key & "") GT 0>
 						<cfset ArrayAppend(options, item)>
 					<cfelse>
 						<cfset ArrayAppend(options, key & "=" & item)>

@@ -121,7 +121,17 @@
 	 * code that has caught the type.
 	--->
 	<cffunction name="lastThrown" access="public" returntype="any" output="no">
-		<cfreturn request.ColdIgniter.redirectException>
+		<cfset var exception = "">
+
+		<cfif NOT StructKeyExists(request.ColdIgniter, "redirectException")>
+			<cfthrow type="ColdIgniter.Exceptions.LogicException" message="No RedirectException has been raised with raise().">
+		</cfif>
+
+		<!--- read once: an older exception cannot be picked up by a later catch --->
+		<cfset exception = request.ColdIgniter.redirectException>
+		<cfset StructDelete(request.ColdIgniter, "redirectException")>
+
+		<cfreturn exception>
 	</cffunction>
 
 </cfcomponent>
