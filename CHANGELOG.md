@@ -14,11 +14,11 @@ The first release. Ported from CodeIgniter 4.7.6, for ColdFusion MX 6.1.
 
 What is in it:
 
-- Core: boot, routing, controllers, views, events, filters, the exception handler and error views, `.env`, the logger.
-- HTTP: request input and input filters, JSON input, locales, headers, the user agent, content negotiation, method spoofing, uploaded files, redirects, the content security policy, the CORS and honeypot filters.
+- Core: boot, the autoloader, services, factories and modules, routing, controllers, views and the view parser, events, filters, the exception handler and error views, `.env`, the logger with the file and error log handlers.
+- HTTP: request input and input filters, JSON input, locales, headers, the user agent, content negotiation, method spoofing, uploaded files, redirects, the content security policy, and the CORS, honeypot, force HTTPS, secure headers and invalid characters filters.
 - Database: the database core, the query builder, the forge, migrations and the seeder, with the SQLSRV driver for Microsoft SQL Server 2000.
 - Models and data: Model and BaseModel, Entity with its casts, DataCaster and DataConverter, the pager.
-- Sessions and cookies, with the file handler and the database handler.
+- Sessions and cookies, with the file, database and array handlers.
 - Security: the security library with CSRF protection, Encryption with the OpenSSL handler and key rotation. The default cipher is AES with a 128-bit key.
 - Validation: the rules, the upload file rules and the language lines.
 - Cache: the cache library with the file handler, and page caching.

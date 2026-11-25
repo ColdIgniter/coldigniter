@@ -5,8 +5,9 @@ ColdIgniter is a CFML port of CodeIgniter 4. This page shows how much of the `sy
 The list is made by file name only:
 
 - A file that counts as ported can still miss some methods. The comment at the top of each file says what is not ported yet.
-- Interfaces count as not ported, because CFML on ColdFusion MX 6.1 has none.
-- Some files will never be ported, because they belong to another platform: Composer scripts, the command line, and handlers for Redis, Memcached and APCu.
+- CFML on ColdFusion MX 6.1 has no interfaces. An interface is ported as a plain component where the code needs one. An interface with no matching file counts as not ported.
+- A trait whose methods are written into the component that uses it has no file of its own, so it is listed as "without a match". Examples: `HTTP/MessageTrait`, `HTTP/ResponseTrait` and `Traits/ConditionalTrait`.
+- Some files will never be ported, because they belong to another platform: Composer scripts, the command line, and handlers for Redis, Predis, Memcached, APCu and Wincache.
 - `ThirdParty/` is left out.
 
 ColdIgniter has its own version numbers. They do not follow the numbers of CodeIgniter. See `CHANGELOG.md`.
