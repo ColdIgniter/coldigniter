@@ -215,8 +215,8 @@
 
 	<cffunction name="handleDeprecationError" access="private" returntype="boolean" output="no">
 		<cfargument name="message" type="string" required="yes">
-		<cfargument name="file" type="any" required="no">
-		<cfargument name="line" type="any" required="no">
+		<cfargument name="file" type="any" required="no" default="">
+		<cfargument name="line" type="any" required="no" default="">
 		<cfset var trace = ArrayNew(1)>
 
 		<!---

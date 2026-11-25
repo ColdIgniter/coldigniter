@@ -330,7 +330,7 @@
 	 *                (the keys "0", "1"), as in the original array.
 	--->
 	<cffunction name="setCache" access="public" returntype="any" output="no">
-		<cfargument name="options" type="any" required="no">
+		<cfargument name="options" type="any" required="no" default="">
 		<cfset var rest = "">
 		<cfset var it = "">
 		<cfset var key = "">
