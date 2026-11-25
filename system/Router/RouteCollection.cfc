@@ -1305,57 +1305,6 @@
 						<cfreturn buildReverseRoute(from, params)>
 					</cfif>
 				</cfif>
-			</cfif>
-		</cfloop>
-
-		<!--- Add the default namespace if needed. --->
-		<cfset namespace = trim_(this.defaultNamespace, "\") & "\">
-		<cfif NOT str_starts_with(arguments.search, "\")
-			AND NOT str_starts_with(arguments.search, namespace)>
-			<cfset arguments.search = namespace & arguments.search>
-		</cfif>
-
-		<!---
-		 If it's not a named route, then loop over
-		 all routes to find a match.
-		--->
-		<cfloop collection="#this.routes#" item="verb">
-			<cfset collection = this.routes[verb]>
-
-			<cfloop collection="#collection#" item="routeKey">
-				<cfset route = collection[routeKey]>
-				<cfset to = route["handler"]>
-				<cfset from = route["from"]>
-
-				<!--- ignore closures --->
-				<cfif NOT IsSimpleValue(to)>
-					<cfcontinue>
-				</cfif>
-
-				<!---
-				 Lose any namespace slash at beginning of strings
-				 to ensure more consistent match.
-				--->
-				<cfset to = ltrim_(to, "\")>
-				<cfset arguments.search = ltrim_(arguments.search, "\")>
-
-				<!---
-				 If there's any chance of a match, then it will
-				 be with search at the beginning of the to string.
-				--->
-				<cfif NOT str_starts_with(to, arguments.search)>
-					<cfcontinue>
-				</cfif>
-
-				<!---
-				 Ensure that the number of params given here
-				 matches the number of back-references in the route
-				--->
-				<cfif Len(to) - Len(Replace(to, "$", "", "all")) NEQ ArrayLen(params)>
-					<cfcontinue>
-				</cfif>
-
-				<cfreturn buildReverseRoute(from, params)>
 			</cfloop>
 		</cfloop>
 
