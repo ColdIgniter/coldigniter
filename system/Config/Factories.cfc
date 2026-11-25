@@ -28,8 +28,7 @@
  * That cannot be expressed here: a connection is only passed in, as one of
  * the arguments of the constructor.
  *
- * Not ported yet: the factories cache (FactoriesCache) and the locator
- * (see search()).
+ * Not ported yet: the factories cache (FactoriesCache).
 --->
 <cfcomponent output="no" hint="Factories for creating instances">
 
@@ -350,6 +349,8 @@
 		<cfset var basename = "">
 		<cfset var appname = "">
 		<cfset var files = "">
+		<cfset var file = "">
+		<cfset var locator = "">
 		<cfset var class = "">
 		<cfset var i = 0>
 
@@ -384,17 +385,38 @@
 		</cfif>
 
 		<!--- Have to do this the hard way... --->
-		<cfset files = search(arguments.options, arguments.alias)>
+		<cfset locator = service("locator")>
 
-		<cfif ArrayLen(files) EQ 0>
-			<cfreturn "">
+		<!--- Check if the class alias was namespaced --->
+		<cfif isNamespaced(arguments.alias)>
+			<!---
+			 * Difference: platform. The files of classes are .cfc, where the
+			 * default of the locator is the extension of the other files, and
+			 * "not found" is an empty string, not false.
+			--->
+			<cfset file = locator.locateFile(arguments.alias, arguments.options["path"], "cfc")>
+
+			<cfif file EQ "">
+				<cfreturn "">
+			</cfif>
+
+			<cfset files = ArrayNew(1)>
+			<cfset ArrayAppend(files, file)>
+		<cfelse>
+			<!--- No namespace? Search for it --->
+			<!--- Check all namespaces, prioritizing App and modules --->
+			<cfset files = locator.search(arguments.options["path"] & request.DIRECTORY_SEPARATOR & arguments.alias, "cfc")>
+
+			<cfif ArrayLen(files) EQ 0>
+				<cfreturn "">
+			</cfif>
 		</cfif>
 
 		<!--- Check all files for a valid class --->
 		<cfloop from="1" to="#ArrayLen(files)#" index="i">
-			<cfset class = files[i]>
+			<cfset class = locator.findQualifiedNameFromPath(files[i])>
 
-			<cfif verifyInstanceOf(arguments.options, class)>
+			<cfif class NEQ "" AND verifyInstanceOf(arguments.options, class)>
 				<cfreturn class>
 			</cfif>
 		</cfloop>
@@ -721,64 +743,6 @@
 		</cfloop>
 
 		<cfreturn Evaluate("new_(arguments.class" & call & ")")>
-	</cffunction>
-
-	<!---
-	 * Not in the original. The search of locateClass() through the locator
-	 * (locateFile(), search() and findQualifiedNameFromPath()): it returns
-	 * the classes found, as a list. A namespaced alias is the class itself
-	 * when it exists. Any other alias is looked for in the path of the
-	 * component in every namespace of the autoloader, the ColdIgniter
-	 * namespace last, as the locator does.
-	 *
-	 * Not ported yet: this switches to service("locator") when
-	 * system/Autoloader/FileLocator.cfc is ported.
-	--->
-	<cffunction name="search" access="private" returntype="array" output="no">
-		<cfargument name="options" type="struct" required="yes">
-		<cfargument name="alias" type="string" required="yes">
-		<cfset var files = ArrayNew(1)>
-		<cfset var namespaces = request.ColdIgniter.autoloader.getNamespace()>
-		<cfset var names = ArrayNew(1)>
-		<cfset var namespace = "">
-		<cfset var relative = "">
-		<cfset var class = "">
-		<cfset var i = 0>
-
-		<cfif isNamespaced(arguments.alias)>
-			<cfif class_exists(arguments.alias)>
-				<cfset ArrayAppend(files, arguments.alias)>
-			</cfif>
-
-			<cfreturn files>
-		</cfif>
-
-		<!--- App first, then the others, ColdIgniter last --->
-		<cfif StructKeyExists(namespaces, request.APP_NAMESPACE)>
-			<cfset ArrayAppend(names, request.APP_NAMESPACE)>
-		</cfif>
-
-		<cfloop collection="#namespaces#" item="namespace">
-			<cfif Compare(namespace, "ColdIgniter") NEQ 0 AND Compare(namespace, request.APP_NAMESPACE) NEQ 0>
-				<cfset ArrayAppend(names, namespace)>
-			</cfif>
-		</cfloop>
-
-		<cfif StructKeyExists(namespaces, "ColdIgniter")>
-			<cfset ArrayAppend(names, "ColdIgniter")>
-		</cfif>
-
-		<cfset relative = arguments.options["path"] & "\" & Replace(arguments.alias, "/", "\", "all")>
-
-		<cfloop from="1" to="#ArrayLen(names)#" index="i">
-			<cfset class = names[i] & "\" & relative>
-
-			<cfif class_exists(class)>
-				<cfset ArrayAppend(files, class)>
-			</cfif>
-		</cfloop>
-
-		<cfreturn files>
 	</cffunction>
 
 </cfcomponent>
