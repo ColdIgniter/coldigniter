@@ -52,7 +52,7 @@ Total: 242 of 492 files.
 | `Security` | 4 | 3 | Part |
 | `Session` | 12 | 9 | Part |
 | `Test` | 44 | 3 | Part |
-| `Throttle` | 2 | 0 | None |
+| `Throttle` | 2 | 2 | All |
 | `Traits` | 2 | 0 | None |
 | `Typography` | 1 | 0 | None |
 | `Validation` | 14 | 12 | Part |
@@ -371,11 +371,6 @@ Total: 242 of 492 files.
 - `TestResponse.php`
 - `Utilities/NativeHeadersStack.php`
 - `bootstrap.php`
-
-### Throttle
-
-- `Throttler.php`
-- `ThrottlerInterface.php`
 
 ### Traits
 
