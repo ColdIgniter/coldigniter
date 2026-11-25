@@ -18,6 +18,9 @@ What is in it:
 - Throttle: the `Throttler`, a token bucket rate limiter on the cache, and the `throttler` service.
 - Config: `ForeignCharacters`, used by `convert_accented_characters()`.
 - `Config\DocTypes` now decides whether `img()` and the other html tags close with ` /`.
+- Config: `Factory`. `Factories` now follows CodeIgniter: `define()`, `getOptions()`, `setOptions()`, `reset()`, `injectMock()` and the options `component`, `path`, `instanceOf`, `getShared` and `preferApp`. `model()` is added.
+- Fix: `config("Config\App")` and then `config("App")` made two objects. Now they share one.
+- Fix: RESTful resource controllers now get their model through `model()`, so the shared instance and not a new one each time.
 
 ## 4.0.0
 
