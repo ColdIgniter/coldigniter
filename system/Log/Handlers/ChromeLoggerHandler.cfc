@@ -42,18 +42,12 @@
 	<!---
 	 * Maps the log levels to the ChromeLogger types.
 	 *
+	 * A map, made in the constructor: array_() is not visible where the
+	 * properties are set.
+	 *
 	 * @var array<string, string>
 	--->
-	<cfset this.levels = array_(
-		"emergency", "error",
-		"alert", "error",
-		"critical", "error",
-		"error", "error",
-		"warning", "warn",
-		"notice", "warn",
-		"info", "info",
-		"debug", "info"
-	)>
+	<cfset this.levels = "">
 
 	<!---
 	 * @param config A map: handles
@@ -67,6 +61,17 @@
 		</cfif>
 
 		<cfset super.__construct(arguments.config)>
+
+		<cfset this.levels = array_(
+			"emergency", "error",
+			"alert", "error",
+			"critical", "error",
+			"error", "error",
+			"warning", "warn",
+			"notice", "warn",
+			"info", "info",
+			"debug", "info"
+		)>
 
 		<cfset ArrayAppend(columns, "log")>
 		<cfset ArrayAppend(columns, "backtrace")>
