@@ -1,8 +1,11 @@
 <!---
  * Request router.
  *
- * Not ported yet: auto-routing, closures as handlers, redirect routes,
- * the {locale} placeholder, route attributes.
+ * Not ported yet: closures as handlers, redirect routes, route
+ * attributes, the legacy AutoRouter (only AutoRouterImproved is ported;
+ * with autoRoutesImproved off, auto-routing finds no route), and the
+ * setDirectory() and setTranslateURIDashes() methods of the original,
+ * which only act on the legacy AutoRouter.
 --->
 <cfcomponent output="no" hint="Request router">
 
@@ -77,12 +80,18 @@
 	<cfset this.permittedURIChars = "">
 
 	<!---
+	 * The auto router, when auto-routing is on.
+	--->
+	<cfset this.autoRouter = "">
+
+	<!---
 	 * Stores a reference to the RouteCollection object.
 	--->
 	<cffunction name="__construct" access="public" returntype="any" output="no">
 		<cfargument name="routes" type="any" required="yes">
 		<cfargument name="request_" type="any" required="no" default="">
 		<cfset var config = variables.config("Config\App")>
+		<cfset var autoRoutesImproved = false>
 
 		<cfset this.permittedURIChars = config.permittedURIChars>
 
@@ -100,7 +109,25 @@
 
 		<cfset this.translateURIDashes = this.collection.shouldTranslateURIDashes()>
 
-		<!--- Not ported yet: the auto router --->
+		<!---
+		 The auto router is asked for only when the collection says so; with
+		 auto-routing off, no Feature config is read.
+		--->
+		<cfif this.collection.shouldAutoRoute()>
+			<cfset autoRoutesImproved = variables.config("Config\Feature").autoRoutesImproved>
+			<cfif autoRoutesImproved>
+				<cfset this.autoRouter = new_(
+					"ColdIgniter\Router\AutoRouterImproved",
+					this.collection.getRegisteredControllers("*"),
+					this.collection.getDefaultNamespace(),
+					this.collection.getDefaultController(),
+					this.collection.getDefaultMethod(),
+					this.translateURIDashes
+				)>
+			<cfelse>
+				<!--- Not ported yet: the legacy AutoRouter (the original makes it here) --->
+			</cfif>
+		</cfif>
 
 		<cfreturn this>
 	</cffunction>
@@ -148,8 +175,33 @@
 			<cfthrow type="ColdIgniter.Exceptions.PageNotFoundException" errorcode="404" message="Can't find a route for '#this.collection.getHTTPVerb()#: #arguments.uri#'.">
 		</cfif>
 
-		<!--- Not ported yet: auto routes --->
-		<cfthrow type="ColdIgniter.Exceptions.PageNotFoundException" errorcode="404" message="Can't find a route for '#this.collection.getHTTPVerb()#: #arguments.uri#'.">
+		<cfif NOT IsObject(this.autoRouter)>
+			<!--- Not ported yet: the legacy AutoRouter (autoRoutesImproved is off) --->
+			<cfthrow type="ColdIgniter.Exceptions.PageNotFoundException" errorcode="404" message="Can't find a route for '#this.collection.getHTTPVerb()#: #arguments.uri#'.">
+		</cfif>
+
+		<cfset autoRoute(arguments.uri)>
+
+		<cfreturn controllerName()>
+	</cffunction>
+
+	<!---
+	 * Checks Auto Routes.
+	 *
+	 * Attempts to match a URI path against Controllers and directories
+	 * found in APPPATH/Controllers, to find a matching route.
+	 *
+	 * Difference: the original assigns the four values of the answer with
+	 * a list assignment; here they are read from the array one by one.
+	--->
+	<cffunction name="autoRoute" access="public" returntype="void" output="no">
+		<cfargument name="uri" type="string" required="yes">
+		<cfset var route = this.autoRouter.getRoute(arguments.uri, this.collection.getHTTPVerb())>
+
+		<cfset this.directory_ = route[1]>
+		<cfset this.controller = route[2]>
+		<cfset this.method = route[3]>
+		<cfset this.params_ = route[4]>
 	</cffunction>
 
 	<!---
@@ -297,6 +349,9 @@
 		<cfset var controller = "">
 		<cfset var methodAndParams = "">
 		<cfset var segments = "">
+		<cfset var matched = "">
+		<cfset var localeMatcher = "">
+		<cfset var locale = "">
 
 		<!--- Don't waste any time --->
 		<cfif StructCount(routes) EQ 0>
@@ -323,13 +378,46 @@
 
 			<cfset matchedKey = routeKey>
 
-			<!--- Not ported yet: {locale} --->
+			<!--- Are we dealing with a locale? --->
+			<cfif Find("{locale}", routeKey) GT 0>
+				<cfset routeKey = Replace(routeKey, "{locale}", "[^/]+", "all")>
+			</cfif>
 
 			<!--- Does the RegEx match? --->
 			<cfset regex_guard_(arguments.uri)>
 			<cfset matcher = CreateObject("java", "java.util.regex.Pattern").compile("^" & routeKey & "$").matcher(arguments.uri)>
 			<cfif matcher.matches()>
-				<!--- Not ported yet: redirect routes, closures --->
+				<!--- Not ported yet: redirect routes --->
+
+				<!---
+				 Store our locale so ColdIgniter object can
+				 assign it to the Request.
+				--->
+				<cfif Find("{locale}", matchedKey) GT 0>
+					<cfset localeMatcher = CreateObject("java", "java.util.regex.Pattern").compile("^" & Replace(matchedKey, "{locale}", "([^/]+)", "all") & "$").matcher(arguments.uri)>
+
+					<!---
+					 Difference: a named group (?<locale>) is not in Java 1.4.2,
+					 so the group is numbered, and its number is the count of the
+					 groups before {locale} in the key, plus one.
+					--->
+					<cfif localeMatcher.matches()>
+						<cfset locale = localeMatcher.group(JavaCast("int", localeGroup(matchedKey)))>
+
+						<cfif this.collection.shouldUseSupportedLocalesOnly()
+							AND NOT in_array(locale, variables.config("Config\App").supportedLocales)>
+							<!---
+							 Throw exception to prevent the autorouter, if enabled,
+							 from trying to find a route
+							--->
+							<cfset static_("ColdIgniter\Exceptions\PageNotFoundException").forLocaleNotSupported(locale)>
+						</cfif>
+
+						<cfset this.detectedLocale = locale>
+					</cfif>
+				</cfif>
+
+				<!--- Not ported yet: closures --->
 
 				<cfif Find("::", handler) GT 0>
 					<cfset segments = explode("::", handler)>
@@ -342,13 +430,13 @@
 
 				<!--- Checks `/` in controller name --->
 				<cfif Find("/", controller) GT 0>
-					<cfthrow type="ColdIgniter.Router.Exceptions.RouterException" message="The namespace delimiter is a backslash (\), not a slash (/). Route handler: ""#handler#""">
+					<cfset static_("ColdIgniter\Router\Exceptions\RouterException").forInvalidControllerName(handler)>
 				</cfif>
 
 				<cfif Find("$", handler) GT 0 AND Find("(", routeKey) GT 0>
 					<!--- Checks dynamic controller --->
 					<cfif Find("$", controller) GT 0>
-						<cfthrow type="ColdIgniter.Router.Exceptions.RouterException" message="A dynamic controller is not allowed for security reasons. Route handler: ""#handler#""">
+						<cfset static_("ColdIgniter\Router\Exceptions\RouterException").forDynamicController(handler)>
 					</cfif>
 
 					<!--- Not ported yet: multipleSegmentsOneParam --->
@@ -368,6 +456,27 @@
 		</cfloop>
 
 		<cfreturn false>
+	</cffunction>
+
+	<!---
+	 * Not in the original (see checkRoutes()). Gives the number of the
+	 * group of {locale}: the groups that open before it, plus one.
+	 *
+	 * @param key The route key, with {locale} in it
+	--->
+	<cffunction name="localeGroup" access="private" returntype="numeric" output="no">
+		<cfargument name="key" type="string" required="yes">
+		<cfset var before = Left(arguments.key, Find("{locale}", arguments.key) - 1)>
+
+		<!---
+		 an escaped character is not a group, and neither is a (?: group.
+		 Limit: a "(" inside a character class, such as [(], is still counted
+		 as a group, so a key with one before {locale} gives a wrong number.
+		--->
+		<cfset before = REReplace(before, "\\.", "", "all")>
+		<cfset before = REReplace(before, "\(\?", "", "all")>
+
+		<cfreturn Len(before) - Len(Replace(before, "(", "", "all")) + 1>
 	</cffunction>
 
 	<!---

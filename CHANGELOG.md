@@ -24,6 +24,8 @@ What is in it:
 - Config: `ForeignCharacters`, used by `convert_accented_characters()`.
 - Autoloader: `FileLocator` and `FileLocatorCached`, the `locator` service, `Config\Optimize` (only `locatorCacheEnabled` is used), and classmap loading and `sanitizeFilename()` in the autoloader. `helper()`, namespaced views, the Parser and the class search of `Factories` now find their files through the locator.
 - `Config\DocTypes` now decides whether `img()` and the other html tags close with ` /`.
+- Router: reverse routing with named routes (`reverseRoute()`, `route_to()`, `url_to()` and `redirect()->route()`), and the `{locale}` placeholder with `useSupportedLocalesOnly()`.
+- Router: `AutoRouterImproved`, with `RouterException` and `MethodNotFoundException`. The old `AutoRouter` is not ported, so with `autoRoutesImproved` off, auto-routing finds no route.
 - Common functions: `app_timezone()`, `cookie_()` (the name has an underscore, as `cookie` is a scope), `cookies()`, `function_usable()`, `is_cli()`, `is_really_writable()`, `is_windows()`, `response()`, `single_service()` and `timer()`. `esc()` has the `css` context and the encoding argument (new `ThirdParty\Escaper\Escaper`).
 - `Config\BaseService`: `serviceExists()`, `reset()`, `resetSingle()`, `injectMock()`, `resetServicesCache()`, `set()` and `override()`. Module discovery is not ported.
 - `Timer::record()`, and `View::render()` with the `cache` and `cache_name` options.

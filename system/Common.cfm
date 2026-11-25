@@ -1088,7 +1088,9 @@
  * NOTE: This requires the controller/method to
  * have a route defined in the routes Config file.
  *
- * Not ported yet: RouteCollection::reverseRoute, so no route is found.
+ * Difference: the original takes the params with "...$params". Here they
+ * are the arguments after the first one; with none, the call is direct,
+ * and with some it is made as text with Evaluate().
  *
  * @param method Route name or Controller::method
  * @param params One or more parameters to be passed to the route.
@@ -1098,9 +1100,18 @@
 --->
 <cffunction name="route_to" returntype="any" output="no" hint="Builds the relative URL to a route name or controller method">
 	<cfargument name="method" type="string" required="yes">
+	<cfset var call = "arguments.method">
+	<cfset var i = 0>
 
-	<!--- Not ported yet: service("routes").reverseRoute(method, params) --->
-	<cfreturn false>
+	<cfif ArrayLen(arguments) EQ 1>
+		<cfreturn service("routes").reverseRoute(arguments.method)>
+	</cfif>
+
+	<cfloop from="2" to="#ArrayLen(arguments)#" index="i">
+		<cfset call = ListAppend(call, "arguments[#i#]")>
+	</cfloop>
+
+	<cfreturn Evaluate("service(""routes"").reverseRoute(#call#)")>
 </cffunction>
 
 <!---

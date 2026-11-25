@@ -44,4 +44,10 @@
 		<cfthrow type="ColdIgniter.Exceptions.PageNotFoundException" errorcode="#this.code#" message="Controller method is not found: #arguments.method#">
 	</cffunction>
 
+	<cffunction name="forLocaleNotSupported" access="public" returntype="void" output="no">
+		<cfargument name="locale" type="string" required="yes">
+
+		<cfthrow type="ColdIgniter.Exceptions.PageNotFoundException" errorcode="#this.code#" message="Locale is not supported: #arguments.locale#">
+	</cffunction>
+
 </cfcomponent>

@@ -2,7 +2,7 @@
  * Class RouteCollection
  *
  * Not ported yet: route groups, match,
- * map, redirects, named routes and reverse routing, group filters, priority,
+ * map, redirects, group filters, priority,
  * hostname and subdomain limits, the offset option, closures as
  * handlers, route discovery in modules, and environment().
 --->
@@ -124,7 +124,18 @@
 	--->
 	<cfset this.routesOptions = CreateObject("java", "java.util.LinkedHashMap").init()>
 
-	<cfloop list="*,OPTIONS,GET,HEAD,POST,PATCH,PUT,DELETE,TRACE,CONNECT,CLI" index="verb">
+	<!---
+	 * Flag that limits the routes with a {locale} placeholder
+	 * to the supported locales of the App config.
+	--->
+	<cfset this.useSupportedLocalesOnly = false>
+
+	<!---
+	 * The HTTP methods of the Router (Router::HTTP_METHODS).
+	--->
+	<cfset this.defaultHTTPMethods = ListToArray("GET,HEAD,POST,PATCH,PUT,DELETE,OPTIONS,TRACE,CONNECT,CLI")>
+
+	<cfloop list="*,GET,HEAD,POST,PATCH,PUT,DELETE,OPTIONS,TRACE,CONNECT,CLI" index="verb">
 		<cfset this.routes[verb] = CreateObject("java", "java.util.LinkedHashMap").init()>
 		<cfset this.routesNames[verb] = CreateObject("java", "java.util.LinkedHashMap").init()>
 	</cfloop>
@@ -1057,6 +1068,420 @@
 		</cfif>
 
 		<cfreturn options>
+	</cffunction>
+
+	<!---
+	 * Adds a placeholder, or a map of them.
+	 *
+	 * @param placeholder A name, or a map of names and patterns (see array_())
+	 * @param pattern     The pattern, when a name is given
+	--->
+	<cffunction name="addPlaceholder" access="public" returntype="any" output="no">
+		<cfargument name="placeholder" type="any" required="yes">
+		<cfargument name="pattern" type="string" required="no" default="">
+		<cfset var name = "">
+
+		<cfif IsSimpleValue(arguments.placeholder)>
+			<cfset this.placeholders[arguments.placeholder] = arguments.pattern>
+		<cfelse>
+			<cfloop collection="#arguments.placeholder#" item="name">
+				<cfset this.placeholders[name] = arguments.placeholder[name]>
+			</cfloop>
+		</cfif>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * For `spark routes`
+	 *
+	 * @internal
+	--->
+	<cffunction name="getPlaceholders" access="public" returntype="any" output="no">
+		<cfreturn this.placeholders>
+	</cffunction>
+
+	<cffunction name="setAutoRoute" access="public" returntype="any" output="no">
+		<cfargument name="value" type="boolean" required="yes">
+
+		<cfset this.autoRoute = arguments.value>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Reset the routes, so that a test case can provide the
+	 * explicit ones needed for it.
+	--->
+	<cffunction name="resetRoutes" access="public" returntype="void" output="no">
+		<cfset var verb = "">
+		<cfset var i = 0>
+
+		<cfset this.routes = CreateObject("java", "java.util.LinkedHashMap").init()>
+		<cfset this.routesNames = CreateObject("java", "java.util.LinkedHashMap").init()>
+		<cfset this.routes["*"] = CreateObject("java", "java.util.LinkedHashMap").init()>
+		<cfset this.routesNames["*"] = CreateObject("java", "java.util.LinkedHashMap").init()>
+
+		<cfloop from="1" to="#ArrayLen(this.defaultHTTPMethods)#" index="i">
+			<cfset verb = this.defaultHTTPMethods[i]>
+			<cfset this.routes[verb] = CreateObject("java", "java.util.LinkedHashMap").init()>
+			<cfset this.routesNames[verb] = CreateObject("java", "java.util.LinkedHashMap").init()>
+		</cfloop>
+
+		<cfset this.routesOptions = CreateObject("java", "java.util.LinkedHashMap").init()>
+
+		<!--- Not ported yet: prioritizeDetected, as the priority option is not ported --->
+		<cfset this.didDiscover = false>
+	</cffunction>
+
+	<!---
+	 * Get all controllers in Route Handlers
+	 *
+	 * @param verb HTTP verb like `GET`,`POST` or `*` or `CLI`.
+	 *             `'*'` returns all controllers in any verb.
+	 *
+	 * @return A list of controller names
+	 *
+	 * @internal
+	 *
+	 * Not ported yet: the deprecation notice for a lowercase verb
+	 * (trigger_error() has no stand-in).
+	--->
+	<cffunction name="getRegisteredControllers" access="public" returntype="array" output="no">
+		<cfargument name="verb" type="string" required="no" default="*">
+		<cfset var controllers = ArrayNew(1)>
+		<cfset var controller = "">
+		<cfset var routes = "">
+		<cfset var collection = "">
+		<cfset var key = "">
+		<cfset var i = 0>
+
+		<cfset arguments.verb = UCase(arguments.verb)>
+
+		<cfif arguments.verb EQ "*">
+			<cfloop from="1" to="#ArrayLen(this.defaultHTTPMethods)#" index="i">
+				<cfset collection = this.routes[this.defaultHTTPMethods[i]]>
+
+				<cfloop collection="#collection#" item="key">
+					<cfset controller = getControllerName(collection[key]["handler"])>
+					<cfif controller NEQ "">
+						<cfset ArrayAppend(controllers, controller)>
+					</cfif>
+				</cfloop>
+			</cfloop>
+		<cfelse>
+			<cfset routes = getRoutes(arguments.verb)>
+
+			<cfloop collection="#routes#" item="key">
+				<cfset controller = getControllerName(routes[key])>
+				<cfif controller NEQ "">
+					<cfset ArrayAppend(controllers, controller)>
+				</cfif>
+			</cfloop>
+		</cfif>
+
+		<cfreturn array_unique(controllers)>
+	</cffunction>
+
+	<!---
+	 * @param handler Handler
+	 *
+	 * @return Controller classname, or an empty string for a handler that is not a string
+	 *
+	 * Difference: there is no null here, so an empty string stands in for it,
+	 * as in is_null().
+	--->
+	<cffunction name="getControllerName" access="private" returntype="string" output="no">
+		<cfargument name="handler" type="any" required="yes">
+		<cfset var parts = "">
+
+		<cfif NOT IsSimpleValue(arguments.handler)>
+			<cfreturn "">
+		</cfif>
+
+		<cfset parts = explode("::", arguments.handler, 2)>
+
+		<cfreturn parts[1]>
+	</cffunction>
+
+	<!---
+	 * Set The flag that limit or not the routes with {locale} placeholder to App::$supportedLocales
+	--->
+	<cffunction name="useSupportedLocalesOnly" access="public" returntype="any" output="no">
+		<cfargument name="useOnly" type="boolean" required="yes">
+
+		<cfset this.useSupportedLocalesOnly = arguments.useOnly>
+
+		<cfreturn this>
+	</cffunction>
+
+	<cffunction name="shouldUseSupportedLocalesOnly" access="public" returntype="boolean" output="no">
+		<cfreturn this.useSupportedLocalesOnly>
+	</cffunction>
+
+	<!---
+	 * Returns the route for a name or a handler, with the parameters put in
+	 * the back-references. The parameters are the arguments after the
+	 * first one; the last of them may be the locale.
+	 *
+	 * @param search A route name or a handler (Controller::method)
+	 *
+	 * @return The route, or false when there is none
+	 *
+	 * Difference: the original takes the parameters as "...$params". Here they
+	 * are the extra arguments, arguments[2] and on.
+	--->
+	<cffunction name="reverseRoute" access="public" returntype="any" output="no">
+		<cfargument name="search" type="string" required="yes">
+		<cfset var params = ArrayNew(1)>
+		<cfset var verb = "">
+		<cfset var collection = "">
+		<cfset var routeKey = "">
+		<cfset var from = "">
+		<cfset var namespace = "">
+		<cfset var route = "">
+		<cfset var to = "">
+		<cfset var i = 0>
+
+		<cfloop from="2" to="#ArrayLen(arguments)#" index="i">
+			<cfset ArrayAppend(params, arguments[i])>
+		</cfloop>
+
+		<cfif arguments.search EQ "">
+			<cfreturn false>
+		</cfif>
+
+		<!--- Named routes get higher priority. --->
+		<cfloop collection="#this.routesNames#" item="verb">
+			<cfset collection = this.routesNames[verb]>
+
+			<cfif StructKeyExists(collection, arguments.search)>
+				<cfset routeKey = collection[arguments.search]>
+
+				<cfset from = this.routes[verb][routeKey]["from"]>
+
+				<cfreturn buildReverseRoute(from, params)>
+			</cfif>
+		</cfloop>
+
+		<!--- Add the default namespace if needed. --->
+		<cfset namespace = trim_(this.defaultNamespace, "\") & "\">
+		<cfif NOT str_starts_with(arguments.search, "\")
+			AND NOT str_starts_with(arguments.search, namespace)>
+			<cfset arguments.search = namespace & arguments.search>
+		</cfif>
+
+		<!---
+		 If it's not a named route, then loop over
+		 all routes to find a match.
+		--->
+		<cfloop collection="#this.routes#" item="verb">
+			<cfset collection = this.routes[verb]>
+
+			<cfloop collection="#collection#" item="routeKey">
+				<cfset route = collection[routeKey]>
+				<cfset to = route["handler"]>
+				<cfset from = route["from"]>
+
+				<!--- Difference: there is no cfcontinue, so the rest of the loop body is inside cfif tags. --->
+
+				<!--- ignore closures --->
+				<cfif IsSimpleValue(to)>
+					<!---
+					 Lose any namespace slash at beginning of strings
+					 to ensure more consistent match.
+					--->
+					<cfset to = ltrim_(to, "\")>
+					<cfset arguments.search = ltrim_(arguments.search, "\")>
+
+					<!---
+					 If there's any chance of a match, then it will
+					 be with search at the beginning of the to string.
+					 Ensure that the number of params given here
+					 matches the number of back-references in the route
+					--->
+					<cfif str_starts_with(to, arguments.search)
+						AND Len(to) - Len(Replace(to, "$", "", "all")) EQ ArrayLen(params)>
+						<cfreturn buildReverseRoute(from, params)>
+					</cfif>
+				</cfif>
+			</cfloop>
+		</cfloop>
+
+		<!--- If we're still here, then we did not find a match. --->
+		<cfreturn false>
+	</cffunction>
+
+	<!---
+	 * Replaces the {locale} tag with the current application locale
+	 *
+	 * @deprecated Unused.
+	--->
+	<cffunction name="localizeRoute" access="private" returntype="string" output="no">
+		<cfargument name="route" type="string" required="yes">
+
+		<cfreturn strtr(arguments.route, array_("{locale}", service("request").getLocale_()))>
+	</cffunction>
+
+	<!---
+	 * Given a route and its params, puts the params in the back-references.
+	 *
+	 * @param params A list of values (an array)
+	 *
+	 * @deprecated Unused. Now uses buildReverseRoute().
+	 *
+	 * Difference: preg_match_all() is a loop of a java.util.regex.Matcher,
+	 * and substr_replace() is Left() and Mid().
+	--->
+	<cffunction name="fillRouteParams" access="private" returntype="string" output="no">
+		<cfargument name="from" type="string" required="yes">
+		<cfargument name="params" type="any" required="no" default="">
+		<cfset var patterns = ArrayNew(1)>
+		<cfset var matcher = CreateObject("java", "java.util.regex.Pattern").compile("\(([^)]+)\)").matcher(JavaCast("string", arguments.from))>
+		<cfset var pattern = "">
+		<cfset var pos = 0>
+		<cfset var index = 0>
+
+		<!--- Find all of our back-references in the original route --->
+		<cfloop condition="matcher.find()">
+			<cfset ArrayAppend(patterns, matcher.group())>
+		</cfloop>
+
+		<cfif ArrayLen(patterns) EQ 0>
+			<cfreturn "/" & ltrim_(arguments.from, "/")>
+		</cfif>
+
+		<!---
+		 Build our resulting string, inserting the params in
+		 the appropriate places.
+		--->
+		<cfloop from="1" to="#ArrayLen(patterns)#" index="index">
+			<cfset pattern = patterns[index]>
+
+			<cfif preg_match("##^" & pattern & "$##u", arguments.params[index]) NEQ 1>
+				<cfset static_("ColdIgniter\Router\Exceptions\RouterException").forInvalidParameterType()>
+			</cfif>
+
+			<!---
+			 Ensure that the param we're inserting matches
+			 the expected param type.
+			--->
+			<cfset pos = Find(pattern, arguments.from)>
+			<cfset arguments.from = Left(arguments.from, pos - 1) & arguments.params[index] & Mid(arguments.from, pos + Len(pattern), Len(arguments.from))>
+		</cfloop>
+
+		<cfreturn "/" & ltrim_(arguments.from, "/")>
+	</cffunction>
+
+	<!---
+	 * Builds reverse route
+	 *
+	 * @param params One or more parameters to be passed to the route.
+	 *               The last parameter allows you to set the locale.
+	 *
+	 * Difference: preg_match_all() is a loop of a java.util.regex.Matcher,
+	 * and substr_replace() is Left() and Mid(). A missing locale is an
+	 * empty string, as the original casts it to a string before it looks.
+	--->
+	<cffunction name="buildReverseRoute" access="private" returntype="string" output="no">
+		<cfargument name="from" type="string" required="yes">
+		<cfargument name="params" type="array" required="yes">
+		<cfset var locale = "">
+		<cfset var matches = ArrayNew(1)>
+		<cfset var matcher = CreateObject("java", "java.util.regex.Pattern").compile("\(([^)]+)\)").matcher(JavaCast("string", arguments.from))>
+		<cfset var placeholderCount = 0>
+		<cfset var placeholder = "">
+		<cfset var placeholderName = "">
+		<cfset var pattern = "">
+		<cfset var pos = 0>
+		<cfset var index = 0>
+
+		<!--- Find all of our back-references in the original route --->
+		<cfloop condition="matcher.find()">
+			<cfset ArrayAppend(matches, matcher.group())>
+		</cfloop>
+
+		<cfif ArrayLen(matches) EQ 0>
+			<cfif Find("{locale}", arguments.from) GT 0 AND ArrayLen(arguments.params) GT 0>
+				<cfset locale = arguments.params[1]>
+			</cfif>
+
+			<cfset arguments.from = replaceLocale(arguments.from, locale)>
+
+			<cfreturn "/" & ltrim_(arguments.from, "/")>
+		</cfif>
+
+		<!--- Locale is passed? --->
+		<cfset placeholderCount = ArrayLen(matches)>
+		<cfif ArrayLen(arguments.params) GT placeholderCount>
+			<cfset locale = arguments.params[placeholderCount + 1]>
+		</cfif>
+
+		<!---
+		 Build our resulting string, inserting the params in
+		 the appropriate places.
+		--->
+		<cfloop from="1" to="#ArrayLen(matches)#" index="index">
+			<cfset placeholder = matches[index]>
+
+			<cfif index GT ArrayLen(arguments.params)>
+				<cfthrow type="InvalidArgumentException" message="Missing argument for ""#placeholder#"" in route ""#arguments.from#"".">
+			</cfif>
+
+			<!--- Remove `(:` and `)` when placeholder is a placeholder. --->
+			<cfset placeholderName = Mid(placeholder, 3, Len(placeholder) - 3)>
+			<!--- or maybe placeholder is not a placeholder, but a regex. --->
+			<cfif StructKeyExists(this.placeholders, placeholderName)>
+				<cfset pattern = this.placeholders[placeholderName]>
+			<cfelse>
+				<cfset pattern = placeholder>
+			</cfif>
+
+			<cfif preg_match("##^" & pattern & "$##u", arguments.params[index]) NEQ 1>
+				<cfset static_("ColdIgniter\Router\Exceptions\RouterException").forInvalidParameterType()>
+			</cfif>
+
+			<!---
+			 Ensure that the param we're inserting matches
+			 the expected param type.
+			--->
+			<cfset pos = Find(placeholder, arguments.from)>
+			<cfset arguments.from = Left(arguments.from, pos - 1) & arguments.params[index] & Mid(arguments.from, pos + Len(placeholder), Len(arguments.from))>
+		</cfloop>
+
+		<cfset arguments.from = replaceLocale(arguments.from, locale)>
+
+		<cfreturn "/" & ltrim_(arguments.from, "/")>
+	</cffunction>
+
+	<!---
+	 * Replaces the {locale} tag with the locale
+	 *
+	 * Difference: a missing locale is an empty string, as the original
+	 * casts it to a string before it looks.
+	--->
+	<cffunction name="replaceLocale" access="private" returntype="string" output="no">
+		<cfargument name="route" type="string" required="yes">
+		<cfargument name="locale" type="string" required="no" default="">
+		<cfset var appConfig = "">
+
+		<cfif Find("{locale}", arguments.route) EQ 0>
+			<cfreturn arguments.route>
+		</cfif>
+
+		<!--- Check invalid locale --->
+		<cfif arguments.locale NEQ "">
+			<cfset appConfig = config("Config\App")>
+			<cfif NOT in_array(arguments.locale, appConfig.supportedLocales)>
+				<cfset arguments.locale = "">
+			</cfif>
+		</cfif>
+
+		<cfif arguments.locale EQ "">
+			<cfset arguments.locale = service("request").getLocale_()>
+		</cfif>
+
+		<cfreturn strtr(arguments.route, array_("{locale}", arguments.locale))>
 	</cffunction>
 
 </cfcomponent>

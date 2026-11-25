@@ -32,8 +32,9 @@
 	 * Sets the URI to redirect to but as a reverse-routed or named route
 	 * instead of a raw URI.
 	 *
-	 * Not ported yet: RouteCollection::reverseRoute, so the route is
-	 * never found.
+	 * Difference: the original passes the params with "...$params". Here
+	 * the call is made as text with Evaluate() when there are params, and
+	 * directly when there are none.
 	 *
 	 * @param route  Route name or Controller::method
 	 * @param params Array of int|string
@@ -48,15 +49,25 @@
 		<cfargument name="code" type="any" required="no" default="">
 		<cfargument name="method" type="string" required="no" default="auto">
 		<cfset var namedRoute = arguments.route>
+		<cfset var call = "namedRoute">
+		<cfset var found = "">
+		<cfset var i = 0>
 
-		<!--- Not ported yet: service("routes").reverseRoute(route, params) --->
-		<cfset arguments.route = false>
+		<cfif ArrayLen(arguments.params) EQ 0>
+			<cfset found = service("routes").reverseRoute(namedRoute)>
+		<cfelse>
+			<cfloop from="1" to="#ArrayLen(arguments.params)#" index="i">
+				<cfset call = ListAppend(call, "arguments.params[#i#]")>
+			</cfloop>
 
-		<cfif NOT arguments.route>
-			<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" message="The route for ""#namedRoute#"" cannot be found.">
+			<cfset found = Evaluate("service(""routes"").reverseRoute(#call#)")>
 		</cfif>
 
-		<cfreturn redirect(site_url(arguments.route), arguments.method, arguments.code)>
+		<cfif (IsBoolean(found) AND NOT found) OR found EQ "">
+			<cfset static_("ColdIgniter\HTTP\Exceptions\HTTPException").forInvalidRedirectRoute(namedRoute)>
+		</cfif>
+
+		<cfreturn redirect(site_url(found), arguments.method, arguments.code)>
 	</cffunction>
 
 	<!---

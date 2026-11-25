@@ -12,7 +12,7 @@ The list is made by file name only:
 
 ColdIgniter has its own version numbers. They do not follow the numbers of CodeIgniter. See `CHANGELOG.md`.
 
-Total: 260 of 492 files.
+Total: 265 of 492 files.
 
 | Area | Files in CodeIgniter | Ported | State |
 |---|---|---|---|
@@ -42,13 +42,13 @@ Total: 260 of 492 files.
 | `HTTP` | 33 | 21 | Part |
 | `I18n` | 5 | 5 | All |
 | `Images` | 6 | 0 | None |
-| `Language` | 32 | 18 | Part |
+| `Language` | 32 | 19 | Part |
 | `Log` | 7 | 7 | All |
 | `Modules` | 1 | 1 | All |
 | `Pager` | 7 | 7 | All |
 | `Publisher` | 3 | 0 | None |
 | `RESTful` | 3 | 3 | All |
-| `Router` | 15 | 3 | Part |
+| `Router` | 15 | 7 | Part |
 | `Security` | 4 | 3 | Part |
 | `Session` | 12 | 9 | Part |
 | `Test` | 44 | 3 | Part |
@@ -271,7 +271,6 @@ Total: 260 of 492 files.
 - `en/Language.php`
 - `en/Log.php`
 - `en/Publisher.php`
-- `en/Router.php`
 - `en/Session.php`
 - `en/View.php`
 
@@ -288,11 +287,7 @@ Total: 260 of 492 files.
 - `Attributes/Restrict.php`
 - `Attributes/RouteAttributeInterface.php`
 - `AutoRouter.php`
-- `AutoRouterImproved.php`
-- `AutoRouterInterface.php`
 - `Exceptions/ExceptionInterface.php`
-- `Exceptions/MethodNotFoundException.php`
-- `Exceptions/RouterException.php`
 - `RouteCollectionInterface.php`
 - `RouterInterface.php`
 

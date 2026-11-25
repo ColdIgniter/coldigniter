@@ -48,4 +48,16 @@
 		<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" errorcode="500" message="#lang("HTTP.moveFailed", args)#">
 	</cffunction>
 
+	<!---
+	 * For Redirect with a route that cannot be found
+	--->
+	<cffunction name="forInvalidRedirectRoute" access="public" returntype="void" output="no">
+		<cfargument name="route" type="string" required="yes">
+		<cfset var args = ArrayNew(1)>
+
+		<cfset ArrayAppend(args, arguments.route)>
+
+		<cfthrow type="ColdIgniter.HTTP.Exceptions.HTTPException" errorcode="500" message="#lang("HTTP.invalidRoute", args)#">
+	</cffunction>
+
 </cfcomponent>
