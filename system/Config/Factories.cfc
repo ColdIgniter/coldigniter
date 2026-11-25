@@ -365,6 +365,13 @@
 			<cfreturn arguments.alias>
 		</cfif>
 
+		<!---
+		 * Difference: platform. class_exists() only finds out that a file
+		 * of the class exists, where the original also loads the class. A
+		 * file under APPPATH can so give App\Config\Foo or App\Modules\X\...
+		 * where the original skips it and goes on to Config\Foo or X\...
+		 * (when preferApp is false, or a module is a folder inside app/).
+		--->
 		<!--- Determine the relative class names we need --->
 		<cfset basename = getBasename(arguments.alias)>
 		<cfif isConfig(arguments.options["component"])>
