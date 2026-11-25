@@ -11,8 +11,9 @@
  * not needed for the HTML, attribute, Javascript and CSS contexts, and a
  * string cannot be invalid UTF-8, so the exception for that is never thrown.
  * The URL context is different: it encodes the bytes of the encoding of the
- * escaper, so escapeUrl() encodes with the Java charset of the encoding. The encoding is only checked and kept, as the
- * original does in the constructor, and getEncoding_() gives it.
+ * escaper, so escapeUrl() encodes with the Java charset of the encoding.
+ * The encoding is otherwise only checked and kept, as the original does in
+ * the constructor, and getEncoding_() gives it.
  * The name has a trailing underscore, because getEncoding() is a function of the
  * engine and a function of a component cannot have its name. A character
  * above the first 65535 is two characters of the string (a surrogate pair)
@@ -177,8 +178,10 @@
 			<cfreturn "KOI8-R">
 		<cfelseif ListFind("big5,950", e)>
 			<cfreturn "Big5">
-		<cfelseif ListFind("gb2312,936", e)>
+		<cfelseif e EQ "gb2312">
 			<cfreturn "GB2312">
+		<cfelseif e EQ "936">
+			<cfreturn "GBK">
 		<cfelseif e EQ "big5-hkscs">
 			<cfreturn "Big5-HKSCS">
 		<cfelseif ListFind("shift_jis,sjis", e)>
