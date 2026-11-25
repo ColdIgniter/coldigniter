@@ -10,11 +10,17 @@
  * The messages come from the language file Language/en/Honeypot.cfm.
  *
  * Difference: the original extends ConfigException, so a catch of that
- * type finds it; here the type is its own.
+ * type finds it; here the type is its own. getExitCode() is the one of
+ * ConfigException, and Debug/Exceptions.cfc determineCodes() lists the type.
  *
  * Not ported yet: forNoHiddenValue (deprecated, never used).
 --->
 <cfcomponent output="no" hint="Honeypot exceptions">
+
+	<cffunction name="getExitCode" access="public" returntype="numeric" output="no">
+
+		<cfreturn request.EXIT_CONFIG>
+	</cffunction>
 
 	<!---
 	 * Thrown when the template value of config is empty.

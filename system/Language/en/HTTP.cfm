@@ -7,12 +7,20 @@
  *
  * Not ported yet: the lines of the CurlRequest, IncomingRequest, Response,
  * RedirectResponse and the other classes of the HTTP folder, which are
- * written out where they are used. Only the lines for uploaded files are here.
+ * written out where they are used. The lines for uploaded files and the
+ * lines of the DownloadResponse (used by DownloadException) are here.
  *
  * Difference: the line uploadErrExtension does not name the language of the
  * original, as the extension is that of the server.
 --->
 <cfset lines = array_()>
+
+<!--- DownloadResponse --->
+<cfset lines["cannotSetBinary"] = "When setting filepath cannot set binary.">
+<cfset lines["cannotSetFilepath"] = "When setting binary cannot set filepath: ""{0}""">
+<cfset lines["notFoundDownloadSource"] = "Not found download body source.">
+<cfset lines["cannotSetCache"] = "It does not support caching for downloading.">
+<cfset lines["cannotSetStatusCode"] = "It does not support change status code for downloading. code: {0}, reason: {1}">
 
 <!--- Uploaded file moving --->
 <cfset lines["alreadyMoved"] = "The uploaded file has already been moved.">

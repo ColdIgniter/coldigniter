@@ -12,7 +12,7 @@ The list is made by file name only:
 
 ColdIgniter has its own version numbers. They do not follow the numbers of CodeIgniter. See `CHANGELOG.md`.
 
-Total: 248 of 492 files.
+Total: 263 of 492 files.
 
 | Area | Files in CodeIgniter | Ported | State |
 |---|---|---|---|
@@ -27,12 +27,12 @@ Total: 248 of 492 files.
 | `Database` | 52 | 24 | Part |
 | `DataCaster` | 15 | 14 | Part |
 | `DataConverter` | 1 | 1 | All |
-| `Debug` | 18 | 16 | Part |
+| `Debug` | 18 | 17 | Part |
 | `Email` | 1 | 0 | None |
 | `Encryption` | 7 | 6 | Part |
 | `Entity` | 17 | 16 | Part |
 | `Events` | 1 | 1 | All |
-| `Exceptions` | 16 | 4 | Part |
+| `Exceptions` | 16 | 16 | All |
 | `Files` | 6 | 3 | Part |
 | `Filters` | 12 | 11 | Part |
 | `Format` | 5 | 5 | All |
@@ -42,8 +42,8 @@ Total: 248 of 492 files.
 | `HTTP` | 33 | 21 | Part |
 | `I18n` | 5 | 5 | All |
 | `Images` | 6 | 0 | None |
-| `Language` | 32 | 18 | Part |
-| `Log` | 7 | 6 | Part |
+| `Language` | 32 | 19 | Part |
+| `Log` | 7 | 7 | All |
 | `Modules` | 1 | 1 | All |
 | `Pager` | 7 | 7 | All |
 | `Publisher` | 3 | 0 | None |
@@ -199,7 +199,6 @@ Total: 248 of 492 files.
 
 ### Debug
 
-- `ExceptionHandlerInterface.php`
 - `Iterator.php`
 
 ### Email
@@ -213,21 +212,6 @@ Total: 248 of 492 files.
 ### Entity
 
 - `Cast/EnumCast.php`
-
-### Exceptions
-
-- `BadFunctionCallException.php`
-- `BadMethodCallException.php`
-- `CriticalError.php`
-- `DebugTraceableTrait.php`
-- `DownloadException.php`
-- `ExceptionInterface.php`
-- `HTTPExceptionInterface.php`
-- `HasExitCodeInterface.php`
-- `InvalidArgumentException.php`
-- `LogicException.php`
-- `RuntimeException.php`
-- `TestException.php`
 
 ### Files
 
@@ -290,12 +274,7 @@ Total: 248 of 492 files.
 - `en/Log.php`
 - `en/Publisher.php`
 - `en/Session.php`
-- `en/Test.php`
 - `en/View.php`
-
-### Log
-
-- `Handlers/ChromeLoggerHandler.php`
 
 ### Publisher
 

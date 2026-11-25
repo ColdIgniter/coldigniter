@@ -3,8 +3,11 @@
  *
  * Not ported yet: the messages come from the language files in the
  * original (Filters.noFilter and Filters.incorrectInterface); they are
- * written out here until the language service is ported. The original
- * extends ConfigException, which is not ported either.
+ * written out here until their language file is ported.
+ *
+ * Difference: the original extends ConfigException, so a catch of that type
+ * finds it; here the type is its own. getExitCode() is the one of
+ * ConfigException, and Debug/Exceptions.cfc determineCodes() lists the type.
  *
  * An exception is not an object here. The methods throw the exception
  * themselves, with the type "ColdIgniter.Filters.Exceptions.FilterException":
@@ -12,6 +15,11 @@
  *     <cfset static_("ColdIgniter\Filters\Exceptions\FilterException").forNoAlias(alias)>
 --->
 <cfcomponent output="no" hint="FilterException">
+
+	<cffunction name="getExitCode" access="public" returntype="numeric" output="no">
+
+		<cfreturn request.EXIT_CONFIG>
+	</cffunction>
 
 	<!---
 	 * Thrown when the provided alias is not within

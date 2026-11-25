@@ -225,7 +225,17 @@
 				<cfset item = this.value.get(key)>
 
 				<cfif IsSimpleValue(item)>
-					<cfset ArrayAppend(options, key & "=" & item)>
+					<!---
+					 Difference: a key that is a number stands for a key that
+					 is an int in the original array, and the value is a
+					 directive without a value (see Response::setCache()).
+					 CFML cannot mix the two kinds of key.
+					--->
+					<cfif REFind("^[0-9]+$", key & "") GT 0>
+						<cfset ArrayAppend(options, item)>
+					<cfelse>
+						<cfset ArrayAppend(options, key & "=" & item)>
+					</cfif>
 				<cfelse>
 					<cfset ArrayAppend(options, optionLine(item))>
 				</cfif>
