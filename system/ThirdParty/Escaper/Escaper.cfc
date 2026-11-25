@@ -8,8 +8,10 @@
  * Difference: a string of CFML is made of characters (UTF-16), it is not a
  * string of bytes of one encoding. So the conversion to UTF-8 and back
  * (toUtf8, fromUtf8, isUtf8, convertEncoding, with mb_convert_encoding) is
- * not needed, and a string cannot be invalid UTF-8, so the exception for
- * that is never thrown. The encoding is only checked and kept, as the
+ * not needed for the HTML, attribute, Javascript and CSS contexts, and a
+ * string cannot be invalid UTF-8, so the exception for that is never thrown.
+ * The URL context is different: it encodes the bytes of the encoding of the
+ * escaper, so escapeUrl() encodes with the Java charset of the encoding. The encoding is only checked and kept, as the
  * original does in the constructor, and getEncoding_() gives it.
  * The name has a trailing underscore, because getEncoding() is a function of the
  * engine and a function of a component cannot have its name. A character
@@ -26,8 +28,7 @@
  *
  * Difference: the original reads a letter case-insensitively as Unicode, so
  * a few characters that fold to a letter (the Kelvin sign and the long s)
- * are not escaped by it. Here they are escaped. Not verified against the
- * original.
+ * are not escaped by it. Here they are escaped.
 --->
 <cfcomponent output="no" hint="Context specific methods for use in secure output escaping">
 
@@ -135,7 +136,62 @@
 	<cffunction name="escapeUrl" access="public" returntype="string" output="no">
 		<cfargument name="string" type="string" required="yes">
 
-		<cfreturn rawurlencode(arguments.string)>
+		<cfset var encoded = "">
+
+		<cftry>
+			<cfset encoded = CreateObject("java", "java.net.URLEncoder").encode(JavaCast("string", arguments.string & ""), JavaCast("string", javaCharset()))>
+
+			<cfcatch type="any">
+				<!--- Difference: a charset that this Java does not have gives the UTF-8 form --->
+				<cfreturn rawurlencode(arguments.string)>
+			</cfcatch>
+		</cftry>
+
+		<!--- the rawurlencode() form, as in the polyfill: a plus is a space, and these three differ --->
+		<cfset encoded = Replace(encoded, "+", "%20", "all")>
+		<cfset encoded = Replace(encoded, "*", "%2A", "all")>
+		<cfset encoded = Replace(encoded, "%7E", "~", "all")>
+
+		<cfreturn encoded>
+	</cffunction>
+
+	<!---
+	 * The name of the Java charset of the encoding of this escaper.
+	--->
+	<cffunction name="javaCharset" access="private" returntype="string" output="no">
+		<cfset var e = this.encoding>
+
+		<cfif ListFind("iso-8859-1,iso8859-1", e)>
+			<cfreturn "ISO-8859-1">
+		<cfelseif ListFind("iso-8859-5,iso8859-5", e)>
+			<cfreturn "ISO-8859-5">
+		<cfelseif ListFind("iso-8859-15,iso8859-15", e)>
+			<cfreturn "ISO-8859-15">
+		<cfelseif ListFind("cp866,ibm866,866", e)>
+			<cfreturn "IBM866">
+		<cfelseif ListFind("cp1251,windows-1251,win-1251,1251", e)>
+			<cfreturn "windows-1251">
+		<cfelseif ListFind("cp1252,windows-1252,1252", e)>
+			<cfreturn "windows-1252">
+		<cfelseif ListFind("koi8-r,koi8-ru,koi8r", e)>
+			<cfreturn "KOI8-R">
+		<cfelseif ListFind("big5,950", e)>
+			<cfreturn "Big5">
+		<cfelseif ListFind("gb2312,936", e)>
+			<cfreturn "GB2312">
+		<cfelseif e EQ "big5-hkscs">
+			<cfreturn "Big5-HKSCS">
+		<cfelseif ListFind("shift_jis,sjis", e)>
+			<cfreturn "Shift_JIS">
+		<cfelseif ListFind("sjis-win,cp932,932", e)>
+			<cfreturn "windows-31j">
+		<cfelseif ListFind("euc-jp,eucjp,eucjp-win", e)>
+			<cfreturn "EUC-JP">
+		<cfelseif e EQ "macroman">
+			<cfreturn "MacRoman">
+		</cfif>
+
+		<cfreturn "UTF-8">
 	</cffunction>
 
 	<!---
