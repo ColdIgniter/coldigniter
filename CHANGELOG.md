@@ -15,6 +15,7 @@ Unreleased. Ported from CodeIgniter 4.7.6, for ColdFusion MX 6.1.
 What is in it:
 
 - Helpers: html and text. `highlight_code()` is not ported, and throws.
+- Throttle: the `Throttler`, a token bucket rate limiter on the cache, and the `throttler` service.
 - Config: `ForeignCharacters`, used by `convert_accented_characters()`.
 - `Config\DocTypes` now decides whether `img()` and the other html tags close with ` /`.
 - Common functions: `app_timezone()`, `cookie_()` (the name has an underscore, as `cookie` is a scope), `cookies()`, `function_usable()`, `is_cli()`, `is_really_writable()`, `is_windows()`, `response()`, `single_service()` and `timer()`. `esc()` has the `css` context and the encoding argument (new `ThirdParty\Escaper\Escaper`).
