@@ -10,7 +10,7 @@
  *
  * Difference: the original extends FrameworkException and makes an
  * exception of the class it is called on ("static"). CFML on MX 6.1 has
- * no exception classes, so the type is always the one of this class (a),
+ * no exception classes, so the type is always the one of this class,
  * as in FrameworkException.
 --->
 <cfcomponent output="no" hint="RouterException">

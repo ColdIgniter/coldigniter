@@ -110,9 +110,8 @@
 		<cfset this.translateURIDashes = this.collection.shouldTranslateURIDashes()>
 
 		<!---
-		 Difference: the original asks for the auto router only when the
-		 collection says so (b), and so does this; with auto-routing off,
-		 no Feature config is read.
+		 The auto router is asked for only when the collection says so; with
+		 auto-routing off, no Feature config is read.
 		--->
 		<cfif this.collection.shouldAutoRoute()>
 			<cfset autoRoutesImproved = variables.config("Config\Feature").autoRoutesImproved>
@@ -193,7 +192,7 @@
 	 * found in APPPATH/Controllers, to find a matching route.
 	 *
 	 * Difference: the original assigns the four values of the answer with
-	 * a list assignment; here they are read from the array one by one (a).
+	 * a list assignment; here they are read from the array one by one.
 	--->
 	<cffunction name="autoRoute" access="public" returntype="void" output="no">
 		<cfargument name="uri" type="string" required="yes">
@@ -398,7 +397,7 @@
 					<cfset localeMatcher = CreateObject("java", "java.util.regex.Pattern").compile("^" & Replace(matchedKey, "{locale}", "([^/]+)", "all") & "$").matcher(arguments.uri)>
 
 					<!---
-					 Difference: a named group (?<locale>) is not in Java 1.4.2 (a),
+					 Difference: a named group (?<locale>) is not in Java 1.4.2,
 					 so the group is numbered, and its number is the count of the
 					 groups before {locale} in the key, plus one.
 					--->
@@ -469,7 +468,11 @@
 		<cfargument name="key" type="string" required="yes">
 		<cfset var before = Left(arguments.key, Find("{locale}", arguments.key) - 1)>
 
-		<!--- an escaped character is not a group, and neither is a (?: group --->
+		<!---
+		 an escaped character is not a group, and neither is a (?: group.
+		 Limit: a "(" inside a character class, such as [(], is still counted
+		 as a group, so a key with one before {locale} gives a wrong number.
+		--->
 		<cfset before = REReplace(before, "\\.", "", "all")>
 		<cfset before = REReplace(before, "\(\?", "", "all")>
 

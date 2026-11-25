@@ -34,7 +34,7 @@
 	 *
 	 * Difference: the original passes the params with "...$params". Here
 	 * the call is made as text with Evaluate() when there are params, and
-	 * directly when there are none (a, b).
+	 * directly when there are none.
 	 *
 	 * @param route  Route name or Controller::method
 	 * @param params Array of int|string

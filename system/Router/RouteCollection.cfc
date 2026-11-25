@@ -1188,7 +1188,7 @@
 	 *
 	 * @return Controller classname, or an empty string for a handler that is not a string
 	 *
-	 * Difference: there is no null here, so an empty string stands in for it (a),
+	 * Difference: there is no null here, so an empty string stands in for it,
 	 * as in is_null().
 	--->
 	<cffunction name="getControllerName" access="private" returntype="string" output="no">
@@ -1229,7 +1229,7 @@
 	 * @return The route, or false when there is none
 	 *
 	 * Difference: the original takes the parameters as "...$params". Here they
-	 * are the extra arguments, arguments[2] and on (a).
+	 * are the extra arguments, arguments[2] and on.
 	--->
 	<cffunction name="reverseRoute" access="public" returntype="any" output="no">
 		<cfargument name="search" type="string" required="yes">
@@ -1283,7 +1283,7 @@
 				<cfset to = route["handler"]>
 				<cfset from = route["from"]>
 
-				<!--- Difference: there is no cfcontinue, so the rest of the loop body is inside cfif tags (a). --->
+				<!--- Difference: there is no cfcontinue, so the rest of the loop body is inside cfif tags. --->
 
 				<!--- ignore closures --->
 				<cfif IsSimpleValue(to)>
@@ -1331,7 +1331,7 @@
 	 * @deprecated Unused. Now uses buildReverseRoute().
 	 *
 	 * Difference: preg_match_all() is a loop of a java.util.regex.Matcher,
-	 * and substr_replace() is Left() and Mid() (a).
+	 * and substr_replace() is Left() and Mid().
 	--->
 	<cffunction name="fillRouteParams" access="private" returntype="string" output="no">
 		<cfargument name="from" type="string" required="yes">
@@ -1380,7 +1380,7 @@
 	 *               The last parameter allows you to set the locale.
 	 *
 	 * Difference: preg_match_all() is a loop of a java.util.regex.Matcher,
-	 * and substr_replace() is Left() and Mid() (a). A missing locale is an
+	 * and substr_replace() is Left() and Mid(). A missing locale is an
 	 * empty string, as the original casts it to a string before it looks.
 	--->
 	<cffunction name="buildReverseRoute" access="private" returntype="string" output="no">
@@ -1457,7 +1457,7 @@
 	<!---
 	 * Replaces the {locale} tag with the locale
 	 *
-	 * Difference: a missing locale is an empty string (a), as the original
+	 * Difference: a missing locale is an empty string, as the original
 	 * casts it to a string before it looks.
 	--->
 	<cffunction name="replaceLocale" access="private" returntype="string" output="no">

@@ -811,7 +811,7 @@
  *
  * Difference: the original takes the params with "...$params". Here they
  * are the arguments after the first one; with none, the call is direct,
- * and with some it is made as text with Evaluate() (a, b).
+ * and with some it is made as text with Evaluate().
  *
  * @param method Route name or Controller::method
  * @param params One or more parameters to be passed to the route.

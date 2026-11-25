@@ -2,7 +2,7 @@
  * Expected behavior of a AutoRouter.
  *
  * Difference: there are no interfaces; this component holds the method,
- * which throws, and AutoRouterImproved extends it (a), as in
+ * which throws, and AutoRouterImproved extends it, as in
  * SessionInterface.
 --->
 <cfcomponent output="no" hint="Expected behavior of a AutoRouter">

@@ -1,21 +1,21 @@
 <!---
  * New Secure Router for Auto-Routing
  *
- * Difference: CFML on MX 6.1 has no null (a). Where the original has null, an
+ * Difference: CFML on MX 6.1 has no null. Where the original has null, an
  * empty string stands in: the directory when there is none, and the positions
  * of the controller, the method and the parameters (tested with IsNumeric()).
  *
  * Difference: CFML on MX 6.1 has no reflection and no get_declared_classes()
- * or get_class_methods() (a). A method is found with method_exists() on the
- * object of the controller class (static_()), and what the original reads
- * with ReflectionMethod comes from the functions in GetMetaData() of the
- * object and of the components it extends: the name as it was written, and
+ * or get_class_methods(). A method is found, and what the original reads
+ * with ReflectionMethod comes from, in the functions in GetMetaData() of the
+ * object of the controller class (static_()) and of the components it extends: the name as it was written, and
  * the array of parameters of the method. Two results follow:
  *
- *   - method_exists() sees public methods only, so a private method is
- *     "not found" at once, where the original finds it and answers with
- *     MethodNotFoundException a little later. The answer to the visitor is
- *     the same, a 404 from forControllerNotFound().
+ *   - A private method is found, as in the original: checkParameters()
+ *     throws MethodNotFoundException for it (a 404), and with
+ *     translateUriToCamelCase on, checkUriForMethod() throws first. The
+ *     access of a function is read from its metadata; a function with no
+ *     access key counts as public.
  *   - CFML has no variadic parameters that GetMetaData() can see, so the
  *     count of the parameters is the count of the cfargument tags.
  *
@@ -24,11 +24,11 @@
  * "Blogcontroller" for the file BlogController. Here the names of the
  * folders and of the file of the class, below the namespace of the
  * controllers, are read from a listing of the folder (cfdirectory) and
- * compared with Compare() (a). That is done only when translateUriToCamelCase
+ * compared with Compare(). That is done only when translateUriToCamelCase
  * is on, as in the original, and costs one listing for each segment of
  * the class name.
  *
- * Difference: checkParameters() does not look for the class again (b); the
+ * Difference: checkParameters() does not look for the class again; the
  * class was found by class_exists() a moment before, and the object of
  * static_() is kept for the request.
 --->
@@ -359,7 +359,7 @@
 
 			<cfset checkUriForMethod(method)>
 
-			<cfset methodFound = method_exists(static_(this.controller), method)>
+			<cfset methodFound = IsStruct(methodInfo(method))>
 		</cfif>
 
 		<cfif methodFound>
@@ -389,7 +389,7 @@
 					'Cannot access the default method "' & this.method & '" with the method name URI path.'
 				)>
 			</cfif>
-		<cfelseif method_exists(static_(this.controller), defaultMethod)>
+		<cfelseif IsStruct(methodInfo(defaultMethod))>
 			<!--- The default method is found. --->
 			<cfset this.method = defaultMethod>
 		<cfelse>
@@ -489,10 +489,13 @@
 		<cfset var refParams = "">
 
 		<!---
-		 Not found, or not public: methodInfo() sees public methods only,
-		 so one answer stands in for both of the original.
+		 Not found, or not public: both give MethodNotFoundException.
 		--->
 		<cfif NOT IsStruct(info)>
+			<cfset static_("ColdIgniter\Router\Exceptions\MethodNotFoundException").forMethodNotFound()>
+		</cfif>
+
+		<cfif NOT isPublic(info)>
 			<cfset static_("ColdIgniter\Router\Exceptions\MethodNotFoundException").forMethodNotFound()>
 		</cfif>
 
@@ -586,16 +589,19 @@
 		 For example, if `getSomeMethod()` exists in the controller, only
 		 the URI `controller/some-method` should be accessible. But if a
 		 visitor navigates to the URI `controller/somemethod`, `getSomemethod()`
-		 will be checked, and method_exists() will return true because
+		 will be checked, and the method is found because
 		 method names are case-insensitive.
 		--->
 		<cfset info = methodInfo(arguments.method)>
 
 		<!--- But we do not permit `controller/somemethod`, so check the exact method name. --->
-		<cfif IsStruct(info) AND Compare(info.name, arguments.method) NEQ 0>
-			<cfset static_("ColdIgniter\Exceptions\PageNotFoundException").forPageNotFound(
-				'"' & this.controller & "::" & arguments.method & '()" is not found.'
-			)>
+		<!--- the original lists the public methods only, so a private one is not found either --->
+		<cfif IsStruct(info)>
+			<cfif NOT isPublic(info) OR Compare(info.name, arguments.method) NEQ 0>
+				<cfset static_("ColdIgniter\Exceptions\PageNotFoundException").forPageNotFound(
+					'"' & this.controller & "::" & arguments.method & '()" is not found.'
+				)>
+			</cfif>
 		</cfif>
 	</cffunction>
 
@@ -603,6 +609,10 @@
 	 * Returns true if the supplied segment string represents a valid PSR-4 compliant namespace/directory segment
 	 *
 	 * The regex is the rule for the name of a variable in the original language.
+	 *
+	 * Difference: the class \x80-\xff of the Java regex covers U+0080 to U+00FF
+	 * only, where the original reads bytes. A folder or controller name with
+	 * letters outside Latin-1 cannot be reached.
 	--->
 	<cffunction name="isValidSegment" access="private" returntype="boolean" output="no">
 		<cfargument name="segment" type="string" required="yes">
@@ -655,12 +665,16 @@
 	</cffunction>
 
 	<!---
-	 * Not in the original. Stands in for method_exists() and ReflectionMethod
+	 * Not in the original. Stands in for ReflectionMethod and get_class_methods()
 	 * on the class of the controller (see the header).
 	 *
 	 * @param method The method name
 	 *
-	 * @return The metadata of the method (name and parameters), or an empty string when there is no public method of that name
+	 * Difference: a method that the framework copies into the controller object
+	 * (a mixin) is not in the metadata, so it is not routable, where the
+	 * original can route an inherited method. CFML cannot list those.
+	 *
+	 * @return The metadata of the method (name, access and parameters), or an empty string when there is no method of that name
 	--->
 	<cffunction name="methodInfo" access="private" returntype="any" output="no">
 		<cfargument name="method" type="string" required="yes">
@@ -668,14 +682,9 @@
 		<cfset var meta = "">
 		<cfset var i = 0>
 
-		<cfif NOT method_exists(object, arguments.method)>
-			<cfreturn "">
-		</cfif>
-
 		<!---
 		 The functions of the component and of the components it extends, as
-		 GetMetaData() of the object lists them. A method that the framework
-		 copied into the object is not listed, so it is not routable.
+		 GetMetaData() of the object lists them, of any access.
 		--->
 		<cfset meta = GetMetaData(object)>
 
@@ -696,6 +705,20 @@
 		</cfloop>
 
 		<cfreturn "">
+	</cffunction>
+
+	<!---
+	 * Not in the original. Tells whether the metadata of a method is public:
+	 * a function with no access key is public.
+	--->
+	<cffunction name="isPublic" access="private" returntype="boolean" output="no">
+		<cfargument name="info" type="struct" required="yes">
+
+		<cfif NOT StructKeyExists(arguments.info, "access")>
+			<cfreturn true>
+		</cfif>
+
+		<cfreturn CompareNoCase(arguments.info.access, "public") EQ 0>
 	</cffunction>
 
 	<!---
