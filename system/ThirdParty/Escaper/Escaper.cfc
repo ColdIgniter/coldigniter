@@ -10,7 +10,9 @@
  * (toUtf8, fromUtf8, isUtf8, convertEncoding, with mb_convert_encoding) is
  * not needed, and a string cannot be invalid UTF-8, so the exception for
  * that is never thrown. The encoding is only checked and kept, as the
- * original does in the constructor, and getEncoding() gives it. A character
+ * original does in the constructor, and getEncoding_() gives it.
+ * The name has a trailing underscore, because getEncoding() is a function of the
+ * engine and a function of a component cannot have its name. A character
  * above the first 65535 is two characters of the string (a surrogate pair)
  * and is read as one where the original reads one.
  *
@@ -80,7 +82,7 @@
 	<!---
 	 * Return the encoding that all output/input is expected to be encoded in.
 	--->
-	<cffunction name="getEncoding" access="public" returntype="string" output="no">
+	<cffunction name="getEncoding_" access="public" returntype="string" output="no">
 		<cfreturn this.encoding>
 	</cffunction>
 
