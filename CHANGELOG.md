@@ -24,6 +24,9 @@ What is in it:
 - Config: `ForeignCharacters`, used by `convert_accented_characters()`.
 - Autoloader: `FileLocator` and `FileLocatorCached`, the `locator` service, `Config\Optimize` (only `locatorCacheEnabled` is used), and classmap loading and `sanitizeFilename()` in the autoloader. `helper()`, namespaced views, the Parser and the class search of `Factories` now find their files through the locator.
 - `Config\DocTypes` now decides whether `img()` and the other html tags close with ` /`.
+- Common functions: `app_timezone()`, `cookie_()` (the name has an underscore, as `cookie` is a scope), `cookies()`, `function_usable()`, `is_cli()`, `is_really_writable()`, `is_windows()`, `response()`, `single_service()` and `timer()`. `esc()` has the `css` context and the encoding argument (new `ThirdParty\Escaper\Escaper`).
+- `Config\BaseService`: `serviceExists()`, `reset()`, `resetSingle()`, `injectMock()`, `resetServicesCache()`, `set()` and `override()`. Module discovery is not ported.
+- `Timer::record()`, and `View::render()` with the `cache` and `cache_name` options.
 - Config: `Factory`. `Factories` now follows CodeIgniter: `define()`, `getOptions()`, `setOptions()`, `reset()`, `injectMock()` and the options `component`, `path`, `instanceOf`, `getShared` and `preferApp`. `model()` is added.
 - Fix: `config("Config\App")` and then `config("App")` made two objects. Now they share one.
 - Fix: RESTful resource controllers now get their model through `model()`, so the shared instance and not a new one each time.
