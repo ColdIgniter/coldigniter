@@ -17,6 +17,8 @@ What is in it:
 - Helpers: html and text. `highlight_code()` is not ported, and throws.
 - Config: `ForeignCharacters`, used by `convert_accented_characters()`.
 - `Config\DocTypes` now decides whether `img()` and the other html tags close with ` /`.
+- Config: `Factory`. `Factories` now follows CodeIgniter: `define()`, `getOptions()`, `setOptions()`, `reset()`, `injectMock()` and the options `component`, `path`, `instanceOf`, `getShared` and `preferApp`. `model()` is added.
+- Fix: `config("Config\App")` and then `config("App")` made two objects. Now they share one.
 
 ## 4.0.0
 
