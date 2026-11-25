@@ -8,6 +8,16 @@ ColdIgniter uses [semantic versioning](https://semver.org/): MAJOR.MINOR.PATCH.
 
 The numbers are ColdIgniter's own. They do not follow the numbers of CodeIgniter. Each release says which version of CodeIgniter its code was ported from. `PARITY.md` shows how much of CodeIgniter is ported.
 
+## 4.1.0
+
+Unreleased. Ported from CodeIgniter 4.7.6, for ColdFusion MX 6.1.
+
+What is in it:
+
+- Helpers: html and text. `highlight_code()` is not ported, and throws.
+- Config: `ForeignCharacters`, used by `convert_accented_characters()`.
+- `Config\DocTypes` now decides whether `img()` and the other html tags close with ` /`.
+
 ## 4.0.0
 
 The first release. Ported from CodeIgniter 4.7.6, for ColdFusion MX 6.1.

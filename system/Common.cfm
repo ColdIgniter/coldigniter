@@ -641,14 +641,19 @@
 <!---
  * Generates the solidus character (`/`) depending on the HTML5 compatibility flag in `Config\DocTypes`
  *
- * Not ported yet: Config\DocTypes. Its html5 flag is true in the original
- * by default, which is the answer here (an empty string).
+ * Difference: the config is not given as an argument, so the object that
+ * was made once cannot be replaced; the shared instance of Config\DocTypes
+ * is used.
  *
  * @internal
 --->
 <cffunction name="_solidus" returntype="string" output="no" hint="Generates the solidus character depending on the HTML5 compatibility flag">
 
-	<cfreturn "">
+	<cfif static_("Config\DocTypes").html5>
+		<cfreturn "">
+	</cfif>
+
+	<cfreturn " /">
 </cffunction>
 
 <!---
@@ -954,6 +959,40 @@
 	</cfif>
 
 	<cfreturn sessionObj>
+</cffunction>
+
+<!---
+ * Fetch a config file item with slash appended (if not empty)
+ *
+ * Difference: an item that does not exist gives an empty string (null).
+ *
+ * @param item Config item name
+ *
+ * @return The configuration item, or an empty string if the item doesn't exist
+--->
+<cffunction name="slash_item" returntype="string" output="no" hint="Fetch a config file item with slash appended (if not empty)">
+	<cfargument name="item" type="string" required="yes">
+	<cfset var config_ = config("Config\App")>
+	<cfset var configItem = "">
+
+	<!--- a function of the config object is not an item --->
+	<cfif NOT StructKeyExists(config_, arguments.item) OR IsCustomFunction(config_[arguments.item])>
+		<cfreturn "">
+	</cfif>
+
+	<cfset configItem = config_[arguments.item]>
+
+	<cfif NOT IsSimpleValue(configItem)>
+		<cfthrow type="ColdIgniter.RuntimeException" message="Cannot convert ""Config\App::$#arguments.item#"" to a string because it is not a simple value.">
+	</cfif>
+
+	<cfset configItem = Trim(configItem)>
+
+	<cfif configItem EQ "">
+		<cfreturn configItem>
+	</cfif>
+
+	<cfreturn rtrim_(configItem, "/") & "/">
 </cffunction>
 
 <!---
