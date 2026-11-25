@@ -8,8 +8,9 @@
  * Difference: CFML on MX 6.1 has no reflection and no get_declared_classes()
  * or get_class_methods() (a). A method is found with method_exists() on the
  * object of the controller class (static_()), and what the original reads
- * with ReflectionMethod comes from GetMetaData() of that method: its name as
- * it was written, and its list of parameters. Two results follow:
+ * with ReflectionMethod comes from the functions in GetMetaData() of the
+ * object and of the components it extends: the name as it was written, and
+ * the list of parameters of the method. Two results follow:
  *
  *   - method_exists() sees public methods only, so a private method is
  *     "not found" at once, where the original finds it and answers with
@@ -649,12 +650,37 @@
 	<cffunction name="methodInfo" access="private" returntype="any" output="no">
 		<cfargument name="method" type="string" required="yes">
 		<cfset var object = static_(this.controller)>
+		<cfset var meta = "">
+		<cfset var i = 0>
 
 		<cfif NOT method_exists(object, arguments.method)>
 			<cfreturn "">
 		</cfif>
 
-		<cfreturn GetMetaData(object[arguments.method])>
+		<!---
+		 The functions of the component and of the components it extends, as
+		 GetMetaData() of the object lists them. A method that the framework
+		 copied into the object is not listed, so it is not routable.
+		--->
+		<cfset meta = GetMetaData(object)>
+
+		<cfloop condition="IsStruct(meta)">
+			<cfif StructKeyExists(meta, "functions")>
+				<cfloop from="1" to="#ArrayLen(meta.functions)#" index="i">
+					<cfif CompareNoCase(meta.functions[i].name, arguments.method) EQ 0>
+						<cfreturn meta.functions[i]>
+					</cfif>
+				</cfloop>
+			</cfif>
+
+			<cfif StructKeyExists(meta, "extends")>
+				<cfset meta = meta.extends>
+			<cfelse>
+				<cfset meta = "">
+			</cfif>
+		</cfloop>
+
+		<cfreturn "">
 	</cffunction>
 
 	<!---
