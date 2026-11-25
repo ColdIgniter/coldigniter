@@ -35,8 +35,10 @@
  * class file cannot be loaded and kept for later, so the autoloader creates
  * the object itself; new_() and static_() call instantiate().
  *
- * Not ported yet: classmap loading, sanitizeFilename, loadComposerAutoloader,
- * unregister.
+ * Not ported yet: loadComposerAutoloader and loadComposerNamespaces (Composer
+ * does not exist on this platform), loadClass and unregister (there is no
+ * SPL autoload stack: instantiate() asks for the class file when an object
+ * is made).
 --->
 <cfcomponent output="no" hint="An autoloader that uses both PSR4 autoloading, and traditional classmaps">
 
@@ -198,6 +200,36 @@
 	</cffunction>
 
 	<!---
+	 * Load a class using available class mapping.
+	 *
+	 * Difference: the original includes the file of the class. A class file
+	 * cannot be loaded and kept for later here (see the top of this file),
+	 * so the file name is returned and instantiate() creates the object.
+	 *
+	 * Difference: the file is checked here (is_file), where the original
+	 * checks it in includeFile(), as there is nothing to include here and
+	 * the caller needs to know that the file is there (cannot express).
+	 *
+	 * @param class The fully qualified class name.
+	 *
+	 * @return The mapped file name on success, or an empty string on fail
+	--->
+	<cffunction name="loadClassmap" access="public" returntype="string" output="no">
+		<cfargument name="class" type="string" required="yes">
+		<cfset var file = "">
+
+		<cfif StructKeyExists(this.classmap, arguments.class)>
+			<cfset file = this.classmap[arguments.class]>
+		</cfif>
+
+		<cfif IsSimpleValue(file) AND file NEQ "" AND is_file(file)>
+			<cfreturn file>
+		</cfif>
+
+		<cfreturn "">
+	</cffunction>
+
+	<!---
 	 * Loads the class file for a given class name.
 	 *
 	 * @return The mapped file name on success, or an empty string on fail
@@ -255,7 +287,53 @@
 	<cffunction name="classExists" access="public" returntype="boolean" output="no">
 		<cfargument name="class" type="string" required="yes">
 
-		<cfreturn loadInNamespace(REReplace(arguments.class, "^\\+", "")) NEQ "">
+		<cfset var name = REReplace(arguments.class, "^\\+", "")>
+
+		<cfreturn loadClassmap(name) NEQ "" OR loadInNamespace(name) NEQ "">
+	</cffunction>
+
+	<!---
+	 * Check file path.
+	 *
+	 * Checks special characters that are illegal in filenames on certain
+	 * operating systems and special characters requiring special escaping
+	 * to manipulate at the command line. Replaces spaces and consecutive
+	 * dashes with a single dash. Trim period, dash and underscore from beginning
+	 * and end of filename.
+	 *
+	 * Difference: the pattern is run by Java, which cannot fail on the text
+	 * as preg_match_all() can, so the branch that throws a RuntimeException
+	 * for a pattern error is left out.
+	 *
+	 * @return The sanitized filename
+	 *
+	 * @deprecated No longer used.
+	--->
+	<cffunction name="sanitizeFilename" access="public" returntype="string" output="no">
+		<cfargument name="filename" type="string" required="yes">
+		<cfset var chars = "">
+		<cfset var cleanFilename = "">
+
+		<!---
+		 Only allow characters deemed safe for POSIX portable filenames.
+		 Plus the forward slash for directory separators since this might be a path.
+		 Modified to allow backslash and colons for on Windows machines.
+		 The characters that are not allowed are what is left when the allowed ones are taken out.
+		--->
+		<cfset chars = JavaCast("string", arguments.filename).replaceAll("[0-9\p{L}\s/_.:\\\\-]", "")>
+
+		<cfif Len(chars) GT 0>
+			<cfthrow type="InvalidArgumentException" message="The file path contains special characters ""#chars#"" that are not allowed: ""#arguments.filename#""">
+		</cfif>
+
+		<!--- Clean up our filename edges. --->
+		<cfset cleanFilename = REReplace(arguments.filename, "^[._-]+|[._-]+$", "", "all")>
+
+		<cfif Compare(arguments.filename, cleanFilename) NEQ 0>
+			<cfthrow type="InvalidArgumentException" message="The characters "".-_"" are not allowed in filename edges: ""#arguments.filename#""">
+		</cfif>
+
+		<cfreturn cleanFilename>
 	</cffunction>
 
 	<!---
@@ -549,9 +627,14 @@
 	<cffunction name="classInfo" access="private" returntype="struct" output="no">
 		<cfargument name="class" type="string" required="yes">
 		<cfset var info = StructNew()>
-		<cfset var filePath = loadInNamespace(arguments.class)>
+		<cfset var filePath = loadClassmap(arguments.class)>
 		<cfset var directory = "">
 		<cfset var name = "">
+
+		<!--- the classmap comes first, as the classmap loader is registered before the namespace loader --->
+		<cfif filePath EQ "">
+			<cfset filePath = loadInNamespace(arguments.class)>
+		</cfif>
 
 		<cfif filePath EQ "">
 			<cfthrow type="ColdIgniter.Autoloader.ClassNotFoundException" message="Class ""#arguments.class#"" not found">

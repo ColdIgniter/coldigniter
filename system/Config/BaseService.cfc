@@ -25,7 +25,7 @@
  * the one of the system), so serviceExists() gives that class name.
  *
  * Not ported yet: service discovery in modules (buildServicesCache, it needs
- * the file locator), locator(), reconnectCacheForWorkerMode() and
+ * the module list), reconnectCacheForWorkerMode() and
  * resetForWorkerMode() (no worker mode, no Config\WorkerMode).
 --->
 <cfcomponent output="no" hint="Services Configuration file">
@@ -172,6 +172,38 @@
 		</cfif>
 
 		<cfreturn new_("ColdIgniter\Autoloader\Autoloader")>
+	</cffunction>
+
+	<!---
+	 * The file locator provides utility methods for looking for non-classes
+	 * within namespaced folders, as well as convenience methods for
+	 * loading 'helpers', and awareness of the namespaces.
+	 *
+	 * The cached locator is used when Config\Optimize says so, as in the
+	 * original: only a class file of that name makes the setting known.
+	--->
+	<cffunction name="locator" access="public" returntype="any" output="no">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+		<cfset var cacheEnabled = false>
+
+		<cfif arguments.getShared>
+			<cfif NOT StructKeyExists(this.instances, "locator")>
+				<!--- nested, so the class is only created when it exists --->
+				<cfif class_exists("Config\Optimize")>
+					<cfset cacheEnabled = new_("Config\Optimize").locatorCacheEnabled>
+				</cfif>
+
+				<cfif cacheEnabled>
+					<cfset this.instances["locator"] = new_("ColdIgniter\Autoloader\FileLocatorCached", new_("ColdIgniter\Autoloader\FileLocator", this.autoloader()))>
+				<cfelse>
+					<cfset this.instances["locator"] = new_("ColdIgniter\Autoloader\FileLocator", this.autoloader())>
+				</cfif>
+			</cfif>
+
+			<cfreturn this.instances["locator"]>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\Autoloader\FileLocator", this.autoloader())>
 	</cffunction>
 
 	<!---

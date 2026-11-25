@@ -13,8 +13,8 @@
  * Not ported yet: plural rules of other locales, and the select, number
  * and date forms.
  *
- * Not ported yet: the file locator. A language file is searched in the
- * folder "Language/{locale}" of every namespace the autoloader knows
+ * Not ported yet: the use of the file locator for a language file. It is
+ * searched in the folder "Language/{locale}" of every namespace the autoloader knows
  * (system first, then the application), see requireFile.
  *
  * Difference: a language file is not a script that returns an array. It is
@@ -412,7 +412,7 @@
 		<cfset var i = 0>
 		<cfset var j = 0>
 
-		<!--- Not ported yet: service("locator").search(path, extension, false) --->
+		<!--- Not ported yet: the use of service("locator").search(path, extension, false) --->
 		<cfloop collection="#prefixes#" item="prefix">
 			<cfloop from="1" to="#ArrayLen(prefixes[prefix])#" index="i">
 				<cfset file = prefixes[prefix][i] & Replace(arguments.path, "/", request.DIRECTORY_SEPARATOR, "all")>

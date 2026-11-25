@@ -21,7 +21,7 @@
  * value is skipped (the original would read it as a row of one item).
  *
  * Not ported yet: the plugins ({+ name +}), the filters ({ key | filter }),
- * the cache options, the decorators, the file locator, renderString,
+ * the cache options, the decorators, renderString,
  * setDelimiters, and the data of a single row inside a conditional of a pair.
 --->
 <cfcomponent output="no" extends="View" hint="Class Parser">
@@ -62,6 +62,7 @@
 		<cfargument name="saveData" type="any" required="no" default="">
 		<cfset var start = microtime(true)>
 		<cfset var file = "">
+		<cfset var fileOrig = "">
 		<cfset var template = "">
 		<cfset var output = "">
 
@@ -77,7 +78,23 @@
 		<cfset file = this.viewPath & arguments.view>
 
 		<cfif NOT is_file(file)>
-			<cfthrow type="ColdIgniter.View.Exceptions.ViewException" message="Invalid file: ""#arguments.view#""">
+			<cfset fileOrig = file>
+
+			<!---
+			 * Difference: the loader is made when it is first needed (see
+			 * the constructor of View), and locateFile() gives an empty
+			 * string, not false, when the file cannot be found.
+			--->
+			<cfif is_null(this.loader)>
+				<cfset this.loader = service("locator")>
+			</cfif>
+
+			<cfset file = this.loader.locateFile(arguments.view, "Views")>
+
+			<!--- locateFile() will return an empty string if the file cannot be found. --->
+			<cfif file EQ "">
+				<cfthrow type="ColdIgniter.View.Exceptions.ViewException" message="Invalid file: ""#fileOrig#""">
+			</cfif>
 		</cfif>
 
 		<cfset template = file_get_contents(file)>
