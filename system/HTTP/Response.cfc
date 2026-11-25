@@ -13,7 +13,7 @@
  * method, so send() leaves the body in request.ColdIgniter.output and
  * the front controller writes it.
  *
- * Not ported yet: download, setJSON, setXML, setDate, setLastModified and setCache.
+ * Not ported yet: download, setJSON, setXML and setLink.
 --->
 <cfcomponent output="no" extends="Message" hint="Representation of an outgoing, server-side response">
 
@@ -260,6 +260,21 @@
 	</cffunction>
 
 	<!---
+	 * Sets the date header
+	 *
+	 * @param date A Time
+	--->
+	<cffunction name="setDate" access="public" returntype="any" output="no">
+		<cfargument name="date" type="any" required="yes">
+
+		<cfset arguments.date = arguments.date.setTimezone("UTC")>
+
+		<cfset setHeader("Date", arguments.date.format("D, d M Y H:i:s") & " GMT")>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
 	 * Sets the Content Type header for this response with the mime type
 	 * and, optionally, the charset.
 	--->
@@ -291,6 +306,90 @@
 
 		<cfset removeHeader("Cache-Control")>
 		<cfset setHeader("Cache-Control", value)>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Sets the appropriate headers to ensure this response
+	 * is cached by the browsers.
+	 *
+	 * Valid options are:
+	 *  - etag
+	 *  - last-modified
+	 *  - max-age
+	 *  - s-maxage
+	 *  - private
+	 *  - public
+	 *  - must-revalidate
+	 *  - proxy-revalidate
+	 *  - no-transform
+	 *
+	 * @param options An empty string (none), or a map from array_(). A
+	 *                directive without a value is a key that is a number
+	 *                (the keys "0", "1"), as in the original array.
+	--->
+	<cffunction name="setCache" access="public" returntype="any" output="no">
+		<cfargument name="options" type="any" required="no">
+		<cfset var rest = "">
+		<cfset var it = "">
+		<cfset var key = "">
+
+		<cfif is_null(arguments.options)>
+			<cfreturn this>
+		</cfif>
+
+		<cfif arguments.options.size() EQ 0>
+			<cfreturn this>
+		</cfif>
+
+		<cfset removeHeader("Cache-Control")>
+		<cfset removeHeader("ETag")>
+
+		<!---
+		 Difference: the original removes etag and last-modified from its own
+		 copy of the array; the map of the caller is not changed here either,
+		 so the rest is copied key by key (CFML cannot copy a map by value).
+		--->
+		<cfset rest = array_()>
+		<cfset it = arguments.options.keySet().iterator()>
+
+		<cfloop condition="it.hasNext()">
+			<cfset key = it.next()>
+
+			<!--- ETag --->
+			<cfif Compare(key, "etag") EQ 0>
+				<cfset setHeader("ETag", arguments.options.get(key))>
+			<!--- Last Modified --->
+			<cfelseif Compare(key, "last-modified") EQ 0>
+				<cfset setLastModified(arguments.options.get(key))>
+			<cfelse>
+				<cfset rest[key] = arguments.options.get(key)>
+			</cfif>
+		</cfloop>
+
+		<cfset setHeader("Cache-Control", rest)>
+
+		<cfreturn this>
+	</cffunction>
+
+	<!---
+	 * Sets the Last-Modified date header.
+	 *
+	 * date can be either a string representation of the date or,
+	 * preferably, a Time.
+	 *
+	 * @param date Time|string
+	--->
+	<cffunction name="setLastModified" access="public" returntype="any" output="no">
+		<cfargument name="date" type="any" required="yes">
+
+		<cfif instanceof_(arguments.date, "ColdIgniter\I18n\Time")>
+			<cfset arguments.date = arguments.date.setTimezone("UTC")>
+			<cfset setHeader("Last-Modified", arguments.date.format("D, d M Y H:i:s") & " GMT")>
+		<cfelseif IsSimpleValue(arguments.date)>
+			<cfset setHeader("Last-Modified", arguments.date)>
+		</cfif>
 
 		<cfreturn this>
 	</cffunction>
@@ -335,7 +434,11 @@
 			<cfreturn this>
 		</cfif>
 
-		<!--- Not ported yet: the Date header --->
+		<!---
+		 Difference: the Date header is not set here when it is missing (b,
+		 performance): IIS adds the header itself, and a Time would be made
+		 for each request.
+		--->
 
 		<!--- HTTP Status --->
 		<cfheader statuscode="#getStatusCode()#" statustext="#getReasonPhrase()#">

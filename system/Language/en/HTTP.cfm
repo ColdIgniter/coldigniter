@@ -19,6 +19,13 @@
 <cfset lines["invalidFile"] = "The original file is not a valid file.">
 <cfset lines["moveFailed"] = "Could not move file ""{0}"" to ""{1}"". Reason: {2}">
 
+<!--- Download --->
+<cfset lines["cannotSetBinary"] = "When setting filepath cannot set binary.">
+<cfset lines["cannotSetFilepath"] = "When setting binary cannot set filepath: ""{0}""">
+<cfset lines["notFoundDownloadSource"] = "Not found download body source.">
+<cfset lines["cannotSetCache"] = "It does not support caching for downloading.">
+<cfset lines["cannotSetStatusCode"] = "It does not support change status code for downloading. code: {0}, reason: {1}">
+
 <cfset lines["uploadErrOk"] = "The file uploaded with success.">
 <cfset lines["uploadErrIniSize"] = "The file ""%s"" exceeds your upload_max_filesize ini directive.">
 <cfset lines["uploadErrFormSize"] = "The file ""%s"" exceeds the upload limit defined in your form.">

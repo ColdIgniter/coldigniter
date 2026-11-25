@@ -23,7 +23,8 @@
  * found from the template trace of an error that is thrown and caught on
  * the spot (see determineFile()).
  *
- * Not ported yet: {session_vars}, the session is not ported yet.
+ * {session_vars} is replaced by the session data, when a session has
+ * been started (see interpolate()).
  *
  * logCache is read by the Logs collector of the debug toolbar.
 --->
@@ -362,6 +363,7 @@
 		<cfset var location = "">
 		<cfset var found = "">
 		<cfset var str = "">
+		<cfset var session = "">
 
 		<cfif NOT IsSimpleValue(arguments.message)>
 			<cfreturn print_r(arguments.message)>
@@ -415,7 +417,21 @@
 			</cfif>
 		</cfif>
 
-		<!--- Not ported yet: {session_vars}, the session is not ported yet --->
+		<!---
+		 isset($_SESSION)
+
+		 Difference: the session is looked at only when the message has the
+		 placeholder (b, performance), and a request that has not touched the
+		 session has no session state at all (see session_state()), which is
+		 the same as an unset $_SESSION.
+		--->
+		<cfif Find("{session_vars}", arguments.message) GT 0 AND StructKeyExists(request.ColdIgniter, "session")>
+			<cfset session = request.ColdIgniter.session>
+
+			<cfif Compare(session.status, "active") EQ 0 OR Compare(session.id, "") NEQ 0>
+				<cfset replace["{session_vars}"] = "$_SESSION: " & print_r(session.data)>
+			</cfif>
+		</cfif>
 
 		<cfreturn strtr(arguments.message, replace)>
 	</cffunction>

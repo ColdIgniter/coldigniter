@@ -176,12 +176,19 @@
 		 instanceof HTTPExceptionInterface: the exceptions of the port
 		 that implement it, with the status code in the error code.
 		--->
-		<cfif ListFindNoCase("ColdIgniter.Exceptions.PageNotFoundException,ColdIgniter.HTTP.Exceptions.BadRequestException,ColdIgniter.Security.Exceptions.SecurityException,ColdIgniter.Honeypot.Exceptions.HoneypotException", arguments.exception.type) GT 0
+		<cfif ListFindNoCase("ColdIgniter.Exceptions.PageNotFoundException,ColdIgniter.HTTP.Exceptions.BadRequestException,ColdIgniter.HTTP.Exceptions.RedirectException,ColdIgniter.Security.Exceptions.SecurityException,ColdIgniter.Honeypot.Exceptions.HoneypotException", arguments.exception.type) GT 0
 				AND IsNumeric(arguments.exception.errorcode)>
 			<cfset statusCode = arguments.exception.errorcode>
 		</cfif>
 
-		<!--- Not ported yet: HasExitCodeInterface --->
+		<!---
+		 instanceof HasExitCodeInterface: the exceptions of the port that
+		 implement it. The exit code comes from getExitCode() of the
+		 component of the type.
+		--->
+		<cfif ListFindNoCase("ColdIgniter.Exceptions.ConfigException,ColdIgniter.Entity.Exceptions.CastException,ColdIgniter.Database.Exceptions.DatabaseException", arguments.exception.type) GT 0>
+			<cfset exitStatus = static_(Replace(arguments.exception.type, ".", "\", "all")).getExitCode()>
+		</cfif>
 
 		<cfset ArrayAppend(codes, statusCode)>
 		<cfset ArrayAppend(codes, exitStatus)>
@@ -190,8 +197,51 @@
 	</cffunction>
 
 	<!---
-	 * Not ported yet: isDeprecationError and handleDeprecationError
-	 * (no deprecation errors in CFML).
+	 * Not ported yet: nothing calls isDeprecationError() and
+	 * handleDeprecationError() on 6.1. CFML has no error levels and no
+	 * deprecation errors, and there is no error handler that receives
+	 * one (see the note at errorHandler above). They are ported so that
+	 * they are ready for a call, and so that logDeprecations and
+	 * deprecationLogLevel of the config have a place that reads them.
+	 * They can never fire.
 	--->
+	<cffunction name="isDeprecationError" access="private" returntype="boolean" output="no">
+		<cfargument name="error" type="numeric" required="yes">
+		<!--- E_DEPRECATED | E_USER_DEPRECATED --->
+		<cfset var deprecations = BitOr(8192, 16384)>
+
+		<cfreturn BitAnd(arguments.error, deprecations) NEQ 0>
+	</cffunction>
+
+	<cffunction name="handleDeprecationError" access="private" returntype="boolean" output="no">
+		<cfargument name="message" type="string" required="yes">
+		<cfargument name="file" type="any" required="no">
+		<cfargument name="line" type="any" required="no">
+		<cfset var trace = ArrayNew(1)>
+
+		<!---
+		 Difference: the original takes the trace from debug_backtrace()
+		 without the rows of the error handler. There is no such trace in
+		 CFML (the tagContext of a caught error is all there is), so the
+		 trace is empty.
+		--->
+
+		<cfif is_null(arguments.file)>
+			<cfset arguments.file = "">
+		</cfif>
+
+		<cfif is_null(arguments.line)>
+			<cfset arguments.line = 0>
+		</cfif>
+
+		<cfset log_message(this.config.deprecationLogLevel, "[DEPRECATED] {message} in {errFile} on line {errLine}." & Chr(10) & "{trace}", array_(
+			"message", arguments.message,
+			"errFile", clean_path(arguments.file),
+			"errLine", arguments.line,
+			"trace", render_backtrace(trace)
+		))>
+
+		<cfreturn true>
+	</cffunction>
 
 </cfcomponent>
