@@ -8,8 +8,9 @@
  * Difference: CFML on MX 6.1 has no reflection and no get_declared_classes()
  * or get_class_methods(). A method is found, and what the original reads
  * with ReflectionMethod comes from, in the functions in GetMetaData() of the
- * object of the controller class (static_()) and of the components it extends: the name as it was written, and
- * the array of parameters of the method. Two results follow:
+ * object of the controller class (static_()) and of the components it
+ * extends: the name as it was written, and the array of parameters of the
+ * method. Two results follow:
  *
  *   - A private method is found, as in the original: checkParameters()
  *     throws MethodNotFoundException for it (a 404), and with
@@ -515,7 +516,7 @@
 	</cffunction>
 
 	<cffunction name="checkRemap" access="private" returntype="void" output="no">
-		<cfif method_exists(static_(this.controller), "_remap")>
+		<cfif IsStruct(methodInfo("_remap"))>
 			<cfset static_("ColdIgniter\Exceptions\PageNotFoundException").forPageNotFound(
 				"AutoRouterImproved does not support `_remap()` method."
 				& " Controller:" & this.controller
@@ -709,7 +710,7 @@
 
 	<!---
 	 * Not in the original. Tells whether the metadata of a method is public:
-	 * a function with no access key is public.
+	 * a function with no access key is public, and so is a remote one.
 	--->
 	<cffunction name="isPublic" access="private" returntype="boolean" output="no">
 		<cfargument name="info" type="struct" required="yes">
@@ -718,7 +719,8 @@
 			<cfreturn true>
 		</cfif>
 
-		<cfreturn CompareNoCase(arguments.info.access, "public") EQ 0>
+		<!--- remote is callable from outside too, so it counts as public --->
+		<cfreturn CompareNoCase(arguments.info.access, "public") EQ 0 OR CompareNoCase(arguments.info.access, "remote") EQ 0>
 	</cffunction>
 
 	<!---
