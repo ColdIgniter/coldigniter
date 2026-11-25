@@ -12,13 +12,13 @@ The list is made by file name only:
 
 ColdIgniter has its own version numbers. They do not follow the numbers of CodeIgniter. See `CHANGELOG.md`.
 
-Total: 240 of 492 files.
+Total: 242 of 492 files.
 
 | Area | Files in CodeIgniter | Ported | State |
 |---|---|---|---|
 | `(top level)` | 11 | 7 | Part |
 | `API` | 4 | 4 | All |
-| `Autoloader` | 4 | 1 | Part |
+| `Autoloader` | 4 | 3 | Part |
 | `Cache` | 14 | 7 | Part |
 | `CLI` | 8 | 0 | None |
 | `Commands` | 61 | 0 | None |
@@ -69,8 +69,6 @@ Total: 240 of 492 files.
 
 ### Autoloader
 
-- `FileLocator.php`
-- `FileLocatorCached.php`
 - `FileLocatorInterface.php`
 
 ### Cache

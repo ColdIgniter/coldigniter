@@ -420,8 +420,14 @@
  *   2. {namespace}/Helpers
  *   3. system/Helpers
  *
- * Not ported yet: the file locator, so only app/Helpers and
- * system/Helpers are searched and a namespaced name is never found.
+ * Difference: while the namespaces are the three that every application
+ * has (ColdIgniter, Config and the App namespace, each with one folder,
+ * App being the app folder), the locator is not asked: app/Helpers and
+ * system/Helpers are tested directly. The search of the locator would
+ * test the folder of the Config namespace as well, which costs a file
+ * check for each helper in every request, and finds the same files. As
+ * soon as a namespace is added or one is changed, the locator searches
+ * as in the original (performance).
  *
  * The functions of a helper file become global (see require_once) and
  * the first definition of a name wins, which is how an app helper
@@ -439,11 +445,29 @@
 	<!--- Store a list of all files to include... --->
 	<cfset var includes = ArrayNew(1)>
 	<cfset var filename = "">
+	<cfset var localIncludes = "">
 	<cfset var systemHelper = "">
 	<cfset var appHelper = "">
+	<cfset var loader = "">
+	<cfset var prefixes = request.ColdIgniter.autoloader.prefixes>
+	<cfset var fast = false>
+	<cfset var paths = "">
+	<cfset var path = "">
 	<cfset var i = 0>
+	<cfset var j = 0>
 
-	<!--- Not ported yet: loader = service("locator") --->
+	<!---
+	 * Difference: the locator is made when it is first needed, not here
+	 * (performance: loader = service("locator") in the original). First
+	 * the namespaces are looked at: are they the default ones?
+	--->
+	<cfif StructCount(prefixes) EQ 3 AND StructKeyExists(prefixes, "ColdIgniter") AND StructKeyExists(prefixes, "Config") AND StructKeyExists(prefixes, request.APP_NAMESPACE)>
+		<cfset fast = ArrayLen(prefixes["ColdIgniter"]) EQ 1 AND ArrayLen(prefixes["Config"]) EQ 1 AND ArrayLen(prefixes[request.APP_NAMESPACE]) EQ 1>
+
+		<cfif fast>
+			<cfset fast = Compare(prefixes["ColdIgniter"][1], request.SYSTEMPATH) EQ 0 AND Compare(prefixes[request.APP_NAMESPACE][1], request.APPPATH) EQ 0>
+		</cfif>
+	</cfif>
 
 	<cfif NOT IsArray(arguments.filenames)>
 		<cfset filename = arguments.filenames>
@@ -460,6 +484,7 @@
 		--->
 		<cfset systemHelper = "">
 		<cfset appHelper = "">
+		<cfset localIncludes = ArrayNew(1)>
 
 		<cfif Find("_helper", filename) EQ 0>
 			<cfset filename = filename & "_helper">
@@ -472,16 +497,44 @@
 			 file and not search for any others
 			--->
 			<cfif Find("\", filename) GT 0>
-				<!--- Not ported yet: loader.locateFile(filename, "Helpers"), so the file is never found --->
-				<cfthrow type="ColdIgniter.Files.Exceptions.FileNotFoundException" message="File not found: ""#filename#""">
+				<cfif NOT IsObject(loader)>
+					<cfset loader = service("locator")>
+				</cfif>
+
+				<cfset path = loader.locateFile(filename, "Helpers")>
+
+				<cfif path EQ "">
+					<cfset static_("ColdIgniter\Files\Exceptions\FileNotFoundException").forFileNotFound(filename)>
+				</cfif>
+
+				<cfset ArrayAppend(includes, path)>
+				<cfset loaded[filename] = true>
 			<cfelse>
 				<!--- No namespaces, so search in all available locations --->
-				<!--- Not ported yet: loader.search("Helpers/" & filename), and the namespace locations --->
-				<cfif is_file(request.APPPATH & "Helpers" & request.DIRECTORY_SEPARATOR & filename & ".cfm")>
-					<cfset appHelper = request.APPPATH & "Helpers" & request.DIRECTORY_SEPARATOR & filename & ".cfm">
-				</cfif>
-				<cfif is_file(request.SYSTEMPATH & "Helpers" & request.DIRECTORY_SEPARATOR & filename & ".cfm")>
-					<cfset systemHelper = request.SYSTEMPATH & "Helpers" & request.DIRECTORY_SEPARATOR & filename & ".cfm">
+				<cfif fast>
+					<cfif is_file(request.APPPATH & "Helpers" & request.DIRECTORY_SEPARATOR & filename & ".cfm")>
+						<cfset appHelper = request.APPPATH & "Helpers" & request.DIRECTORY_SEPARATOR & filename & ".cfm">
+					</cfif>
+					<cfif is_file(request.SYSTEMPATH & "Helpers" & request.DIRECTORY_SEPARATOR & filename & ".cfm")>
+						<cfset systemHelper = request.SYSTEMPATH & "Helpers" & request.DIRECTORY_SEPARATOR & filename & ".cfm">
+					</cfif>
+				<cfelse>
+					<cfif NOT IsObject(loader)>
+						<cfset loader = service("locator")>
+					</cfif>
+
+					<cfset paths = loader.search("Helpers/" & filename)>
+
+					<cfloop from="1" to="#ArrayLen(paths)#" index="j">
+						<cfif str_starts_with(paths[j], request.APPPATH & "Helpers" & request.DIRECTORY_SEPARATOR)>
+							<cfset appHelper = paths[j]>
+						<cfelseif str_starts_with(paths[j], request.SYSTEMPATH & "Helpers" & request.DIRECTORY_SEPARATOR)>
+							<cfset systemHelper = paths[j]>
+						<cfelse>
+							<cfset ArrayAppend(localIncludes, paths[j])>
+							<cfset loaded[filename] = true>
+						</cfif>
+					</cfloop>
 				</cfif>
 
 				<!--- App-level helpers should override all others --->
@@ -489,6 +542,11 @@
 					<cfset ArrayAppend(includes, appHelper)>
 					<cfset loaded[filename] = true>
 				</cfif>
+
+				<!--- All namespaced files get added in next --->
+				<cfloop from="1" to="#ArrayLen(localIncludes)#" index="j">
+					<cfset ArrayAppend(includes, localIncludes[j])>
+				</cfloop>
 
 				<!--- And the system default one should be added in last. --->
 				<cfif systemHelper NEQ "">

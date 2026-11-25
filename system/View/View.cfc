@@ -2,7 +2,7 @@
  * Class View
  *
  * Not ported yet: layouts and sections, include, renderString, the
- * cache options, decorators and the file locator.
+ * cache options and decorators.
 --->
 <cfcomponent output="no" hint="Class View">
 
@@ -73,7 +73,11 @@
 
 		<cfset this.config = arguments.config>
 		<cfset this.viewPath = REReplace(arguments.viewPath, "[\\/ ]+$", "") & request.DIRECTORY_SEPARATOR>
-		<!--- Not ported yet: service("locator") --->
+		<!---
+		 * Difference: an empty loader stays empty here, and render() asks for
+		 * service("locator") when it needs it (performance: the locator is not
+		 * made for a view that is where the view path says).
+		--->
 		<cfset this.loader = arguments.loader>
 		<cfif is_null(arguments.logger)>
 			<cfset this.logger = service("logger")>
@@ -151,16 +155,20 @@
 		<!--- Not ported yet: the overrides folder --->
 		<cfset this.renderVars["file"] = this.viewPath & this.renderVars["view"]>
 
-		<!---
-		 Difference: a namespaced view (with a backslash) is found through the namespaces
-		 of the autoloader, instead of service("locator").locateFile().
-		--->
-		<cfif Find("\", this.renderVars["view"]) GT 0>
-			<cfset this.renderVars["file"] = locateNamespacedView(this.renderVars["view"])>
+		<cfif NOT is_file(this.renderVars["file"])>
+			<cfif is_null(this.loader)>
+				<cfset this.loader = service("locator")>
+			</cfif>
+
+			<cfif fileExt EQ "">
+				<cfset this.renderVars["file"] = this.loader.locateFile(this.renderVars["view"], "Views")>
+			<cfelse>
+				<cfset this.renderVars["file"] = this.loader.locateFile(this.renderVars["view"], "Views", fileExt)>
+			</cfif>
 		</cfif>
 
-		<!--- Not ported yet: the file locator --->
-		<cfif NOT is_file(this.renderVars["file"])>
+		<!--- locateFile() returns an empty string if the file cannot be found. --->
+		<cfif this.renderVars["file"] EQ "">
 			<cfthrow type="ColdIgniter.View.Exceptions.ViewException" message="Invalid file: ""#this.renderVars["view"]#""">
 		</cfif>
 
@@ -220,43 +228,6 @@
 		<cfset this.tempData = "">
 
 		<cfreturn output>
-	</cffunction>
-
-	<!---
-	 * Finds the file of a namespaced view, like
-	 * "ColdIgniter\Validation\Views\list.cfm": the longest namespace of the
-	 * autoloader that starts the name gives the folder, and the rest is the
-	 * path below it.
-	 *
-	 * @return The full path of the file, or an empty string if there is none
-	--->
-	<cffunction name="locateNamespacedView" access="private" returntype="string" output="no">
-		<cfargument name="view" type="string" required="yes">
-		<cfset var prefixes = request.ColdIgniter.autoloader.prefixes>
-		<cfset var best = "">
-		<cfset var prefix = "">
-		<cfset var file = "">
-		<cfset var i = 0>
-
-		<cfloop collection="#prefixes#" item="prefix">
-			<cfif Len(prefix) GT Len(best) AND Left(arguments.view, Len(prefix) + 1) EQ prefix & "\">
-				<cfset best = prefix>
-			</cfif>
-		</cfloop>
-
-		<cfif best EQ "">
-			<cfreturn "">
-		</cfif>
-
-		<cfloop from="1" to="#ArrayLen(prefixes[best])#" index="i">
-			<cfset file = prefixes[best][i] & Replace(Mid(arguments.view, Len(best) + 2, Len(arguments.view)), "\", request.DIRECTORY_SEPARATOR, "all")>
-
-			<cfif is_file(file)>
-				<cfreturn file>
-			</cfif>
-		</cfloop>
-
-		<cfreturn "">
 	</cffunction>
 
 	<!---

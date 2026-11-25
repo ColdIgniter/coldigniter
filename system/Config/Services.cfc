@@ -16,8 +16,11 @@
  * @see http://www.infoq.com/presentations/Simple-Made-Easy
  *
  * AppServices in the original is static_("Config\Services") here.
- * Where the original takes the locator, an empty string is passed until
- * it is ported.
+ * Difference: where the original passes service("locator") to View and
+ * Parser, an empty string is passed, and View asks for the service when a
+ * file is not at its place (performance: the locator is not made for a
+ * request that needs no search). Not ported yet: the locator of
+ * RouteCollection (route discovery).
  *
  * Not ported yet: every service that is not listed below.
 --->
@@ -319,8 +322,6 @@
 
 	<!---
 	 * The Parser is a simple template parser.
-	 *
-	 * Not ported yet: the file locator (service("locator")).
 	--->
 	<cffunction name="parser" access="public" returntype="any" output="no">
 		<cfargument name="viewPath" type="string" required="no" default="">

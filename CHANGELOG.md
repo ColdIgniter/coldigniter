@@ -16,6 +16,7 @@ What is in it:
 
 - Helpers: html and text. `highlight_code()` is not ported, and throws.
 - Config: `ForeignCharacters`, used by `convert_accented_characters()`.
+- Autoloader: `FileLocator` and `FileLocatorCached`, the `locator` service, `Config\Optimize` (only `locatorCacheEnabled` is used), and classmap loading and `sanitizeFilename()` in the autoloader. `helper()` and namespaced views now find their files through the locator.
 - `Config\DocTypes` now decides whether `img()` and the other html tags close with ` /`.
 
 ## 4.0.0
