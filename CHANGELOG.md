@@ -21,6 +21,9 @@ What is in it:
 - Common functions: `app_timezone()`, `cookie_()` (the name has an underscore, as `cookie` is a scope), `cookies()`, `function_usable()`, `is_cli()`, `is_really_writable()`, `is_windows()`, `response()`, `single_service()` and `timer()`. `esc()` has the `css` context and the encoding argument (new `ThirdParty\Escaper\Escaper`).
 - `Config\BaseService`: `serviceExists()`, `reset()`, `resetSingle()`, `injectMock()`, `resetServicesCache()`, `set()` and `override()`. Module discovery is not ported.
 - `Timer::record()`, and `View::render()` with the `cache` and `cache_name` options.
+- Config: `Factory`. `Factories` now follows CodeIgniter: `define()`, `getOptions()`, `setOptions()`, `reset()`, `injectMock()` and the options `component`, `path`, `instanceOf`, `getShared` and `preferApp`. `model()` is added.
+- Fix: `config("Config\App")` and then `config("App")` made two objects. Now they share one.
+- Fix: RESTful resource controllers now get their model through `model()`, so the shared instance and not a new one each time.
 
 ## 4.0.0
 
