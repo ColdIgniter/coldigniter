@@ -641,7 +641,7 @@
 	</cffunction>
 
 	<!---
-	 * The throttler provides rate-limiting.
+	 * The Throttler class provides a simple method for implementing rate limiting in your applications.
 	--->
 	<cffunction name="throttler" access="public" returntype="any" output="no">
 		<cfargument name="getShared" type="boolean" required="no" default="true">

@@ -27,9 +27,9 @@
 		<cfargument name="key" type="string" required="yes">
 		<cfargument name="capacity" type="numeric" required="yes">
 		<cfargument name="seconds" type="numeric" required="yes">
-		<cfargument name="cost" type="numeric" required="no" default="1">
+		<cfargument name="cost" type="numeric" required="yes">
 
-		<cfthrow type="ColdIgniter.Throttle.ThrottlerException" message="The throttler does not define check().">
+		<cfthrow type="ColdIgniter.LogicException" message="The throttler does not define check().">
 	</cffunction>
 
 	<!---
@@ -37,7 +37,7 @@
 	 * be released for usage.
 	--->
 	<cffunction name="getTokenTime" access="public" returntype="numeric" output="no">
-		<cfthrow type="ColdIgniter.Throttle.ThrottlerException" message="The throttler does not define getTokenTime().">
+		<cfthrow type="ColdIgniter.LogicException" message="The throttler does not define getTokenTime().">
 	</cffunction>
 
 </cfcomponent>

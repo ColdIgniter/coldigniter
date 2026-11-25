@@ -17,7 +17,8 @@
  * called. The time of a bucket that is missing is 0, as null is 0 in the
  * arithmetic of the original.
  *
- * Difference: the types int of the original are numeric. The result of
+ * Difference: the types int of the original are numeric, as CFML has no int
+ * type (a platform limit). The result of
  * round() is positive here ((1 - tokens) * refresh is above 0, as tokens is
  * below 1), so Round() and (int) give the same number.
 --->
