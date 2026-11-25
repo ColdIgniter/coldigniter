@@ -5,9 +5,6 @@
  * of such a chain is shared (see extend() and parentObject() of the
  * Autoloader), so the call would reach this function again. The copy must
  * change whenever Controller.initController() changes.
- *
- * Not ported yet: model() (Factories): setModel() makes the model with
- * new_(), so a model is not shared.
 --->
 <cfcomponent output="no" parent="ColdIgniter\Controller" hint="An extendable controller to help provide a UI for a resource">
 
@@ -70,7 +67,7 @@
 		</cfif>
 
 		<cfif is_null(this.model) AND NOT is_null(this.modelName) AND class_exists(this.modelName)>
-			<cfset this.model = new_(this.modelName)>
+			<cfset this.model = model(this.modelName)>
 		</cfif>
 
 		<cfif NOT is_null(this.model) AND is_null(this.modelName)>
