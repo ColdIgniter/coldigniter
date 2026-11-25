@@ -20,6 +20,7 @@ What is in it:
 - Exceptions: the exception classes and interfaces of `system/Exceptions` (`LogicException`, `RuntimeException`, `DownloadException`, `TestException` and the others) and `Debug\ExceptionHandlerInterface`. `Debug\Exceptions` reads the exit code of the exception types that have one.
 - `Debug\Exceptions`: `isDeprecationError()` and `handleDeprecationError()` are ported. CFML has no deprecation errors, so nothing calls them.
 - Log: `ChromeLoggerHandler`, and the `{session_vars}` placeholder of the logger.
+- Throttle: the `Throttler`, a token bucket rate limiter on the cache, and the `throttler` service.
 - Config: `ForeignCharacters`, used by `convert_accented_characters()`.
 - `Config\DocTypes` now decides whether `img()` and the other html tags close with ` /`.
 
