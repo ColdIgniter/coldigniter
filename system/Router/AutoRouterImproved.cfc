@@ -10,7 +10,7 @@
  * object of the controller class (static_()), and what the original reads
  * with ReflectionMethod comes from the functions in GetMetaData() of the
  * object and of the components it extends: the name as it was written, and
- * the list of parameters of the method. Two results follow:
+ * the array of parameters of the method. Two results follow:
  *
  *   - method_exists() sees public methods only, so a private method is
  *     "not found" at once, where the original finds it and answers with
@@ -231,6 +231,7 @@
 		<cfset var namespaces = ArrayNew(1)>
 		<cfset var controller = "">
 		<cfset var i = 0>
+		<cfset var valid = true>
 
 		<cfloop condition="ArrayLen(segments) GT 0">
 			<cfif segmentCount GT ArrayLen(segments)>
@@ -238,15 +239,24 @@
 			</cfif>
 
 			<cfset namespaces = ArrayNew(1)>
+			<cfset valid = true>
 			<cfloop from="1" to="#ArrayLen(segments)#" index="i">
 				<cfset ArrayAppend(namespaces, translateURI(segments[i]))>
+				<cfif NOT isValidSegment(namespaces[i])>
+					<cfset valid = false>
+				</cfif>
 			</cfloop>
 
 			<cfset controller = "\" & this.namespace
 				& "\" & implode("\", namespaces)
 				& "\" & this.defaultController>
 
-			<cfif class_exists(controller)>
+			<!---
+			 Difference: class_exists() here is a file check, so "." or ".." in
+			 a segment would resolve to a real file in another folder. A class name
+			 can never hold them, so the check is skipped for invalid segments.
+			--->
+			<cfif valid AND class_exists(controller)>
 				<cfset this.controller = controller>
 				<cfset this.params = params>
 
@@ -258,7 +268,12 @@
 			</cfif>
 
 			<!--- Prepend the last element in segments to the beginning of params. --->
-			<cfset ArrayInsertAt(params, 1, segments[ArrayLen(segments)])>
+			<cfif ArrayLen(params) EQ 0>
+				<!--- Difference: ArrayInsertAt cannot insert into an empty array. --->
+				<cfset ArrayAppend(params, segments[ArrayLen(segments)])>
+			<cfelse>
+				<cfset ArrayInsertAt(params, 1, segments[ArrayLen(segments)])>
+			</cfif>
 			<cfset ArrayDeleteAt(segments, ArrayLen(segments))>
 		</cfloop>
 

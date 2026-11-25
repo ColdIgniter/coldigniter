@@ -12,7 +12,7 @@
 	 *
 	 * @param httpVerb HTTP verb like `GET`,`POST`
 	 *
-	 * @return An array of the directory ("" for none), the controller, the method and a list of the parameters
+	 * @return An array of the directory ("" for none), the controller, the method and the parameters (an array)
 	--->
 	<cffunction name="getRoute" access="public" returntype="array" output="no">
 		<cfargument name="uri" type="string" required="yes">
