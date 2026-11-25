@@ -369,12 +369,11 @@
  *
  * The response is changed to the redirect, and then
  * ColdIgniter.HTTP.Exceptions.RedirectException is thrown (see
- * RedirectException): the caller takes the redirect from the response it
- * passed in.
+ * RedirectException): ColdIgniter::run() catches it and sends the response.
  *
  * Not ported yet: is_cli(), the session ID regeneration, the testing
- * environment, withScheme() (the scheme is replaced in the string of the
- * URI) and clearing the cookies of the response (there is no cookie store).
+ * environment and withScheme() (the scheme is replaced in the string of the
+ * URI).
 --->
 <cffunction name="force_https" returntype="void" output="no" hint="Used to force a page to be accessed in via HTTPS">
 	<cfargument name="duration" type="numeric" required="no" default="31536000">
@@ -407,8 +406,9 @@
 	<cfset arguments.response.redirect(uri)>
 	<cfset arguments.response.setStatusCode(307)>
 	<cfset arguments.response.setBody("")>
+	<cfset arguments.response.getCookieStore().clear()>
 
-	<cfset static_("ColdIgniter\HTTP\Exceptions\RedirectException").forResponse()>
+	<cfset static_("ColdIgniter\HTTP\Exceptions\RedirectException").raise(arguments.response)>
 </cffunction>
 
 <!---

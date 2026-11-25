@@ -1,8 +1,5 @@
 <!---
  * Logger configuration.
- *
- * Not ported yet: the ChromeLoggerHandler (see the commented-out block
- * below).
 --->
 <cfcomponent output="no" parent="ColdIgniter\Config\BaseConfig" hint="Logger configuration">
 
@@ -129,9 +126,12 @@
 
 	<!---
 	 * The ChromeLoggerHandler requires the use of the Chrome web browser
-	 * and the ChromeLogger extension.
+	 * and the ChromeLogger extension. Uncomment this block to use it.
 	 *
-	 * Not ported yet: the ChromeLoggerHandler
+	 *     <cfset this.handlers["ColdIgniter\Log\Handlers\ChromeLoggerHandler"] = CreateObject("java", "java.util.LinkedHashMap").init()>
+	 *
+	 *     The log levels that this handler will handle.
+	 *     <cfset this.handlers["ColdIgniter\Log\Handlers\ChromeLoggerHandler"]["handles"] = ...>
 	--->
 
 	<!---
