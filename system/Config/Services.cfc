@@ -641,6 +641,19 @@
 	</cffunction>
 
 	<!---
+	 * The throttler provides rate-limiting.
+	--->
+	<cffunction name="throttler" access="public" returntype="any" output="no">
+		<cfargument name="getShared" type="boolean" required="no" default="true">
+
+		<cfif arguments.getShared>
+			<cfreturn getSharedInstance("throttler")>
+		</cfif>
+
+		<cfreturn new_("ColdIgniter\Throttle\Throttler", static_("Config\Services").get("cache"))>
+	</cffunction>
+
+	<!---
 	 * The Timer class provides a simple way to Benchmark portions of your
 	 * application.
 	--->
