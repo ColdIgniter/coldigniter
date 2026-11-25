@@ -1,8 +1,11 @@
 <!---
- * Not ported yet: ExceptionHandlerInterface (there are no interfaces,
- * the handle() method is the one the interface asks for), ResponseTrait
- * (the API responses), CLIRequest and the CLI views, so the request is
- * always an IncomingRequest.
+ * Difference: the original implements ExceptionHandlerInterface. There are no
+ * interfaces on 6.1, so this component does not extend it (it extends
+ * BaseExceptionHandler); the handle() method is the one the interface asks
+ * for.
+ *
+ * Not ported yet: ResponseTrait (the API responses), CLIRequest and the CLI
+ * views, so the request is always an IncomingRequest.
 --->
 <cfcomponent output="no" extends="BaseExceptionHandler" hint="The default exception handler">
 

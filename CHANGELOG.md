@@ -15,6 +15,11 @@ Unreleased. Ported from CodeIgniter 4.7.6, for ColdFusion MX 6.1.
 What is in it:
 
 - Helpers: html and text. `highlight_code()` is not ported, and throws.
+- Response: `setCache()`, `setLastModified()` and `setDate()`. A Cache-Control map may hold directives without a value, as keys that are numbers.
+- Redirects: `RedirectException` holds its response, and `ColdIgniter::run()` catches it and sends the redirect. `force_https()` called from a controller now redirects instead of showing a 500 page.
+- Exceptions: the exception classes and interfaces of `system/Exceptions` (`LogicException`, `RuntimeException`, `DownloadException`, `TestException` and the others) and `Debug\ExceptionHandlerInterface`. `Debug\Exceptions` reads the exit code of the exception types that have one.
+- `Debug\Exceptions`: `isDeprecationError()` and `handleDeprecationError()` are ported. CFML has no deprecation errors, so nothing calls them.
+- Log: `ChromeLoggerHandler`, and the `{session_vars}` placeholder of the logger.
 - Throttle: the `Throttler`, a token bucket rate limiter on the cache, and the `throttler` service.
 - Config: `ForeignCharacters`, used by `convert_accented_characters()`.
 - Autoloader: `FileLocator` and `FileLocatorCached`, the `locator` service, `Config\Optimize` (only `locatorCacheEnabled` is used), and classmap loading and `sanitizeFilename()` in the autoloader. `helper()`, namespaced views, the Parser and the class search of `Factories` now find their files through the locator.

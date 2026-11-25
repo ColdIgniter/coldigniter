@@ -167,9 +167,19 @@
 		<cfif instanceof_(possibleResponse, "ColdIgniter\HTTP\ResponseInterface")>
 			<cfset this.response = possibleResponse>
 		<cfelse>
-			<!--- Not ported yet: ResponsableInterface --->
+			<!---
+			 Difference: the original catches ResponsableInterface, which
+			 is implemented by RedirectException only (the other classes
+			 that implement it are not ported yet). The exception object is
+			 the one that was raised last (see RedirectException).
+			--->
 			<cftry>
 				<cfset this.response = handleRequest(arguments.routes, "", arguments.returnResponse)>
+
+				<cfcatch type="ColdIgniter.HTTP.Exceptions.RedirectException">
+					<!--- Not ported yet: outputBufferingEnd() --->
+					<cfset this.response = static_("ColdIgniter\HTTP\Exceptions\RedirectException").lastThrown().getResponse()>
+				</cfcatch>
 
 				<cfcatch type="ColdIgniter.Exceptions.PageNotFoundException">
 					<cfset e = StructNew()>

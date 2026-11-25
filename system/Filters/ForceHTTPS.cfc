@@ -1,9 +1,9 @@
 <!---
  * Force HTTPS filter
  *
- * The original gets the response of the exception it catches. An exception
- * cannot hold the response here, so force_https() changes the response it is
- * given and that response is returned (see force_https() in Common.cfm).
+ * The original gets the response of the exception it catches. The type is
+ * caught here, and the exception object is the one that was raised last
+ * (see RedirectException).
 --->
 <cfcomponent output="no" extends="FilterInterface" hint="Force HTTPS filter">
 
@@ -34,7 +34,7 @@
 			<cfset force_https(request.YEAR, arguments.request_, response)>
 
 			<cfcatch type="ColdIgniter.HTTP.Exceptions.RedirectException">
-				<cfreturn response>
+				<cfreturn static_("ColdIgniter\HTTP\Exceptions\RedirectException").lastThrown().getResponse()>
 			</cfcatch>
 		</cftry>
 
