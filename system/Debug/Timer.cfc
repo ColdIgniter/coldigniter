@@ -138,8 +138,52 @@
 	</cffunction>
 
 	<!---
-	 * Not ported yet: record(name, callable), as a function is not a
-	 * value that can be called on this platform.
+	 * Executes callable and measures its time.
+	 * Returns its return value if any.
+	 *
+	 * Difference: there are no closures on 6.1, so a callable is a pair (a
+	 * list of two): [object-or-class-name, "method"], or the string
+	 * "Class\Name::method". The class name is reached with static_(). It is
+	 * called with no arguments, as target.method(). See Events.
+	 *
+	 * @param name     The name of the timer
+	 * @param callable The callable to be executed
+	 *
+	 * @return What the callable returned, or an empty string (null)
 	--->
+	<cffunction name="record" access="public" returntype="any" output="no">
+		<cfargument name="name" type="string" required="yes">
+		<cfargument name="callable" type="any" required="yes">
+		<cfset var target = "">
+		<cfset var method = "">
+		<cfset var returnValue = "">
+
+		<cfif IsArray(arguments.callable)>
+			<cfset target = arguments.callable[1]>
+			<cfset method = arguments.callable[2]>
+		<cfelse>
+			<cfset target = ListFirst(Replace(arguments.callable, "::", Chr(1)), Chr(1))>
+			<cfset method = ListLast(Replace(arguments.callable, "::", Chr(1)), Chr(1))>
+		</cfif>
+
+		<cfif NOT IsObject(target)>
+			<cfset target = static_(target)>
+		</cfif>
+
+		<!--- the method is put in the Evaluate below, so only the name of a method of the object is let through --->
+		<cfif NOT method_exists(target, method)>
+			<cfthrow type="ColdIgniter.Exceptions.InvalidArgumentException" message="The callable has no method ""#method#"".">
+		</cfif>
+
+		<cfset start(arguments.name)>
+		<cfset returnValue = Evaluate("target.#method#()")>
+		<cfset stop(arguments.name)>
+
+		<cfif NOT IsDefined("returnValue")>
+			<cfreturn "">
+		</cfif>
+
+		<cfreturn returnValue>
+	</cffunction>
 
 </cfcomponent>
